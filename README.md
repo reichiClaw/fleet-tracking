@@ -47,8 +47,8 @@ foundations.
 4. Use `docs/backlog.md` to sequence implementation.
 5. Assign agents using `docs/agent-prompts.md` or the focused prompts in
    `agent-tasks/`.
-6. Use `docs/deployment.md` when turning the implementation into a running
-   Docker Compose deployment.
+6. Use `SETUP.md` for the complete Docker and Proxmox setup guide.
+7. Use `docs/deployment.md` for the shorter deployment reference.
 
 ## Common Docker commands
 
@@ -69,6 +69,10 @@ start the stack. Review `.env` before production use.
 The bundled Nginx service listens on `NGINX_HTTP_PORT` and proxies `/api/` and
 `/admin/` to the backend while serving the frontend from the frontend static
 container.
+
+For production sizing, Proxmox recommendations, backup/restore steps, HTTPS
+settings, and hosted-platform options such as Vercel, Cloudflare, Render,
+Railway, Fly.io, and DigitalOcean, see `SETUP.md`.
 
 ## MVP definition
 
