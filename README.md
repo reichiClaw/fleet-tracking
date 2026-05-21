@@ -54,12 +54,17 @@ foundations.
 
 ```bash
 cp .env.example .env
+./scripts/setup.sh
 make compose-config
 make up
 make logs
 make backup
 make restore DB=backups/fleet_tracking_YYYYMMDD_HHMMSS.dump MEDIA=backups/media_YYYYMMDD_HHMMSS.tar.gz
 ```
+
+Use `./scripts/setup.sh --install-system-packages --deploy` on a fresh Ubuntu VM
+to install prerequisites, prepare dependencies, run checks, validate Compose, and
+start the stack. Review `.env` before production use.
 
 The bundled Nginx service listens on `NGINX_HTTP_PORT` and proxies `/api/` and
 `/admin/` to the backend while serving the frontend from the frontend static

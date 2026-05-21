@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from audit.models import AuditLog
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
-from workflows.models import Loan
+from workflows.models import Loan, LoanStatus
 
 
 class DomainAPITestCase(TestCase):
@@ -192,3 +192,63 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(set(response.data.keys()), {"loans", "check_ins", "manufacturer_checkouts", "damages", "media"})
         self.assertEqual(len(response.data["loans"]), 1)
+
+
+class DashboardAPITests(DomainAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.category = VehicleCategory.objects.create(name="Dashboard")
+        self.available_vehicle = Vehicle.objects.create(
+            internal_number="VH-DASH-1",
+            category=self.category,
+            manufacturer="Acme",
+            model="A1",
+            status=VehicleStatus.AVAILABLE,
+        )
+        self.loaned_vehicle = Vehicle.objects.create(
+            internal_number="VH-DASH-2",
+            category=self.category,
+            manufacturer="Acme",
+            model="A2",
+            status=VehicleStatus.LOANED,
+        )
+
+    def test_dashboard_status_summary_returns_counts_for_all_statuses(self):
+        response = self.client_for(self.operations_user).get("/api/v1/dashboard/status-summary/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[VehicleStatus.AVAILABLE], 1)
+        self.assertEqual(response.data[VehicleStatus.LOANED], 1)
+        self.assertIn(VehicleStatus.ARCHIVED, response.data)
+
+    def test_dashboard_overdue_loans_returns_active_overdue_loans(self):
+        overdue = Loan.objects.create(
+            vehicle=self.loaned_vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() - timedelta(hours=1),
+            checkout_odometer_km=10,
+            status=LoanStatus.ACTIVE,
+            created_by=self.operations_user,
+        )
+        Loan.objects.create(
+            vehicle=self.available_vehicle,
+            borrower_name="Future",
+            borrower_phone="456",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            status=LoanStatus.ACTIVE,
+            created_by=self.operations_user,
+        )
+
+        response = self.client_for(self.operations_user).get("/api/v1/dashboard/overdue-loans/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in response.data], [str(overdue.id)])
+
+    def test_dashboard_recent_activity_returns_audit_entries(self):
+        AuditLog.objects.create(actor=self.admin_user, action="vehicle.created", entity_type="vehicle")
+
+        response = self.client_for(self.operations_user).get("/api/v1/dashboard/recent-activity/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["action"], "vehicle.created")

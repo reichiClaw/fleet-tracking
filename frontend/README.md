@@ -27,11 +27,16 @@ npm run preview
 npm test
 ```
 
-## Implemented foundation
+## Implemented application areas
 
-- React Router routes for login and authenticated app pages.
-- API client that reads `VITE_API_BASE_URL` and sends JSON requests with credentials.
+- React Router routes for login, dashboard, vehicle pool/detail, workflows,
+  imports, and administration.
+- API client that reads `VITE_API_BASE_URL`, sends JSON requests with
+  credentials, includes CSRF headers, and follows paginated API lists.
 - German and English i18n resources with persisted language preference.
-- Placeholder login flow, authenticated layout, dashboard, vehicle pool, and admin navigation entries.
-- Smoke tests for rendering, language persistence, and role-aware navigation.
+- Workflow screens for check-in, loan checkout/return, manufacturer check-out,
+  media uploads, signatures, and PDF generation.
+- Admin screens for users, categories, vehicles, imports, and audit review.
+- Smoke tests for rendering, language persistence, role-aware navigation, API
+  client behavior, and translations.
 - Dockerfile for building static assets and serving them with Nginx.

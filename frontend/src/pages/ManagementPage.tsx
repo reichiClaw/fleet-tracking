@@ -2,14 +2,28 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
+  createUser,
   createCompany,
   createDriver,
+  createVehicle,
+  createVehicleCategory,
   displayDriverName,
+  displayVehicleName,
+  listAuditLogs,
   listCompanies,
   listDrivers,
+  listUsers,
+  listVehicleCategories,
+  listVehicles,
+  type AuditLog,
   type Company,
   type CompanyType,
   type Driver,
+  type UserRecord,
+  type UserRole,
+  type Vehicle,
+  type VehicleCategory,
+  type VehicleStatus,
 } from '../api/fleet';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
@@ -228,6 +242,231 @@ export function DriverManagementPage() {
       ) : null}
       {isLoading ? <LoadingState /> : <DriverList drivers={drivers} companies={companies} />}
     </section>
+  );
+}
+
+const vehicleStatuses: VehicleStatus[] = ['announced', 'checked_in', 'available', 'maintenance', 'damaged', 'manufacturer_checkout', 'archived'];
+const userRoles: UserRole[] = ['admin', 'operations', 'readonly'];
+
+export function AdminManagementPage() {
+  const { t, i18n } = useTranslation();
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('operations');
+  const [categoryName, setCategoryName] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleCategory, setVehicleCategory] = useState('');
+  const [manufacturer, setManufacturer] = useState('');
+  const [model, setModel] = useState('');
+  const [vehicleStatus, setVehicleStatus] = useState<VehicleStatus>('announced');
+
+  async function loadAdminData() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [nextUsers, nextCategories, nextVehicles, nextAuditLogs] = await Promise.all([
+        listUsers(),
+        listVehicleCategories(),
+        listVehicles(),
+        listAuditLogs(),
+      ]);
+      setUsers(nextUsers);
+      setCategories(nextCategories);
+      setVehicles(nextVehicles);
+      setAuditLogs(nextAuditLogs.slice(0, 10));
+    } catch {
+      setError(t('management.loadError'));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!username.trim() || !password) {
+      setError(t('management.validation.userRequired'));
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await createUser({ username: username.trim(), password, role, is_active: true });
+      setUsername('');
+      setPassword('');
+      await loadAdminData();
+    } catch {
+      setError(t('management.saveError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!categoryName.trim()) {
+      setError(t('management.validation.categoryRequired'));
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await createVehicleCategory({ name: categoryName.trim(), is_active: true });
+      setCategoryName('');
+      await loadAdminData();
+    } catch {
+      setError(t('management.saveError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCreateVehicle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!vehicleNumber.trim() || !vehicleCategory || !manufacturer.trim() || !model.trim()) {
+      setError(t('management.validation.vehicleRequired'));
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await createVehicle({
+        internal_number: vehicleNumber.trim(),
+        category: vehicleCategory,
+        manufacturer: manufacturer.trim(),
+        model: model.trim(),
+        status: vehicleStatus,
+      });
+      setVehicleNumber('');
+      setManufacturer('');
+      setModel('');
+      await loadAdminData();
+    } catch {
+      setError(t('management.saveError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="page-stack">
+      <div className="page-header">
+        <p className="eyebrow">{t('management.admin.eyebrow')}</p>
+        <h2>{t('management.admin.title')}</h2>
+        <p>{t('management.admin.description')}</p>
+      </div>
+      {error ? <ErrorState message={error} /> : null}
+      <section className="card-grid card-grid--two">
+        <form className="content-card form-stack" onSubmit={handleCreateUser}>
+          <h3>{t('management.admin.usersTitle')}</h3>
+          <label>
+            <span>{t('management.fields.username')}</span>
+            <input value={username} onChange={(event) => setUsername(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.password')}</span>
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.role')}</span>
+            <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+              {userRoles.map((item) => (
+                <option key={item} value={item}>{t(`roles.${item}`)}</option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" disabled={isSubmitting}>{t('management.admin.addUser')}</button>
+        </form>
+
+        <form className="content-card form-stack" onSubmit={handleCreateCategory}>
+          <h3>{t('management.admin.categoriesTitle')}</h3>
+          <label>
+            <span>{t('management.fields.category')}</span>
+            <input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} />
+          </label>
+          <button type="submit" disabled={isSubmitting}>{t('management.admin.addCategory')}</button>
+        </form>
+      </section>
+
+      <form className="content-card form-stack" onSubmit={handleCreateVehicle}>
+        <h3>{t('management.admin.vehiclesTitle')}</h3>
+        <div className="form-grid form-grid--two">
+          <label>
+            <span>{t('management.fields.internalNumber')}</span>
+            <input value={vehicleNumber} onChange={(event) => setVehicleNumber(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.category')}</span>
+            <select value={vehicleCategory} onChange={(event) => setVehicleCategory(event.target.value)}>
+              <option value="">{t('vehicles.filters.allCategories')}</option>
+              {categories.filter((category) => category.is_active).map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('management.fields.manufacturer')}</span>
+            <input value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.model')}</span>
+            <input value={model} onChange={(event) => setModel(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('vehicles.filters.status')}</span>
+            <select value={vehicleStatus} onChange={(event) => setVehicleStatus(event.target.value as VehicleStatus)}>
+              {vehicleStatuses.map((status) => (
+                <option key={status} value={status}>{t(`status.${status}`)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <button type="submit" disabled={isSubmitting}>{t('management.admin.addVehicle')}</button>
+      </form>
+
+      {isLoading ? (
+        <LoadingState />
+      ) : (
+        <section className="card-grid card-grid--two">
+          <AdminList title={t('management.admin.usersTitle')} items={users.map((user) => `${user.username} · ${t(`roles.${user.role}`)}`)} />
+          <AdminList title={t('management.admin.categoriesTitle')} items={categories.map((category) => category.name)} />
+          <AdminList title={t('management.admin.vehiclesTitle')} items={vehicles.map((vehicle) => displayVehicleName(vehicle))} />
+          <AdminList
+            title={t('management.admin.auditTitle')}
+            items={auditLogs.map((entry) => `${entry.action} · ${entry.created_at ? new Intl.DateTimeFormat(i18n.language).format(new Date(entry.created_at)) : ''}`)}
+          />
+        </section>
+      )}
+    </section>
+  );
+}
+
+function AdminList({ title, items }: { title: string; items: string[] }) {
+  const { t } = useTranslation();
+  return (
+    <article className="content-card">
+      <h3>{title}</h3>
+      {items.length ? (
+        <ul className="list-stack">
+          {items.slice(0, 10).map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint-text">{t('common.notAvailable')}</p>
+      )}
+    </article>
   );
 }
 

@@ -111,10 +111,33 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   }, [t]);
 
   const activeLoans = useMemo(() => loans.filter((item) => item.status === 'active'), [loans]);
+  const selectableVehicles = useMemo(() => {
+    if (kind === 'loan-checkout') {
+      return vehicles.filter((item) => item.status === 'available');
+    }
+    if (kind === 'manufacturer-checkout') {
+      return vehicles.filter(
+        (item) => !['announced', 'loaned', 'manufacturer_checkout', 'archived'].includes(item.status),
+      );
+    }
+    return vehicles.filter((item) => item.status !== 'archived');
+  }, [kind, vehicles]);
   const selectedLoan = useMemo(() => loans.find((item) => item.id === loan), [loan, loans]);
   const selectedVehicleId = kind === 'loan-return' ? selectedLoan?.vehicle : vehicle;
   const currentTitleKey = `workflows.${translationPrefix(kind)}.title`;
   const language = i18n.language.startsWith('de') ? 'de' : 'en';
+
+  useEffect(() => {
+    if (kind !== 'loan-checkout' || !driver) {
+      return;
+    }
+    const selectedDriver = drivers.find((item) => item.id === driver);
+    if (!selectedDriver) {
+      return;
+    }
+    setBorrowerName(displayDriverName(selectedDriver));
+    setBorrowerPhone(selectedDriver.phone || '');
+  }, [driver, drivers, kind]);
 
   function addMedia(media: MediaFile) {
     setMediaFileIds((current) => [...current, media.id]);
@@ -128,6 +151,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       }
     } else if (!vehicle) {
       nextErrors.vehicle = t('workflows.validation.vehicleRequired');
+    } else if (!selectableVehicles.some((item) => item.id === vehicle)) {
+      nextErrors.vehicle = t('workflows.validation.vehicleUnavailable');
     }
 
     if (kind === 'loan-checkout') {
@@ -312,7 +337,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           <Field label={t('workflows.fields.vehicle')} error={fieldErrors.vehicle}>
             <select value={vehicle} onChange={(event) => setVehicle(event.target.value)}>
               <option value="">{t('workflows.placeholders.selectVehicle')}</option>
-              {vehicles.map((item) => (
+              {selectableVehicles.map((item) => (
                 <option key={item.id} value={item.id}>
                   {displayVehicleName(item)}
                 </option>

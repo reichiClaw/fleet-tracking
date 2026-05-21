@@ -205,9 +205,11 @@ export function VehiclePoolPage() {
                 <Link className="button-link secondary-button" to={`/app/vehicles/${vehicle.id}`}>
                   {t('vehicles.actions.details')}
                 </Link>
-                <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
-                  {t('workflows.loanCheckout.shortTitle')}
-                </Link>
+                {vehicle.status === 'available' ? (
+                  <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
+                    {t('workflows.loanCheckout.shortTitle')}
+                  </Link>
+                ) : null}
               </div>
             </article>
           );

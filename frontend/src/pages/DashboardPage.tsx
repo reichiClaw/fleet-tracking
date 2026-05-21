@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { listLoans, listVehicles, type Loan, type Vehicle } from '../api/fleet';
+import {
+  getDashboardOverdueLoans,
+  getDashboardRecentActivity,
+  getDashboardStatusSummary,
+  type AuditLog,
+  type DashboardSummary,
+  type Loan,
+} from '../api/fleet';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { StatusBadge } from '../components/StatusBadge';
@@ -10,8 +17,9 @@ const summaryStatuses = ['available', 'loaned', 'maintenance', 'damaged'] as con
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const [counts, setCounts] = useState<DashboardSummary>({});
+  const [overdueLoans, setOverdueLoans] = useState<Loan[]>([]);
+  const [activity, setActivity] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +29,15 @@ export function DashboardPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextLoans] = await Promise.all([listVehicles(), listLoans()]);
+        const [nextCounts, nextLoans, nextActivity] = await Promise.all([
+          getDashboardStatusSummary(),
+          getDashboardOverdueLoans(),
+          getDashboardRecentActivity(),
+        ]);
         if (isMounted) {
-          setVehicles(nextVehicles);
-          setLoans(nextLoans);
+          setCounts(nextCounts);
+          setOverdueLoans(nextLoans);
+          setActivity(nextActivity);
         }
       } catch {
         if (isMounted) {
@@ -43,19 +56,7 @@ export function DashboardPage() {
     };
   }, [t]);
 
-  const counts = useMemo(
-    () =>
-      summaryStatuses.reduce<Record<string, number>>((accumulator, status) => {
-        accumulator[status] = vehicles.filter((vehicle) => vehicle.status === status).length;
-        return accumulator;
-      }, {}),
-    [vehicles],
-  );
-
-  const overdueLoans = useMemo(() => {
-    const now = Date.now();
-    return loans.filter((loan) => loan.status === 'active' && new Date(loan.expected_return_at).getTime() < now);
-  }, [loans]);
+  const recentActivity = useMemo(() => activity.slice(0, 5), [activity]);
 
   return (
     <section className="page-stack">
@@ -99,7 +100,25 @@ export function DashboardPage() {
 
         <article className="content-card">
           <h3>{t('dashboard.activity.title')}</h3>
-          <p className="hint-text">{t('dashboard.activity.placeholder')}</p>
+          {recentActivity.length ? (
+            <ul className="list-stack">
+              {recentActivity.map((entry) => (
+                <li key={entry.id}>
+                  <div>
+                    <strong>{t(`audit.actions.${entry.action}`, { defaultValue: entry.action })}</strong>
+                    <small>
+                      {entry.created_at
+                        ? new Intl.DateTimeFormat(i18n.language).format(new Date(entry.created_at))
+                        : t('common.notAvailable')}
+                    </small>
+                  </div>
+                  <span>{entry.entity_type}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="hint-text">{t('dashboard.activity.empty')}</p>
+          )}
         </article>
       </section>
     </section>

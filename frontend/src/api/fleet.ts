@@ -12,6 +12,15 @@ export type CurrentUser = {
   is_active?: boolean;
 };
 
+export type UserRecord = CurrentUser & {
+  email?: string;
+  full_name?: string;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+  last_login?: string | null;
+  date_joined?: string;
+};
+
 export type VehicleStatus =
   | 'announced'
   | 'checked_in'
@@ -56,6 +65,17 @@ export type Vehicle = {
   notes?: string;
   created_at?: string;
   updated_at?: string;
+};
+
+export type AuditLog = {
+  id: string;
+  actor?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  created_at?: string;
 };
 
 export type Company = {
@@ -190,8 +210,22 @@ export type VehicleFilters = {
   is_available?: boolean;
 };
 
-function listFromResponse<T>(response: T[] | PaginatedResponse<T>): T[] {
-  return Array.isArray(response) ? response : response.results;
+async function listAllPages<T>(path: string) {
+  const firstPage = await apiClient.get<T[] | PaginatedResponse<T>>(path);
+  if (Array.isArray(firstPage)) {
+    return firstPage;
+  }
+
+  const items = [...firstPage.results];
+  let next = firstPage.next;
+  let page = 2;
+  while (next && items.length < firstPage.count) {
+    const nextPage = await apiClient.get<PaginatedResponse<T>>(pathWithQuery(path, { page }));
+    items.push(...nextPage.results);
+    next = nextPage.next;
+    page += 1;
+  }
+  return items;
 }
 
 export function displayVehicleName(vehicle?: Vehicle | null) {
@@ -225,19 +259,19 @@ export async function getCurrentUser() {
 }
 
 function pathWithQuery(path: string, query: Record<string, string | number | boolean | null | undefined>) {
-  const params = new URLSearchParams();
+  const [basePath, existingQuery] = path.split('?', 2);
+  const params = new URLSearchParams(existingQuery);
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       params.set(key, String(value));
     }
   });
   const queryString = params.toString();
-  return queryString ? `${path}?${queryString}` : path;
+  return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
 export async function listVehicles(filters: VehicleFilters = {}) {
-  const response = await apiClient.get<Vehicle[] | PaginatedResponse<Vehicle>>(pathWithQuery('/vehicles/', filters));
-  return listFromResponse(response);
+  return listAllPages<Vehicle>(pathWithQuery('/vehicles/', filters));
 }
 
 export async function getVehicle(id: string) {
@@ -249,13 +283,15 @@ export async function getVehicleHistory(id: string) {
 }
 
 export async function listVehicleCategories() {
-  const response = await apiClient.get<VehicleCategory[] | PaginatedResponse<VehicleCategory>>('/vehicle-categories/');
-  return listFromResponse(response);
+  return listAllPages<VehicleCategory>('/vehicle-categories/');
+}
+
+export async function createVehicleCategory(payload: Partial<VehicleCategory>) {
+  return apiClient.post<VehicleCategory>('/vehicle-categories/', payload as Record<string, unknown>);
 }
 
 export async function listCompanies() {
-  const response = await apiClient.get<Company[] | PaginatedResponse<Company>>('/companies/');
-  return listFromResponse(response);
+  return listAllPages<Company>('/companies/');
 }
 
 export async function createCompany(payload: Partial<Company>) {
@@ -263,8 +299,7 @@ export async function createCompany(payload: Partial<Company>) {
 }
 
 export async function listDrivers() {
-  const response = await apiClient.get<Driver[] | PaginatedResponse<Driver>>('/drivers/');
-  return listFromResponse(response);
+  return listAllPages<Driver>('/drivers/');
 }
 
 export async function createDriver(payload: Partial<Driver>) {
@@ -272,8 +307,39 @@ export async function createDriver(payload: Partial<Driver>) {
 }
 
 export async function listLoans() {
-  const response = await apiClient.get<Loan[] | PaginatedResponse<Loan>>('/loans/');
-  return listFromResponse(response);
+  return listAllPages<Loan>('/loans/');
+}
+
+export async function cancelLoan(id: string) {
+  return apiClient.post<Loan>(`/loans/${id}/cancel/`);
+}
+
+export async function getDashboardStatusSummary() {
+  return apiClient.get<DashboardSummary>('/dashboard/status-summary/');
+}
+
+export async function getDashboardOverdueLoans() {
+  return apiClient.get<Loan[]>('/dashboard/overdue-loans/');
+}
+
+export async function getDashboardRecentActivity() {
+  return apiClient.get<AuditLog[]>('/dashboard/recent-activity/');
+}
+
+export async function listUsers() {
+  return listAllPages<UserRecord>('/users/');
+}
+
+export async function createUser(payload: Partial<UserRecord> & { password?: string }) {
+  return apiClient.post<UserRecord>('/users/', payload as Record<string, unknown>);
+}
+
+export async function createVehicle(payload: Partial<Vehicle>) {
+  return apiClient.post<Vehicle>('/vehicles/', payload as Record<string, unknown>);
+}
+
+export async function listAuditLogs() {
+  return listAllPages<AuditLog>('/audit-logs/');
 }
 
 export async function uploadMedia(file: File | Blob, metadata: Partial<MediaFile> & { media_type: MediaType }) {

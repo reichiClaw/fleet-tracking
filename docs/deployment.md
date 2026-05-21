@@ -62,7 +62,7 @@ cd /opt/fleet-tracking
 git clone <repo-url> .
 cp .env.example .env
 nano .env
-docker compose up -d --build
+./scripts/setup.sh --deploy
 ```
 
 The backend container runs migrations and `collectstatic` during startup. Create
@@ -86,9 +86,24 @@ Important production values:
 - strong `POSTGRES_PASSWORD`
 - `DEFAULT_LANGUAGE=de` or `en` according to the deployment team
 - `SUPPORTED_LANGUAGES=de,en`
-- secure cookie settings enabled behind HTTPS
+- `SECURE_SSL_REDIRECT=True` and secure cookie settings enabled behind HTTPS
+- `SECURE_HSTS_SECONDS` set only after HTTPS is confirmed for the final domain
 - `VITE_API_BASE_URL=/api/v1` for the Docker/Nginx deployment, or a full URL
   only when running the Vite dev server against a separately exposed API
+
+## Automated setup script
+
+The repository includes `scripts/setup.sh` to automate dependency setup and
+deployment checks:
+
+```bash
+./scripts/setup.sh --install-system-packages --deploy --create-superuser
+```
+
+The script can install Python venv support, Docker, and Compose on Ubuntu, copy
+`.env.example` to `.env` when needed, install backend/frontend dependencies, run
+tests and builds, validate `docker compose config`, and optionally start the
+stack. Use `./scripts/setup.sh --help` for all options.
 
 ## Backup
 

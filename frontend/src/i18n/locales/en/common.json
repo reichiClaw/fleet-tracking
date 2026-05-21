@@ -77,7 +77,8 @@
     },
     "activity": {
       "title": "Recent activity",
-      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed."
+      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed.",
+      "empty": "No recent activity found."
     }
   },
   "vehicles": {
@@ -121,11 +122,14 @@
       "loans": "Loan history",
       "checkIns": "Check-in protocols",
       "manufacturer": "Manufacturer check-outs",
+      "damages": "Damage reports",
       "media": "Media",
       "emptyLoans": "No loans recorded.",
       "emptyCheckIns": "No check-in protocols recorded.",
       "emptyManufacturer": "No manufacturer check-outs recorded.",
-      "emptyMedia": "No media uploaded."
+      "emptyDamages": "No damage reports recorded.",
+      "emptyMedia": "No media uploaded.",
+      "damageWithoutDescription": "Damage without description"
     }
   },
   "status": {
@@ -214,7 +218,8 @@
       "borrowerRequired": "Select a driver or enter a borrower name.",
       "phoneRequired": "Please enter a borrower phone number.",
       "expectedReturnRequired": "Please choose an expected return date.",
-      "damageDescriptionRequired": "Please describe the damage."
+      "damageDescriptionRequired": "Please describe the damage.",
+      "vehicleUnavailable": "This vehicle is not available for the selected workflow."
     },
     "damage": {
       "title": "Damage report",
@@ -256,7 +261,22 @@
     "addDriver": "Add driver",
     "validation": {
       "nameRequired": "Please enter a company name.",
-      "driverNameRequired": "Please enter first and last name."
+      "driverNameRequired": "Please enter first and last name.",
+      "userRequired": "Please enter a username and password.",
+      "categoryRequired": "Please enter a category name.",
+      "vehicleRequired": "Please enter vehicle number, category, manufacturer, and model."
+    },
+    "admin": {
+      "eyebrow": "Admin",
+      "title": "Administration",
+      "description": "Manage users, categories, vehicles, and audit history for deployment operations.",
+      "usersTitle": "Users",
+      "categoriesTitle": "Categories",
+      "vehiclesTitle": "Vehicles",
+      "auditTitle": "Audit log",
+      "addUser": "Add user",
+      "addCategory": "Add category",
+      "addVehicle": "Add vehicle"
     },
     "companies": {
       "eyebrow": "Management",
@@ -281,6 +301,14 @@
       "company": "Company",
       "noCompany": "No company",
       "licenseClasses": "License classes"
+      ,
+      "username": "Username",
+      "password": "Password",
+      "role": "Role",
+      "category": "Category",
+      "internalNumber": "Internal number",
+      "manufacturer": "Manufacturer",
+      "model": "Model"
     }
   },
   "imports": {
@@ -297,7 +325,8 @@
     "committing": "Committing...",
     "commitHint": "Commit is available only after a validated import without errors.",
     "validation": {
-      "fileRequired": "Please choose an Excel file."
+      "fileRequired": "Please choose an Excel file.",
+      "fileType": "Please choose an .xlsx or .xlsm file."
     },
     "uploadError": "The import file could not be uploaded.",
     "commitError": "The import could not be committed.",
@@ -341,6 +370,25 @@
   "settings": {
     "title": "Settings",
     "body": "This admin area is available as a navigation placeholder."
+  },
+  "audit": {
+    "actions": {
+      "workflow.check_in.completed": "Check-in completed",
+      "workflow.loan_checkout.completed": "Loan checkout completed",
+      "workflow.loan_return.completed": "Loan return completed",
+      "workflow.manufacturer_checkout.completed": "Manufacturer check-out completed",
+      "workflow.loan_cancelled": "Loan cancelled",
+      "document.pdf.generated": "PDF generated",
+      "vehicle.created": "Vehicle created",
+      "vehicle.updated": "Vehicle updated",
+      "vehicle.archived": "Vehicle archived",
+      "vehicle_category.created": "Category created",
+      "vehicle_category.updated": "Category updated",
+      "vehicle_category.deactivated": "Category deactivated",
+      "user.created": "User created",
+      "user.updated": "User updated",
+      "user.deactivated": "User deactivated"
+    }
   },
   "notFound": {
     "title": "Page not found",

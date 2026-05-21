@@ -7,9 +7,8 @@ import { AppLayout } from '../layouts/AppLayout';
 import { AdminImportPage } from '../pages/AdminImportPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
-import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
+import { AdminManagementPage, CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
 import { VehicleDetailPage } from '../pages/VehicleDetailPage';
 import { VehiclePoolPage } from '../pages/VehiclePoolPage';
 import { WorkflowPage } from '../pages/WorkflowPage';
@@ -66,7 +65,7 @@ export function AppRoutes() {
         <Route path="drivers" element={<DriverManagementPage />} />
         <Route path="companies" element={<CompanyManagementPage />} />
         <Route path="imports" element={<RequireRole roles={adminRoles}><AdminImportPage /></RequireRole>} />
-        <Route path="settings" element={<RequireRole roles={adminRoles}><PlaceholderPage translationKey="settings" /></RequireRole>} />
+        <Route path="settings" element={<RequireRole roles={adminRoles}><AdminManagementPage /></RequireRole>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

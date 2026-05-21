@@ -77,7 +77,8 @@
     },
     "activity": {
       "title": "Aktuelle Aktivitäten",
-      "placeholder": "Aktuelle Aktivitäten nutzen den dedizierten Dashboard-Endpunkt, sobald er bereitsteht."
+      "placeholder": "Aktuelle Aktivitäten nutzen den dedizierten Dashboard-Endpunkt, sobald er bereitsteht.",
+      "empty": "Keine aktuellen Aktivitäten gefunden."
     }
   },
   "vehicles": {
@@ -121,11 +122,14 @@
       "loans": "Ausleihhistorie",
       "checkIns": "Check-in-Protokolle",
       "manufacturer": "Hersteller-Check-outs",
+      "damages": "Schadensmeldungen",
       "media": "Medien",
       "emptyLoans": "Keine Ausleihen erfasst.",
       "emptyCheckIns": "Keine Check-in-Protokolle erfasst.",
       "emptyManufacturer": "Keine Hersteller-Check-outs erfasst.",
-      "emptyMedia": "Keine Medien hochgeladen."
+      "emptyDamages": "Keine Schadensmeldungen erfasst.",
+      "emptyMedia": "Keine Medien hochgeladen.",
+      "damageWithoutDescription": "Schaden ohne Beschreibung"
     }
   },
   "status": {
@@ -214,7 +218,8 @@
       "borrowerRequired": "Wählen Sie einen Fahrer aus oder geben Sie einen Entleiher ein.",
       "phoneRequired": "Bitte geben Sie eine Telefonnummer des Entleihers ein.",
       "expectedReturnRequired": "Bitte wählen Sie eine erwartete Rückgabe.",
-      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden."
+      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden.",
+      "vehicleUnavailable": "Dieses Fahrzeug ist für den ausgewählten Workflow nicht verfügbar."
     },
     "damage": {
       "title": "Schadensmeldung",
@@ -256,7 +261,22 @@
     "addDriver": "Fahrer hinzufügen",
     "validation": {
       "nameRequired": "Bitte geben Sie einen Firmennamen ein.",
-      "driverNameRequired": "Bitte geben Sie Vor- und Nachnamen ein."
+      "driverNameRequired": "Bitte geben Sie Vor- und Nachnamen ein.",
+      "userRequired": "Bitte geben Sie Benutzername und Passwort ein.",
+      "categoryRequired": "Bitte geben Sie einen Kategorienamen ein.",
+      "vehicleRequired": "Bitte geben Sie Fahrzeugnummer, Kategorie, Hersteller und Modell ein."
+    },
+    "admin": {
+      "eyebrow": "Admin",
+      "title": "Administration",
+      "description": "Benutzer, Kategorien, Fahrzeuge und Audit-Historie für den Betrieb verwalten.",
+      "usersTitle": "Benutzer",
+      "categoriesTitle": "Kategorien",
+      "vehiclesTitle": "Fahrzeuge",
+      "auditTitle": "Audit-Log",
+      "addUser": "Benutzer hinzufügen",
+      "addCategory": "Kategorie hinzufügen",
+      "addVehicle": "Fahrzeug hinzufügen"
     },
     "companies": {
       "eyebrow": "Verwaltung",
@@ -281,6 +301,14 @@
       "company": "Firma",
       "noCompany": "Keine Firma",
       "licenseClasses": "Führerscheinklassen"
+      ,
+      "username": "Benutzername",
+      "password": "Passwort",
+      "role": "Rolle",
+      "category": "Kategorie",
+      "internalNumber": "Interne Nummer",
+      "manufacturer": "Hersteller",
+      "model": "Modell"
     }
   },
   "imports": {
@@ -297,7 +325,8 @@
     "committing": "Wird übernommen...",
     "commitHint": "Übernehmen ist nur nach einem validierten Import ohne Fehler möglich.",
     "validation": {
-      "fileRequired": "Bitte wählen Sie eine Excel-Datei aus."
+      "fileRequired": "Bitte wählen Sie eine Excel-Datei aus.",
+      "fileType": "Bitte wählen Sie eine .xlsx- oder .xlsm-Datei aus."
     },
     "uploadError": "Die Importdatei konnte nicht hochgeladen werden.",
     "commitError": "Der Import konnte nicht übernommen werden.",
@@ -341,6 +370,25 @@
   "settings": {
     "title": "Einstellungen",
     "body": "Dieser Admin-Bereich ist als Navigationsplatzhalter angelegt."
+  },
+  "audit": {
+    "actions": {
+      "workflow.check_in.completed": "Check-in abgeschlossen",
+      "workflow.loan_checkout.completed": "Ausleihe ausgegeben",
+      "workflow.loan_return.completed": "Ausleihe zurückgegeben",
+      "workflow.manufacturer_checkout.completed": "Hersteller-Check-out abgeschlossen",
+      "workflow.loan_cancelled": "Ausleihe storniert",
+      "document.pdf.generated": "PDF erzeugt",
+      "vehicle.created": "Fahrzeug angelegt",
+      "vehicle.updated": "Fahrzeug aktualisiert",
+      "vehicle.archived": "Fahrzeug archiviert",
+      "vehicle_category.created": "Kategorie angelegt",
+      "vehicle_category.updated": "Kategorie aktualisiert",
+      "vehicle_category.deactivated": "Kategorie deaktiviert",
+      "user.created": "Benutzer angelegt",
+      "user.updated": "Benutzer aktualisiert",
+      "user.deactivated": "Benutzer deaktiviert"
+    }
   },
   "notFound": {
     "title": "Seite nicht gefunden",

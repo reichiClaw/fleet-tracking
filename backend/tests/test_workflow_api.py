@@ -46,6 +46,14 @@ class WorkflowAPITestCase(TestCase):
 class CheckInWorkflowTests(WorkflowAPITestCase):
     def test_check_in_creates_protocol_damage_media_audit_and_updates_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=10, hours="1.0")
+        media = MediaFile.objects.create(
+            media_type=MediaType.PHOTO,
+            original_filename="scratch.jpg",
+            storage_key="tests/scratch.jpg",
+            content_type="image/jpeg",
+            size_bytes=1234,
+            uploaded_by=self.operations_user,
+        )
 
         response = self.api_client().post(
             "/api/v1/workflows/check-ins/",
@@ -55,14 +63,7 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "operating_hours": "2.5",
                 "condition_notes": "Visible scratch",
                 "damage_reports": [{"description": "Scratch on door", "severity": "minor"}],
-                "media_files": [
-                    {
-                        "media_type": MediaType.PHOTO,
-                        "original_filename": "scratch.jpg",
-                        "content_type": "image/jpeg",
-                        "size_bytes": 1234,
-                    }
-                ],
+                "media_file_ids": [str(media.id)],
             },
             format="json",
         )
@@ -94,7 +95,15 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
 
 class LoanWorkflowTests(WorkflowAPITestCase):
     def test_loan_checkout_creates_active_loan_and_marks_vehicle_loaned(self):
-        vehicle = self.vehicle(status_value=VehicleStatus.CHECKED_IN, odometer=100, hours="10.0")
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE, odometer=100, hours="10.0")
+        media = MediaFile.objects.create(
+            media_type=MediaType.SIGNATURE,
+            original_filename="signature.png",
+            storage_key="tests/signature.png",
+            content_type="image/png",
+            size_bytes=500,
+            uploaded_by=self.operations_user,
+        )
 
         response = self.api_client().post(
             "/api/v1/loans/",
@@ -106,14 +115,7 @@ class LoanWorkflowTests(WorkflowAPITestCase):
                 "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
                 "checkout_odometer_km": 120,
                 "checkout_operating_hours": "11.5",
-                "media_files": [
-                    {
-                        "media_type": MediaType.SIGNATURE,
-                        "original_filename": "signature.png",
-                        "content_type": "image/png",
-                        "size_bytes": 500,
-                    }
-                ],
+                "media_file_ids": [str(media.id)],
             },
             format="json",
         )
@@ -145,6 +147,49 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(Loan.objects.count(), 0)
         vehicle.refresh_from_db()
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
+    def test_loan_checkout_rejects_checked_in_vehicle(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.CHECKED_IN)
+
+        response = self.api_client().post(
+            "/api/v1/loans/",
+            {
+                "vehicle": str(vehicle.id),
+                "borrower_name": "Borrower",
+                "borrower_phone": "123",
+                "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Loan.objects.count(), 0)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.CHECKED_IN)
+
+    def test_admin_can_cancel_active_loan_and_return_vehicle_to_pool(self):
+        admin = get_user_model().objects.create_user(username="admin", password="secret", role="admin")
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED, odometer=120)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            company=self.company,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            checkout_odometer_km=120,
+            created_by=self.operations_user,
+        )
+        client = APIClient()
+        client.force_authenticate(user=admin)
+
+        response = client.post(f"/api/v1/loans/{loan.id}/cancel/", format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.CANCELLED)
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+        self.assertTrue(AuditLog.objects.filter(action="workflow.loan_cancelled").exists())
 
     def test_loan_return_closes_active_loan_and_marks_damaged_when_damage_reported(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED, odometer=120, hours="11.5")

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fleet-tracking backend\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-21 17:07+0200\n"
+"POT-Creation-Date: 2026-05-21 17:54+0200\n"
 "PO-Revision-Date: 2026-05-21 00:00+0000\n"
 "Last-Translator: Fleet Tracking Team\n"
 "Language-Team: English\n"
@@ -52,7 +52,7 @@ msgstr "German"
 msgid "English"
 msgstr "English"
 
-#: config/views.py:16
+#: config/views.py:31
 msgid "Service is healthy."
 msgstr "Service is healthy."
 
@@ -200,11 +200,11 @@ msgstr "License plate already belongs to another vehicle."
 msgid "Duplicate license_plate in import file. First seen on row %(row)s."
 msgstr "Duplicate license_plate in import file. First seen on row %(row)s."
 
-#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:320
+#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:352
 msgid "Odometer value must not decrease."
 msgstr "Odometer value must not decrease."
 
-#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:326
+#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:358
 msgid "Operating hours must not decrease."
 msgstr "Operating hours must not decrease."
 
@@ -362,7 +362,7 @@ msgid "Cancelled"
 msgstr "Cancelled"
 
 #: workflows/models.py:59 workflows/serializers.py:57
-#: workflows/serializers.py:125
+#: workflows/serializers.py:143
 msgid "Borrower name is required when no driver is selected."
 msgstr "Borrower name is required when no driver is selected."
 
@@ -375,40 +375,55 @@ msgid "Return operating hours must not be lower than checkout operating hours."
 msgstr ""
 "Return operating hours must not be lower than checkout operating hours."
 
-#: workflows/pdf.py:177
+#: workflows/pdf.py:178
 msgid "Loan return PDF requires a returned loan."
 msgstr "Loan return PDF requires a returned loan."
 
-#: workflows/pdf.py:454
+#: workflows/pdf.py:466
 msgid "Unsupported PDF language."
 msgstr "Unsupported PDF language."
 
-#: workflows/services.py:31
+#: workflows/serializers.py:91 workflows/serializers.py:107
+#: workflows/services.py:499
+msgid "Upload files through the media endpoint and submit media_file_ids."
+msgstr ""
+
+#: workflows/serializers.py:95
+msgid "Damage reports require a description or uploaded media."
+msgstr ""
+
+#: workflows/services.py:29
 msgid "This vehicle cannot be checked in from its current status."
 msgstr "This vehicle cannot be checked in from its current status."
 
-#: workflows/services.py:99
-msgid "Only available or checked-in vehicles can be loaned."
+#: workflows/services.py:96
+#, fuzzy
+#| msgid "Only available or checked-in vehicles can be loaned."
+msgid "Only available vehicles can be loaned."
 msgstr "Only available or checked-in vehicles can be loaned."
 
-#: workflows/services.py:102
+#: workflows/services.py:98
 msgid "This vehicle already has an active loan."
 msgstr "This vehicle already has an active loan."
 
-#: workflows/services.py:169
+#: workflows/services.py:165
 msgid "Loan return requires an active loan."
 msgstr "Loan return requires an active loan."
 
-#: workflows/services.py:240
+#: workflows/services.py:232
+msgid "Only active loans can be cancelled."
+msgstr ""
+
+#: workflows/services.py:272
 msgid "Loaned vehicles cannot be checked out to manufacturers."
 msgstr "Loaned vehicles cannot be checked out to manufacturers."
 
-#: workflows/services.py:244
+#: workflows/services.py:276
 msgid ""
 "This vehicle cannot be checked out to manufacturers from its current status."
 msgstr ""
 "This vehicle cannot be checked out to manufacturers from its current status."
 
-#: workflows/services.py:403
+#: workflows/services.py:435
 msgid "This workflow cannot move the vehicle to the requested status."
 msgstr "This workflow cannot move the vehicle to the requested status."
