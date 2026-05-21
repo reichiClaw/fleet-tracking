@@ -9,8 +9,22 @@ from audit.models import AuditLog
 class AuditLogAdmin(admin.ModelAdmin):
     list_display = ("action", "entity_type", "entity_id", "actor", "created_at")
     list_filter = ("entity_type", "action", "created_at")
-    search_fields = ("action", "entity_type", "entity_id", "user_agent")
-    readonly_fields = ("id", "actor", "action", "entity_type", "entity_id", "before", "after", "ip_address", "user_agent", "created_at", "updated_at")
+    search_fields = ("action", "entity_type", "entity_id", "actor__username", "user_agent")
+    readonly_fields = (
+        "id",
+        "actor",
+        "action",
+        "entity_type",
+        "entity_id",
+        "before",
+        "after",
+        "ip_address",
+        "user_agent",
+        "created_at",
+        "updated_at",
+    )
+    list_select_related = ("actor",)
+    date_hierarchy = "created_at"
 
     def has_add_permission(self, request):
         return False

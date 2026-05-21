@@ -83,3 +83,57 @@ msgstr "Operating hours must not decrease."
 
 msgid "This workflow cannot move the vehicle to the requested status."
 msgstr "This workflow cannot move the vehicle to the requested status."
+
+msgid "Only .xlsx or .xlsm files are supported."
+msgstr "Only .xlsx or .xlsm files are supported."
+
+msgid "The uploaded Excel file could not be read."
+msgstr "The uploaded Excel file could not be read."
+
+msgid "The workbook must contain a header row."
+msgstr "The workbook must contain a header row."
+
+msgid "Missing required column: %(column)s."
+msgstr "Missing required column: %(column)s."
+
+msgid "Only vehicle import jobs can be committed by this endpoint."
+msgstr "Only vehicle import jobs can be committed by this endpoint."
+
+msgid "This import job has already been committed."
+msgstr "This import job has already been committed."
+
+msgid "Import job must be successfully validated before commit."
+msgstr "Import job must be successfully validated before commit."
+
+msgid "Import file is required."
+msgstr "Import file is required."
+
+msgid "Import file must not be empty."
+msgstr "Import file must not be empty."
+
+msgid "%(field)s is required."
+msgstr "%(field)s is required."
+
+msgid "Unknown or inactive vehicle category: %(category)s."
+msgstr "Unknown or inactive vehicle category: %(category)s."
+
+msgid "Duplicate internal_number in import file. First seen on row %(row)s."
+msgstr "Duplicate internal_number in import file. First seen on row %(row)s."
+
+msgid "Serial number already belongs to another vehicle."
+msgstr "Serial number already belongs to another vehicle."
+
+msgid "Duplicate serial_number in import file. First seen on row %(row)s."
+msgstr "Duplicate serial_number in import file. First seen on row %(row)s."
+
+msgid "License plate already belongs to another vehicle."
+msgstr "License plate already belongs to another vehicle."
+
+msgid "Duplicate license_plate in import file. First seen on row %(row)s."
+msgstr "Duplicate license_plate in import file. First seen on row %(row)s."
+
+msgid "%(field)s must be a non-negative integer."
+msgstr "%(field)s must be a non-negative integer."
+
+msgid "%(field)s must be a non-negative decimal number."
+msgstr "%(field)s must be a non-negative decimal number."

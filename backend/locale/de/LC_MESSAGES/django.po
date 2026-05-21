@@ -83,3 +83,57 @@ msgstr "Betriebsstunden dürfen nicht sinken."
 
 msgid "This workflow cannot move the vehicle to the requested status."
 msgstr "Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status versetzen."
+
+msgid "Only .xlsx or .xlsm files are supported."
+msgstr "Nur .xlsx- oder .xlsm-Dateien werden unterstützt."
+
+msgid "The uploaded Excel file could not be read."
+msgstr "Die hochgeladene Excel-Datei konnte nicht gelesen werden."
+
+msgid "The workbook must contain a header row."
+msgstr "Die Arbeitsmappe muss eine Kopfzeile enthalten."
+
+msgid "Missing required column: %(column)s."
+msgstr "Erforderliche Spalte fehlt: %(column)s."
+
+msgid "Only vehicle import jobs can be committed by this endpoint."
+msgstr "Über diesen Endpunkt können nur Fahrzeugimporte übernommen werden."
+
+msgid "This import job has already been committed."
+msgstr "Dieser Importauftrag wurde bereits übernommen."
+
+msgid "Import job must be successfully validated before commit."
+msgstr "Der Importauftrag muss vor der Übernahme erfolgreich validiert sein."
+
+msgid "Import file is required."
+msgstr "Eine Importdatei ist erforderlich."
+
+msgid "Import file must not be empty."
+msgstr "Die Importdatei darf nicht leer sein."
+
+msgid "%(field)s is required."
+msgstr "%(field)s ist erforderlich."
+
+msgid "Unknown or inactive vehicle category: %(category)s."
+msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
+
+msgid "Duplicate internal_number in import file. First seen on row %(row)s."
+msgstr "Doppelte internal_number in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "Serial number already belongs to another vehicle."
+msgstr "Die Seriennummer gehört bereits zu einem anderen Fahrzeug."
+
+msgid "Duplicate serial_number in import file. First seen on row %(row)s."
+msgstr "Doppelte serial_number in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "License plate already belongs to another vehicle."
+msgstr "Das Kennzeichen gehört bereits zu einem anderen Fahrzeug."
+
+msgid "Duplicate license_plate in import file. First seen on row %(row)s."
+msgstr "Doppelte license_plate in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "%(field)s must be a non-negative integer."
+msgstr "%(field)s muss eine nicht negative Ganzzahl sein."
+
+msgid "%(field)s must be a non-negative decimal number."
+msgstr "%(field)s muss eine nicht negative Dezimalzahl sein."

@@ -21,4 +21,14 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "status",
+            "row_count",
+            "error_count",
+            "result",
+            "created_by",
+            "committed_at",
+            "created_at",
+            "updated_at",
+        ]
