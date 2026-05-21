@@ -1,0 +1,139 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: fleet-tracking backend\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-21 00:00+0000\n"
+"PO-Revision-Date: 2026-05-21 00:00+0000\n"
+"Last-Translator: Fleet Tracking Team\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Service is healthy."
+msgstr "Der Dienst ist fehlerfrei."
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "Accounts"
+msgstr "Konten"
+
+msgid "Vehicles"
+msgstr "Fahrzeuge"
+
+msgid "Parties"
+msgstr "Parteien"
+
+msgid "Drivers"
+msgstr "Fahrer"
+
+msgid "Workflows"
+msgstr "Arbeitsabläufe"
+
+msgid "Damages"
+msgstr "Schäden"
+
+msgid "Media files"
+msgstr "Mediendateien"
+
+msgid "Imports"
+msgstr "Importe"
+
+msgid "Audit"
+msgstr "Audit"
+
+msgid "Borrower name is required when no driver is selected."
+msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
+
+msgid "Return odometer must not be lower than checkout odometer."
+msgstr "Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei Ausleihe."
+
+msgid "Return operating hours must not be lower than checkout operating hours."
+msgstr "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden bei Ausleihe."
+
+msgid "This vehicle cannot be checked in from its current status."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+
+msgid "Only available or checked-in vehicles can be loaned."
+msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
+
+msgid "This vehicle already has an active loan."
+msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
+
+msgid "Loan return requires an active loan."
+msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
+
+msgid "Loaned vehicles cannot be checked out to manufacturers."
+msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
+
+msgid "This vehicle cannot be checked out to manufacturers from its current status."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller ausgecheckt werden."
+
+msgid "Odometer value must not decrease."
+msgstr "Der Kilometerstand darf nicht sinken."
+
+msgid "Operating hours must not decrease."
+msgstr "Betriebsstunden dürfen nicht sinken."
+
+msgid "This workflow cannot move the vehicle to the requested status."
+msgstr "Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status versetzen."
+
+msgid "Only .xlsx or .xlsm files are supported."
+msgstr "Nur .xlsx- oder .xlsm-Dateien werden unterstützt."
+
+msgid "The uploaded Excel file could not be read."
+msgstr "Die hochgeladene Excel-Datei konnte nicht gelesen werden."
+
+msgid "The workbook must contain a header row."
+msgstr "Die Arbeitsmappe muss eine Kopfzeile enthalten."
+
+msgid "Missing required column: %(column)s."
+msgstr "Erforderliche Spalte fehlt: %(column)s."
+
+msgid "Only vehicle import jobs can be committed by this endpoint."
+msgstr "Über diesen Endpunkt können nur Fahrzeugimporte übernommen werden."
+
+msgid "This import job has already been committed."
+msgstr "Dieser Importauftrag wurde bereits übernommen."
+
+msgid "Import job must be successfully validated before commit."
+msgstr "Der Importauftrag muss vor der Übernahme erfolgreich validiert sein."
+
+msgid "Import file is required."
+msgstr "Eine Importdatei ist erforderlich."
+
+msgid "Import file must not be empty."
+msgstr "Die Importdatei darf nicht leer sein."
+
+msgid "%(field)s is required."
+msgstr "%(field)s ist erforderlich."
+
+msgid "Unknown or inactive vehicle category: %(category)s."
+msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
+
+msgid "Duplicate internal_number in import file. First seen on row %(row)s."
+msgstr "Doppelte internal_number in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "Serial number already belongs to another vehicle."
+msgstr "Die Seriennummer gehört bereits zu einem anderen Fahrzeug."
+
+msgid "Duplicate serial_number in import file. First seen on row %(row)s."
+msgstr "Doppelte serial_number in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "License plate already belongs to another vehicle."
+msgstr "Das Kennzeichen gehört bereits zu einem anderen Fahrzeug."
+
+msgid "Duplicate license_plate in import file. First seen on row %(row)s."
+msgstr "Doppelte license_plate in der Importdatei. Erstmals in Zeile %(row)s."
+
+msgid "%(field)s must be a non-negative integer."
+msgstr "%(field)s muss eine nicht negative Ganzzahl sein."
+
+msgid "%(field)s must be a non-negative decimal number."
+msgstr "%(field)s muss eine nicht negative Dezimalzahl sein."

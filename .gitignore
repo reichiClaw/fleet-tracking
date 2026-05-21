@@ -1,0 +1,39 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+
+# Django
+media/
+staticfiles/
+db.sqlite3
+
+# Node
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Logs
+*.log
+logs/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Backups
+backups/
+*.dump
+*.tar.gz

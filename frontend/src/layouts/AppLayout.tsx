@@ -1,0 +1,64 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+import { useAuth, type UserRole } from '../auth/AuthContext';
+import { LanguageSelector } from '../components/LanguageSelector';
+
+type NavigationItem = {
+  key: string;
+  to: string;
+  translationKey: string;
+  roles: UserRole[];
+};
+
+const navigationItems: NavigationItem[] = [
+  { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
+  { key: 'settings', to: '/app/settings', translationKey: 'navigation.settings', roles: ['admin'] },
+];
+
+export function AppLayout() {
+  const { logout, user } = useAuth();
+  const { t } = useTranslation();
+  const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
+  const roleLabel = user ? t(`roles.${user.role}`) : '';
+
+  return (
+    <div className="app-shell">
+      <header className="top-bar">
+        <div>
+          <p className="eyebrow">{t('app.subtitle')}</p>
+          <h1>{t('app.name')}</h1>
+        </div>
+        <div className="top-bar__actions">
+          <LanguageSelector />
+          <button className="secondary-button" type="button" onClick={logout}>
+            {t('navigation.logout')}
+          </button>
+        </div>
+      </header>
+
+      <div className="shell-body">
+        <aside className="side-nav" aria-label={t('navigation.primaryLabel')}>
+          <div className="user-card">
+            <span>{t('layout.signedInAs')}</span>
+            <strong>{user?.name}</strong>
+            <small>{roleLabel}</small>
+          </div>
+          <nav>
+            {visibleItems.map((item) => (
+              <NavLink key={item.key} to={item.to} end={item.to === '/app'}>
+                {t(item.translationKey)}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="content-panel">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
