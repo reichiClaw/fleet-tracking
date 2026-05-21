@@ -16,6 +16,7 @@ class DamageReportSerializer(serializers.ModelSerializer):
             "manufacturer_checkout_protocol",
             "description",
             "severity",
+            "workflow_phase",
             "discovered_at",
             "resolved_at",
             "created_by",

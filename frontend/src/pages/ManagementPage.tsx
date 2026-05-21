@@ -11,11 +11,14 @@ import {
   type CompanyType,
   type Driver,
 } from '../api/fleet';
+import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 
 export function CompanyManagementPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canMutate = user?.role === 'admin' || user?.role === 'operations';
   const [companies, setCompanies] = useState<Company[]>([]);
   const [name, setName] = useState('');
   const [companyType, setCompanyType] = useState<CompanyType>('subcontractor');
@@ -72,7 +75,8 @@ export function CompanyManagementPage() {
         <p>{t('management.companies.description')}</p>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      <form className="content-card form-stack" onSubmit={handleSubmit}>
+      {canMutate ? (
+        <form className="content-card form-stack" onSubmit={handleSubmit}>
         <div className="form-grid form-grid--two">
           <label>
             <span>{t('management.fields.name')}</span>
@@ -103,7 +107,8 @@ export function CompanyManagementPage() {
           </label>
         </div>
         <button type="submit" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addCompany')}</button>
-      </form>
+        </form>
+      ) : null}
       {isLoading ? <LoadingState /> : <CompanyList companies={companies} />}
     </section>
   );
@@ -111,6 +116,8 @@ export function CompanyManagementPage() {
 
 export function DriverManagementPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canMutate = user?.role === 'admin' || user?.role === 'operations';
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [firstName, setFirstName] = useState('');
@@ -181,7 +188,8 @@ export function DriverManagementPage() {
         <p>{t('management.drivers.description')}</p>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      <form className="content-card form-stack" onSubmit={handleSubmit}>
+      {canMutate ? (
+        <form className="content-card form-stack" onSubmit={handleSubmit}>
         <div className="form-grid form-grid--two">
           <label>
             <span>{t('management.fields.firstName')}</span>
@@ -216,7 +224,8 @@ export function DriverManagementPage() {
           </label>
         </div>
         <button type="submit" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addDriver')}</button>
-      </form>
+        </form>
+      ) : null}
       {isLoading ? <LoadingState /> : <DriverList drivers={drivers} companies={companies} />}
     </section>
   );

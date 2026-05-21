@@ -72,4 +72,14 @@ describe('App smoke flow', () => {
     expect(screen.getByText('Bitte geben Sie eine Telefonnummer des Entleihers ein.')).toBeInTheDocument();
     expect(screen.getByText('Bitte wählen Sie eine erwartete Rückgabe.')).toBeInTheDocument();
   });
+
+  it('redirects read-only users away from mutation workflow routes', async () => {
+    window.localStorage.setItem('fleet-auth-user', JSON.stringify({ name: 'Ada', role: 'readonly' }));
+    window.history.pushState({}, '', '/app/workflows/check-in');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Check-in' })).not.toBeInTheDocument();
+  });
 });

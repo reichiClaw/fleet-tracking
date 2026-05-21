@@ -18,6 +18,14 @@ class DamageSeverity(models.TextChoices):
     UNKNOWN = "unknown", _("Unknown")
 
 
+class DamageWorkflowPhase(models.TextChoices):
+    GENERAL = "general", _("General")
+    CHECK_IN = "check_in", _("Check-in")
+    LOAN_CHECKOUT = "loan_checkout", _("Loan checkout")
+    LOAN_RETURN = "loan_return", _("Loan return")
+    MANUFACTURER_CHECKOUT = "manufacturer_checkout", _("Manufacturer check-out")
+
+
 class DamageReport(TimeStampedUUIDModel):
     vehicle = models.ForeignKey("vehicles.Vehicle", on_delete=models.PROTECT, related_name="damage_reports")
     loan = models.ForeignKey("workflows.Loan", on_delete=models.SET_NULL, null=True, blank=True, related_name="damage_reports")
@@ -33,6 +41,11 @@ class DamageReport(TimeStampedUUIDModel):
     )
     description = models.TextField()
     severity = models.CharField(max_length=20, choices=DamageSeverity.choices, default=DamageSeverity.UNKNOWN)
+    workflow_phase = models.CharField(
+        max_length=40,
+        choices=DamageWorkflowPhase.choices,
+        default=DamageWorkflowPhase.GENERAL,
+    )
     discovered_at = models.DateTimeField(default=timezone.now)
     resolved_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="damage_reports")

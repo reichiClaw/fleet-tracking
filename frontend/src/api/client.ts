@@ -1,6 +1,9 @@
 const DEFAULT_API_BASE_URL = '/api/v1';
 const LANGUAGE_STORAGE_KEY = 'fleet-language';
 const SUPPORTED_REQUEST_LANGUAGES = new Set(['de', 'en']);
+const CSRF_COOKIE_NAME = 'csrftoken';
+const CSRF_HEADER_NAME = 'X-CSRFToken';
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
 
@@ -43,6 +46,23 @@ function resolveRequestLanguage(language?: string) {
   );
 }
 
+function getCookie(name: string) {
+  if (typeof document === 'undefined') {
+    return undefined;
+  }
+
+  const match = document.cookie
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : undefined;
+}
+
+function isUnsafeMethod(method?: string) {
+  return UNSAFE_METHODS.has((method ?? 'GET').toUpperCase());
+}
+
 export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | null | undefined>) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = `${API_BASE_URL}${normalizedPath}`;
@@ -65,6 +85,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const { body, headers, language, ...requestInit } = options;
   const isFormData = body instanceof FormData;
   const requestLanguage = resolveRequestLanguage(language);
+  const csrfToken = isUnsafeMethod(requestInit.method) ? getCookie(CSRF_COOKIE_NAME) : undefined;
 
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
@@ -72,6 +93,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers: {
       Accept: 'application/json',
       ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
+      ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
       ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },

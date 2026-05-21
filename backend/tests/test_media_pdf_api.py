@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
@@ -12,6 +13,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile, MediaType
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
@@ -247,6 +249,57 @@ class PDFProtocolAPITests(TestCase):
         self.assertEqual(loan.return_pdf_language, "de")
         self.assertEqual(manufacturer_protocol.pdf_media, manufacturer_media)
         self.assertEqual(manufacturer_protocol.pdf_language, "en")
+
+
+    def test_loan_pdfs_use_damage_reports_for_the_matching_workflow_phase(self):
+        loan = Loan.objects.create(
+            vehicle=self.vehicle,
+            company=self.company,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            checkout_odometer_km=110,
+            checkout_operating_hours="11.0",
+            checkout_notes="Checkout ok",
+            actual_return_at=timezone.now(),
+            status=LoanStatus.RETURNED,
+            return_odometer_km=130,
+            return_operating_hours="13.0",
+            return_notes="Returned ok",
+            created_by=self.operations_user,
+            returned_by=self.operations_user,
+        )
+        DamageReport.objects.create(
+            vehicle=self.vehicle,
+            loan=loan,
+            description="Checkout scratch",
+            workflow_phase=DamageWorkflowPhase.LOAN_CHECKOUT,
+            created_by=self.operations_user,
+        )
+        DamageReport.objects.create(
+            vehicle=self.vehicle,
+            loan=loan,
+            description="Return dent",
+            workflow_phase=DamageWorkflowPhase.LOAN_RETURN,
+            created_by=self.operations_user,
+        )
+
+        with patch("workflows.pdf._render_pdf", return_value=b"%PDF-1.4\n") as render_pdf:
+            checkout_response = self.api_client().post(
+                f"/api/v1/loans/{loan.id}/generate-checkout-pdf/", {"language": "en"}, format="json"
+            )
+            checkout_damages = [damage.description for damage in render_pdf.call_args.kwargs["damages"]]
+
+        with patch("workflows.pdf._render_pdf", return_value=b"%PDF-1.4\n") as render_pdf:
+            return_response = self.api_client().post(
+                f"/api/v1/loans/{loan.id}/generate-return-pdf/", {"language": "en"}, format="json"
+            )
+            return_damages = [damage.description for damage in render_pdf.call_args.kwargs["damages"]]
+
+        self.assertEqual(checkout_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(return_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(checkout_damages, ["Checkout scratch"])
+        self.assertEqual(return_damages, ["Return dent"])
 
     def test_document_download_endpoint_serves_generated_pdf(self):
         protocol = CheckInProtocol.objects.create(vehicle=self.vehicle, performed_by=self.operations_user)

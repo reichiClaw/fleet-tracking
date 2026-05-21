@@ -17,7 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import serializers
 
-from damages.models import DamageReport
+from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile, MediaType
 from mediafiles.services import create_media_file_from_bytes
 from vehicles.models import VehicleStatus
@@ -167,7 +167,7 @@ def generate_loan_checkout_pdf(*, loan: Loan, actor, language: str | None = None
         readings={"odometer": loan.checkout_odometer_km, "operating_hours": loan.checkout_operating_hours},
         borrower=loan,
         notes=loan.checkout_notes,
-        damages=loan.damage_reports.all(),
+        damages=loan.damage_reports.filter(workflow_phase=DamageWorkflowPhase.LOAN_CHECKOUT),
         link_fields=("checkout_pdf_media", "checkout_pdf_language"),
     )
 
@@ -188,7 +188,7 @@ def generate_loan_return_pdf(*, loan: Loan, actor, language: str | None = None) 
         readings={"odometer": loan.return_odometer_km, "operating_hours": loan.return_operating_hours},
         borrower=loan,
         notes=loan.return_notes,
-        damages=loan.damage_reports.all(),
+        damages=loan.damage_reports.filter(workflow_phase=DamageWorkflowPhase.LOAN_RETURN),
         link_fields=("return_pdf_media", "return_pdf_language"),
     )
 

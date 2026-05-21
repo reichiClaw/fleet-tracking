@@ -27,6 +27,7 @@ type AuthContextValue = {
 };
 
 const AUTH_STORAGE_KEY = 'fleet-auth-user';
+export const DEMO_AUTH_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function userFromApi(user: CurrentUser): AuthUser {
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.localStorage.removeItem(AUTH_STORAGE_KEY);
             setUser(null);
           } else {
-            setUser(readStoredUser());
+            setUser(DEMO_AUTH_ENABLED ? readStoredUser() : null);
           }
         }
       } finally {
@@ -103,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.localStorage.removeItem(AUTH_STORAGE_KEY);
           setUser(userFromApi(backendUser));
         } catch (error) {
-          if (isBackendReachableError(error)) {
+          if (isBackendReachableError(error) || !DEMO_AUTH_ENABLED) {
             throw error;
           }
           window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(fallbackUser));

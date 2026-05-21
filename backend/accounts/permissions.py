@@ -54,15 +54,13 @@ class AuthenticatedReadAdminOperationsWriteNoDelete(BasePermission):
 
 
 class VehiclePermission(BasePermission):
-    """Vehicle access: all roles read, admins create/delete, operations update."""
+    """Vehicle master-data access: all roles read; only admins mutate."""
 
     def has_permission(self, request, view) -> bool:
         if not is_authenticated(request.user):
             return False
         if request.method in SAFE_METHODS:
             return True
-        if request.method in {"PUT", "PATCH"}:
-            return is_operations(request.user)
         return is_admin(request.user)
 
 

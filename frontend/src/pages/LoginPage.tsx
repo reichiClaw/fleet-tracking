@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import { type UserRole, useAuth } from '../auth/AuthContext';
+import { DEMO_AUTH_ENABLED, type UserRole, useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LanguageSelector } from '../components/LanguageSelector';
 
@@ -88,21 +88,23 @@ export function LoginPage() {
             />
           </label>
 
-          <label>
-            <span>{t('auth.login.roleLabel')}</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
-              <option value="operations">{t('roles.operations')}</option>
-              <option value="admin">{t('roles.admin')}</option>
-              <option value="readonly">{t('roles.readonly')}</option>
-            </select>
-          </label>
+          {DEMO_AUTH_ENABLED ? (
+            <label>
+              <span>{t('auth.login.roleLabel')}</span>
+              <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+                <option value="operations">{t('roles.operations')}</option>
+                <option value="admin">{t('roles.admin')}</option>
+                <option value="readonly">{t('roles.readonly')}</option>
+              </select>
+            </label>
+          ) : null}
 
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? t('auth.login.submitting') : t('auth.login.submit')}
           </button>
         </form>
 
-        <p className="hint-text">{t('auth.login.demoHint')}</p>
+        {DEMO_AUTH_ENABLED ? <p className="hint-text">{t('auth.login.demoHint')}</p> : null}
       </section>
     </main>
   );
