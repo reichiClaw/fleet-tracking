@@ -10,7 +10,7 @@ from config.views import health
 from damages.views import DamageReportViewSet
 from drivers.views import DriverViewSet
 from imports.views import ImportJobViewSet
-from mediafiles.views import MediaFileViewSet
+from mediafiles.views import GeneratedDocumentViewSet, MediaFileViewSet
 from parties.views import CompanyViewSet
 from vehicles.views import VehicleCategoryViewSet, VehicleViewSet
 from workflows.views import CheckInProtocolViewSet, LoanViewSet, ManufacturerCheckOutProtocolViewSet
@@ -31,6 +31,7 @@ router.register(
 )
 router.register("damage-reports", DamageReportViewSet, basename="damage-report")
 router.register("media", MediaFileViewSet, basename="media-file")
+router.register("documents", GeneratedDocumentViewSet, basename="document")
 router.register("imports", ImportJobViewSet, basename="import-job")
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 

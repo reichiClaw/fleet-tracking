@@ -15,6 +15,13 @@ from workflows.serializers import (
     ManufacturerCheckOutProtocolSerializer,
     ManufacturerCheckOutWorkflowSerializer,
 )
+from mediafiles.serializers import MediaFileSerializer
+from workflows.pdf import (
+    generate_check_in_pdf,
+    generate_loan_checkout_pdf,
+    generate_loan_return_pdf,
+    generate_manufacturer_checkout_pdf,
+)
 from workflows.services import (
     complete_check_in,
     complete_loan_checkout,
@@ -24,7 +31,9 @@ from workflows.services import (
 
 
 class LoanViewSet(viewsets.ModelViewSet):
-    queryset = Loan.objects.select_related("vehicle", "company", "driver", "created_by", "returned_by").all()
+    queryset = Loan.objects.select_related(
+        "vehicle", "company", "driver", "created_by", "returned_by", "checkout_pdf_media", "return_pdf_media"
+    ).all()
     serializer_class = LoanSerializer
     permission_classes = [AuthenticatedReadAdminOperationsWriteNoDelete]
     http_method_names = ["get", "post", "head", "options"]
@@ -52,6 +61,20 @@ class LoanViewSet(viewsets.ModelViewSet):
         )
         return Response(LoanSerializer(returned_loan, context={"request": request}).data)
 
+    @action(detail=True, methods=["post"], url_path="generate-checkout-pdf")
+    def generate_checkout_pdf(self, request, pk=None):
+        media = generate_loan_checkout_pdf(
+            loan=self.get_object(), actor=request.user, language=_pdf_language(request)
+        )
+        return Response(MediaFileSerializer(media, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="generate-return-pdf")
+    def generate_return_pdf(self, request, pk=None):
+        media = generate_loan_return_pdf(
+            loan=self.get_object(), actor=request.user, language=_pdf_language(request)
+        )
+        return Response(MediaFileSerializer(media, context={"request": request}).data)
+
 
 class CheckInProtocolViewSet(viewsets.ModelViewSet):
     queryset = CheckInProtocol.objects.select_related("vehicle", "performed_by", "supplier_company", "pdf_media").all()
@@ -71,6 +94,13 @@ class CheckInProtocolViewSet(viewsets.ModelViewSet):
             CheckInProtocolSerializer(protocol, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="generate-pdf")
+    def generate_pdf(self, request, pk=None):
+        media = generate_check_in_pdf(
+            protocol=self.get_object(), actor=request.user, language=_pdf_language(request)
+        )
+        return Response(MediaFileSerializer(media, context={"request": request}).data)
 
 
 class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
@@ -93,6 +123,17 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
             ManufacturerCheckOutProtocolSerializer(protocol, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="generate-pdf")
+    def generate_pdf(self, request, pk=None):
+        media = generate_manufacturer_checkout_pdf(
+            protocol=self.get_object(), actor=request.user, language=_pdf_language(request)
+        )
+        return Response(MediaFileSerializer(media, context={"request": request}).data)
+
+
+def _pdf_language(request) -> str | None:
+    return request.data.get("language") or request.query_params.get("language")
 
 
 def _request_meta(request) -> dict[str, str]:

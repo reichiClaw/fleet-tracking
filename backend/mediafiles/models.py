@@ -30,6 +30,7 @@ class MediaFile(TimeStampedUUIDModel):
     storage_key = models.CharField(max_length=500, unique=True)
     content_type = models.CharField(max_length=120)
     size_bytes = models.PositiveBigIntegerField()
+    language = models.CharField(max_length=10, blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="media_files")
 
     class Meta:

@@ -34,6 +34,12 @@ class Loan(TimeStampedUUIDModel):
     return_operating_hours = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
     checkout_notes = models.TextField(blank=True)
     return_notes = models.TextField(blank=True)
+    checkout_pdf_media = models.ForeignKey(
+        "mediafiles.MediaFile", on_delete=models.SET_NULL, null=True, blank=True, related_name="loan_checkout_documents"
+    )
+    return_pdf_media = models.ForeignKey(
+        "mediafiles.MediaFile", on_delete=models.SET_NULL, null=True, blank=True, related_name="loan_return_documents"
+    )
     checkout_pdf_language = models.CharField(max_length=10, blank=True)
     return_pdf_language = models.CharField(max_length=10, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_loans")

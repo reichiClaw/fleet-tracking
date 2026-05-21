@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fleet-tracking backend\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-21 00:00+0000\n"
+"POT-Creation-Date: 2026-05-21 16:17+0200\n"
 "PO-Revision-Date: 2026-05-21 00:00+0000\n"
 "Last-Translator: Fleet Tracking Team\n"
 "Language-Team: German\n"
@@ -12,128 +12,397 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Service is healthy."
-msgstr "Der Dienst ist fehlerfrei."
-
-msgid "German"
-msgstr "Deutsch"
-
-msgid "English"
-msgstr "Englisch"
-
+#: accounts/apps.py:8
 msgid "Accounts"
 msgstr "Konten"
 
-msgid "Vehicles"
-msgstr "Fahrzeuge"
+#: accounts/models.py:16
+msgid "Admin"
+msgstr ""
 
-msgid "Parties"
-msgstr "Parteien"
+#: accounts/models.py:17
+msgid "Operations"
+msgstr ""
 
-msgid "Drivers"
-msgstr "Fahrer"
+#: accounts/models.py:18
+msgid "Read-only"
+msgstr ""
 
-msgid "Workflows"
-msgstr "Arbeitsabläufe"
+#: accounts/serializers.py:65
+msgid "Unable to log in with the provided credentials."
+msgstr ""
 
-msgid "Damages"
-msgstr "Schäden"
+#: accounts/serializers.py:66
+msgid "This user account is inactive."
+msgstr ""
 
-msgid "Media files"
-msgstr "Mediendateien"
-
-msgid "Imports"
-msgstr "Importe"
-
+#: audit/apps.py:8
 msgid "Audit"
 msgstr "Audit"
 
-msgid "Borrower name is required when no driver is selected."
-msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
+#: audit/models.py:31
+msgid "Audit logs are immutable."
+msgstr ""
 
-msgid "Return odometer must not be lower than checkout odometer."
-msgstr "Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei Ausleihe."
+#: config/settings.py:130
+msgid "German"
+msgstr "Deutsch"
 
-msgid "Return operating hours must not be lower than checkout operating hours."
-msgstr "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden bei Ausleihe."
+#: config/settings.py:131
+msgid "English"
+msgstr "Englisch"
 
-msgid "This vehicle cannot be checked in from its current status."
-msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+#: config/views.py:16
+msgid "Service is healthy."
+msgstr "Der Dienst ist fehlerfrei."
 
-msgid "Only available or checked-in vehicles can be loaned."
-msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
+#: damages/apps.py:8
+msgid "Damages"
+msgstr "Schäden"
 
-msgid "This vehicle already has an active loan."
-msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
+#: damages/models.py:15
+msgid "Minor"
+msgstr ""
 
-msgid "Loan return requires an active loan."
-msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
+#: damages/models.py:16
+msgid "Major"
+msgstr ""
 
-msgid "Loaned vehicles cannot be checked out to manufacturers."
-msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
+#: damages/models.py:17
+msgid "Critical"
+msgstr ""
 
-msgid "This vehicle cannot be checked out to manufacturers from its current status."
-msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller ausgecheckt werden."
+#: damages/models.py:18
+msgid "Unknown"
+msgstr ""
 
-msgid "Odometer value must not decrease."
-msgstr "Der Kilometerstand darf nicht sinken."
+#: damages/models.py:48
+#, fuzzy
+#| msgid "Import file is required."
+msgid "Damage description is required."
+msgstr "Eine Importdatei ist erforderlich."
 
-msgid "Operating hours must not decrease."
-msgstr "Betriebsstunden dürfen nicht sinken."
+#: drivers/apps.py:8 imports/models.py:15
+msgid "Drivers"
+msgstr "Fahrer"
 
-msgid "This workflow cannot move the vehicle to the requested status."
-msgstr "Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status versetzen."
+#: imports/apps.py:8
+msgid "Imports"
+msgstr "Importe"
 
+#: imports/models.py:14 vehicles/apps.py:8
+msgid "Vehicles"
+msgstr "Fahrzeuge"
+
+#: imports/models.py:16
+msgid "Companies"
+msgstr ""
+
+#: imports/models.py:19
+msgid "Uploaded"
+msgstr ""
+
+#: imports/models.py:20
+msgid "Validated"
+msgstr ""
+
+#: imports/models.py:21
+msgid "Failed"
+msgstr ""
+
+#: imports/models.py:22
+msgid "Committed"
+msgstr ""
+
+#: imports/services.py:86
 msgid "Only .xlsx or .xlsm files are supported."
 msgstr "Nur .xlsx- oder .xlsm-Dateien werden unterstützt."
 
+#: imports/services.py:91
 msgid "The uploaded Excel file could not be read."
 msgstr "Die hochgeladene Excel-Datei konnte nicht gelesen werden."
 
+#: imports/services.py:104
 msgid "The workbook must contain a header row."
 msgstr "Die Arbeitsmappe muss eine Kopfzeile enthalten."
 
-msgid "Missing required column: %(column)s."
-msgstr "Erforderliche Spalte fehlt: %(column)s."
-
+#: imports/services.py:185
 msgid "Only vehicle import jobs can be committed by this endpoint."
 msgstr "Über diesen Endpunkt können nur Fahrzeugimporte übernommen werden."
 
+#: imports/services.py:187
 msgid "This import job has already been committed."
 msgstr "Dieser Importauftrag wurde bereits übernommen."
 
+#: imports/services.py:189
 msgid "Import job must be successfully validated before commit."
 msgstr "Der Importauftrag muss vor der Übernahme erfolgreich validiert sein."
 
-msgid "Import file is required."
-msgstr "Eine Importdatei ist erforderlich."
+#: imports/services.py:293
+#, python-format
+msgid "Missing required column: %(column)s."
+msgstr "Erforderliche Spalte fehlt: %(column)s."
 
-msgid "Import file must not be empty."
-msgstr "Die Importdatei darf nicht leer sein."
-
+#: imports/services.py:330
+#, python-format
 msgid "%(field)s is required."
 msgstr "%(field)s ist erforderlich."
 
+#: imports/services.py:338
+#, python-format
 msgid "Unknown or inactive vehicle category: %(category)s."
 msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
 
+#: imports/services.py:371
+#, python-format
 msgid "Duplicate internal_number in import file. First seen on row %(row)s."
-msgstr "Doppelte internal_number in der Importdatei. Erstmals in Zeile %(row)s."
+msgstr ""
+"Doppelte internal_number in der Importdatei. Erstmals in Zeile %(row)s."
 
+#: imports/services.py:386
 msgid "Serial number already belongs to another vehicle."
 msgstr "Die Seriennummer gehört bereits zu einem anderen Fahrzeug."
 
+#: imports/services.py:387
+#, python-format
 msgid "Duplicate serial_number in import file. First seen on row %(row)s."
 msgstr "Doppelte serial_number in der Importdatei. Erstmals in Zeile %(row)s."
 
+#: imports/services.py:397
 msgid "License plate already belongs to another vehicle."
 msgstr "Das Kennzeichen gehört bereits zu einem anderen Fahrzeug."
 
+#: imports/services.py:398
+#, python-format
 msgid "Duplicate license_plate in import file. First seen on row %(row)s."
 msgstr "Doppelte license_plate in der Importdatei. Erstmals in Zeile %(row)s."
 
+#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:316
+msgid "Odometer value must not decrease."
+msgstr "Der Kilometerstand darf nicht sinken."
+
+#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:322
+msgid "Operating hours must not decrease."
+msgstr "Betriebsstunden dürfen nicht sinken."
+
+#: imports/services.py:478
+#, python-format
 msgid "%(field)s must be a non-negative integer."
 msgstr "%(field)s muss eine nicht negative Ganzzahl sein."
 
+#: imports/services.py:498
+#, python-format
 msgid "%(field)s must be a non-negative decimal number."
 msgstr "%(field)s muss eine nicht negative Dezimalzahl sein."
+
+#: imports/views.py:26
+msgid "Import file is required."
+msgstr "Eine Importdatei ist erforderlich."
+
+#: imports/views.py:28
+msgid "Import file must not be empty."
+msgstr "Die Importdatei darf nicht leer sein."
+
+#: mediafiles/apps.py:8
+msgid "Media files"
+msgstr "Mediendateien"
+
+#: mediafiles/models.py:14
+msgid "Photo"
+msgstr ""
+
+#: mediafiles/models.py:15
+msgid "Signature"
+msgstr ""
+
+#: mediafiles/models.py:16
+msgid "PDF"
+msgstr ""
+
+#: mediafiles/models.py:17
+#, fuzzy
+#| msgid "Imports"
+msgid "Import"
+msgstr "Importe"
+
+#: mediafiles/models.py:44
+msgid "File size must be greater than zero."
+msgstr ""
+
+#: mediafiles/services.py:146
+msgid "Stored media file is missing."
+msgstr "Die gespeicherte Mediendatei fehlt."
+
+#: mediafiles/services.py:151
+msgid "Unsupported media type."
+msgstr "Nicht unterstuetzter Medientyp."
+
+#: mediafiles/services.py:153
+#, fuzzy
+#| msgid "Import file must not be empty."
+msgid "File must not be empty."
+msgstr "Die Datei darf nicht leer sein."
+
+#: mediafiles/services.py:157
+#, python-format
+msgid "File exceeds the maximum upload size of %(size)d MB."
+msgstr "Die Datei ueberschreitet die maximale Uploadgroesse von %(size)d MB."
+
+#: mediafiles/services.py:163
+msgid "File extension is not allowed for this media type."
+msgstr "Die Dateiendung ist fuer diesen Medientyp nicht erlaubt."
+
+#: mediafiles/services.py:165
+msgid "File content type is not allowed for this media type."
+msgstr "Der Dateiinhaltstyp ist fuer diesen Medientyp nicht erlaubt."
+
+#: mediafiles/services.py:167
+msgid "File content does not match the selected media type."
+msgstr "Der Dateiinhalt passt nicht zum ausgewaehlten Medientyp."
+
+#: parties/apps.py:8
+msgid "Parties"
+msgstr "Parteien"
+
+#: parties/models.py:13
+msgid "Subcontractor"
+msgstr ""
+
+#: parties/models.py:14
+msgid "Manufacturer"
+msgstr ""
+
+#: parties/models.py:15
+msgid "Supplier"
+msgstr ""
+
+#: parties/models.py:16
+msgid "Internal"
+msgstr ""
+
+#: vehicles/models.py:17
+msgid "Announced"
+msgstr ""
+
+#: vehicles/models.py:18
+msgid "Checked in"
+msgstr ""
+
+#: vehicles/models.py:19
+msgid "Available"
+msgstr ""
+
+#: vehicles/models.py:20
+msgid "Reserved"
+msgstr ""
+
+#: vehicles/models.py:21
+msgid "Loaned"
+msgstr ""
+
+#: vehicles/models.py:22
+msgid "Maintenance"
+msgstr ""
+
+#: vehicles/models.py:23
+#, fuzzy
+#| msgid "Damages"
+msgid "Damaged"
+msgstr "Schäden"
+
+#: vehicles/models.py:24
+msgid "Manufacturer checkout"
+msgstr ""
+
+#: vehicles/models.py:25
+msgid "Archived"
+msgstr ""
+
+#: vehicles/models.py:100 workflows/models.py:61 workflows/models.py:63
+#: workflows/models.py:109 workflows/models.py:141
+#, fuzzy
+#| msgid "Operating hours must not decrease."
+msgid "Operating hours must be non-negative."
+msgstr "Betriebsstunden dürfen nicht sinken."
+
+#: vehicles/models.py:108
+#, python-format
+msgid "Invalid vehicle status transition from %(old)s to %(new)s."
+msgstr ""
+
+#: workflows/apps.py:8
+msgid "Workflows"
+msgstr "Arbeitsabläufe"
+
+#: workflows/models.py:17
+msgid "Active"
+msgstr ""
+
+#: workflows/models.py:18
+msgid "Returned"
+msgstr ""
+
+#: workflows/models.py:19
+msgid "Cancelled"
+msgstr ""
+
+#: workflows/models.py:59 workflows/serializers.py:57
+#: workflows/serializers.py:125
+msgid "Borrower name is required when no driver is selected."
+msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
+
+#: workflows/models.py:69 workflows/serializers.py:63
+msgid "Return odometer must not be lower than checkout odometer."
+msgstr ""
+"Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei "
+"Ausleihe."
+
+#: workflows/models.py:76 workflows/serializers.py:69
+msgid "Return operating hours must not be lower than checkout operating hours."
+msgstr ""
+"Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden "
+"bei Ausleihe."
+
+#: workflows/pdf.py:175
+#, fuzzy
+#| msgid "Loan return requires an active loan."
+msgid "Loan return PDF requires a returned loan."
+msgstr "Das Rueckgabe-PDF erfordert eine zurueckgegebene Ausleihe."
+
+#: workflows/pdf.py:446
+msgid "Unsupported PDF language."
+msgstr "Nicht unterstuetzte PDF-Sprache."
+
+#: workflows/services.py:31
+msgid "This vehicle cannot be checked in from its current status."
+msgstr ""
+"Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+
+#: workflows/services.py:98
+msgid "Only available or checked-in vehicles can be loaned."
+msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
+
+#: workflows/services.py:101
+msgid "This vehicle already has an active loan."
+msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
+
+#: workflows/services.py:167
+msgid "Loan return requires an active loan."
+msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
+
+#: workflows/services.py:237
+msgid "Loaned vehicles cannot be checked out to manufacturers."
+msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
+
+#: workflows/services.py:241
+msgid ""
+"This vehicle cannot be checked out to manufacturers from its current status."
+msgstr ""
+"Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller "
+"ausgecheckt werden."
+
+#: workflows/services.py:399
+msgid "This workflow cannot move the vehicle to the requested status."
+msgstr ""
+"Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status "
+"versetzen."

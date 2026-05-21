@@ -30,6 +30,8 @@ class LoanSerializer(serializers.ModelSerializer):
             "return_operating_hours",
             "checkout_notes",
             "return_notes",
+            "checkout_pdf_media",
+            "return_pdf_media",
             "checkout_pdf_language",
             "return_pdf_language",
             "created_by",
@@ -37,7 +39,15 @@ class LoanSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "returned_by", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "checkout_pdf_media",
+            "return_pdf_media",
+            "created_by",
+            "returned_by",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
