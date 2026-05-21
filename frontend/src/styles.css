@@ -18,13 +18,17 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 button,
 .button-link {
+  display: inline-flex;
   min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 999px;
   padding: 0.75rem 1rem;
@@ -32,15 +36,22 @@ button,
   background: #1769aa;
   cursor: pointer;
   font-weight: 700;
+  text-align: center;
   text-decoration: none;
 }
 
-button:disabled {
+button:disabled,
+.button-link[aria-disabled="true"] {
   cursor: wait;
   opacity: 0.7;
 }
 
-.secondary-button {
+a {
+  color: #1769aa;
+}
+
+.secondary-button,
+.button-link.secondary-button {
   color: #1769aa;
   background: #e8f2fb;
 }
@@ -55,7 +66,8 @@ button:disabled {
 .login-card,
 .placeholder-card,
 .state-card,
-.summary-card {
+.summary-card,
+.content-card {
   border: 1px solid #d7e2ec;
   border-radius: 1.25rem;
   background: #ffffff;
@@ -69,11 +81,22 @@ button:disabled {
 
 .login-card__header,
 .top-bar,
-.top-bar__actions {
+.top-bar__actions,
+.page-header--with-actions,
+.card-title-row,
+.action-row {
   display: flex;
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
+}
+
+.action-row {
+  justify-content: flex-start;
+}
+
+.action-row--wrap {
+  flex-wrap: wrap;
 }
 
 .form-stack,
@@ -83,7 +106,10 @@ button:disabled {
 }
 
 .form-stack label,
-.language-selector {
+.filter-panel label,
+.language-selector,
+.media-field label,
+.signature-field {
   display: grid;
   gap: 0.4rem;
   font-weight: 700;
@@ -91,7 +117,11 @@ button:disabled {
 
 .form-stack input,
 .form-stack select,
-.language-selector select {
+.form-stack textarea,
+.filter-panel input,
+.filter-panel select,
+.language-selector select,
+.media-field input {
   width: 100%;
   border: 1px solid #becddb;
   border-radius: 0.85rem;
@@ -100,8 +130,14 @@ button:disabled {
   color: #18212f;
 }
 
+.form-stack textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
 .hint-text,
-.eyebrow {
+.eyebrow,
+small {
   color: #607083;
 }
 
@@ -129,7 +165,9 @@ button:disabled {
 
 .top-bar h1,
 .page-header h2,
-.login-card h1 {
+.login-card h1,
+.content-card h3,
+.summary-card strong {
   margin: 0.1rem 0 0;
 }
 
@@ -179,24 +217,199 @@ button:disabled {
 
 .page-header,
 .placeholder-card,
-.state-card {
+.state-card,
+.content-card,
+.summary-card {
   padding: 1rem;
 }
 
-.summary-grid {
+.summary-grid,
+.card-grid,
+.vehicle-grid,
+.form-grid,
+.filter-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 1rem;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
 }
 
 .summary-card {
   display: grid;
   gap: 0.5rem;
-  padding: 1rem;
 }
 
 .summary-card strong {
   font-size: 2rem;
+}
+
+.content-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.vehicle-card {
+  align-content: start;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  color: #24415c;
+  background: #e8f2fb;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.status-badge--available,
+.status-badge--returned {
+  color: #0d5132;
+  background: #dff7eb;
+}
+
+.status-badge--loaned,
+.status-badge--active,
+.status-badge--manufacturer_checkout {
+  color: #7a4b00;
+  background: #fff0c7;
+}
+
+.status-badge--damaged,
+.status-badge--cancelled {
+  color: #8a1f1f;
+  background: #ffe0e0;
+}
+
+.status-badge--maintenance {
+  color: #4f2c82;
+  background: #eee4ff;
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detail-list div,
+.loan-strip {
+  display: grid;
+  gap: 0.15rem;
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+  background: #f7fafd;
+}
+
+.detail-list dt {
+  color: #607083;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detail-list dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.list-stack {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-stack li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+  background: #f7fafd;
+}
+
+.list-stack--actions li {
+  flex-wrap: wrap;
+}
+
+.filter-panel {
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background: #dfeaf4;
+}
+
+.form-grid--two,
+.card-grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.form-grid--three {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.fieldset-card {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #d7e2ec;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.fieldset-card legend,
+.field-label {
+  font-weight: 800;
+}
+
+.field-error {
+  color: #a52323;
+}
+
+.media-field,
+.signature-field {
+  gap: 0.75rem;
+}
+
+.signature-canvas {
+  width: 100%;
+  max-width: 42rem;
+  height: 12rem;
+  border: 2px dashed #9cb3c7;
+  border-radius: 1rem;
+  background: #ffffff;
+  touch-action: none;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #d7e2ec;
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.success-card {
+  border-color: #9ed8b5;
+  background: #f2fbf6;
 }
 
 .state-card--error {
@@ -223,7 +436,9 @@ button:disabled {
   .login-card,
   .placeholder-card,
   .state-card,
-  .page-header {
+  .page-header,
+  .content-card,
+  .summary-card {
     padding: 1.5rem;
   }
 
@@ -249,13 +464,27 @@ button:disabled {
     border-radius: 1rem;
     background: #ffffff;
   }
+
+  .filter-panel {
+    grid-template-columns: minmax(14rem, 1fr) 12rem 12rem auto;
+    align-items: end;
+  }
 }
 
 @media (max-width: 620px) {
   .login-card__header,
   .top-bar,
-  .top-bar__actions {
+  .top-bar__actions,
+  .page-header--with-actions,
+  .card-title-row,
+  .action-row,
+  .list-stack li {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  button,
+  .button-link {
+    width: 100%;
   }
 }

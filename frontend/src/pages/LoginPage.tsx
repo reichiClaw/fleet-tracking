@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import { type UserRole, useAuth } from '../auth/AuthContext';
+import { DEMO_AUTH_ENABLED, type UserRole, useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LanguageSelector } from '../components/LanguageSelector';
 
@@ -11,7 +11,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('operations');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,8 +27,8 @@ export function LoginPage() {
     event.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
-      setError(t('auth.login.validation.nameRequired'));
+    if (!username.trim()) {
+      setError(t('auth.login.validation.usernameRequired'));
       return;
     }
 
@@ -39,7 +39,11 @@ export function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login({ name: name.trim(), role });
+      await login({
+        username: username.trim(),
+        password,
+        fallbackUser: { name: username.trim(), username: username.trim(), role, isBackendSession: false },
+      });
       navigate(from, { replace: true });
     } catch {
       setError(t('auth.login.error'));
@@ -64,12 +68,12 @@ export function LoginPage() {
 
         <form className="form-stack" onSubmit={handleSubmit}>
           <label>
-            <span>{t('auth.login.nameLabel')}</span>
+            <span>{t('auth.login.usernameLabel')}</span>
             <input
               autoComplete="username"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={t('auth.login.namePlaceholder')}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder={t('auth.login.usernamePlaceholder')}
             />
           </label>
 
@@ -84,21 +88,23 @@ export function LoginPage() {
             />
           </label>
 
-          <label>
-            <span>{t('auth.login.roleLabel')}</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
-              <option value="operations">{t('roles.operations')}</option>
-              <option value="admin">{t('roles.admin')}</option>
-              <option value="readonly">{t('roles.readonly')}</option>
-            </select>
-          </label>
+          {DEMO_AUTH_ENABLED ? (
+            <label>
+              <span>{t('auth.login.roleLabel')}</span>
+              <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+                <option value="operations">{t('roles.operations')}</option>
+                <option value="admin">{t('roles.admin')}</option>
+                <option value="readonly">{t('roles.readonly')}</option>
+              </select>
+            </label>
+          ) : null}
 
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? t('auth.login.submitting') : t('auth.login.submit')}
           </button>
         </form>
 
-        <p className="hint-text">{t('auth.login.demoHint')}</p>
+        {DEMO_AUTH_ENABLED ? <p className="hint-text">{t('auth.login.demoHint')}</p> : null}
       </section>
     </main>
   );

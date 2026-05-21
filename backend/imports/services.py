@@ -7,7 +7,6 @@ from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from django.db import transaction
 from django.utils import timezone
@@ -17,7 +16,8 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from audit.models import AuditLog
 from imports.models import ImportJob
-from mediafiles.models import MediaFile, MediaType
+from mediafiles.models import MediaType
+from mediafiles.services import create_media_file_from_upload
 from vehicles.models import Vehicle, VehicleCategory
 
 
@@ -48,14 +48,11 @@ class ImportValidationResult:
 @transaction.atomic
 def create_vehicle_import_job(*, uploaded_file, actor, request_meta: dict[str, str]) -> ImportJob:
     """Create media metadata, validate the workbook, and persist an ImportJob."""
-    filename = Path(uploaded_file.name or "vehicle-import.xlsx").name
-    source_media = MediaFile.objects.create(
+    source_media = create_media_file_from_upload(
+        uploaded_file=uploaded_file,
+        actor=actor,
         media_type=MediaType.IMPORT,
-        original_filename=filename,
-        storage_key=f"imports/vehicles/{uuid4()}/{filename}",
-        content_type=getattr(uploaded_file, "content_type", "") or _content_type_for(filename),
-        size_bytes=uploaded_file.size,
-        uploaded_by=actor,
+        related_type="vehicle_import",
     )
     job = ImportJob.objects.create(
         import_type=ImportJob.ImportType.VEHICLES,
@@ -559,9 +556,3 @@ def _create_audit_log(
         ip_address=request_meta.get("ip_address") or None,
         user_agent=request_meta.get("user_agent", ""),
     )
-
-
-def _content_type_for(filename: str) -> str:
-    if filename.lower().endswith(".xlsm"):
-        return "application/vnd.ms-excel.sheet.macroEnabled.12"
-    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

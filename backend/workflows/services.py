@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from audit.models import AuditLog
-from damages.models import DamageReport
+from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile
 from vehicles.models import Vehicle, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
@@ -55,6 +55,7 @@ def complete_check_in(*, data: dict[str, Any], actor, request_meta: dict[str, st
             vehicle=vehicle,
             actor=actor,
             damage_payloads=damage_payloads,
+            workflow_phase=DamageWorkflowPhase.CHECK_IN,
             check_in_protocol=protocol,
         )
         _attach_media(
@@ -123,6 +124,7 @@ def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[st
             vehicle=vehicle,
             actor=actor,
             damage_payloads=data.get("damage_reports", []),
+            workflow_phase=DamageWorkflowPhase.LOAN_CHECKOUT,
             loan=loan,
         )
         _attach_media(
@@ -191,6 +193,7 @@ def complete_loan_return(
             vehicle=vehicle,
             actor=actor,
             damage_payloads=damage_payloads,
+            workflow_phase=DamageWorkflowPhase.LOAN_RETURN,
             loan=locked_loan,
         )
         _attach_media(
@@ -261,6 +264,7 @@ def complete_manufacturer_checkout(
             vehicle=vehicle,
             actor=actor,
             damage_payloads=data.get("damage_reports", []),
+            workflow_phase=DamageWorkflowPhase.MANUFACTURER_CHECKOUT,
             manufacturer_checkout_protocol=protocol,
         )
         _attach_media(
@@ -405,6 +409,7 @@ def _create_damage_reports(
     vehicle: Vehicle,
     actor,
     damage_payloads: Iterable[dict[str, Any]],
+    workflow_phase: str = DamageWorkflowPhase.GENERAL,
     loan: Loan | None = None,
     check_in_protocol: CheckInProtocol | None = None,
     manufacturer_checkout_protocol: ManufacturerCheckOutProtocol | None = None,
@@ -420,6 +425,7 @@ def _create_damage_reports(
             manufacturer_checkout_protocol=manufacturer_checkout_protocol,
             description=payload["description"],
             severity=payload.get("severity", "unknown"),
+            workflow_phase=workflow_phase,
             discovered_at=payload.get("discovered_at") or timezone.now(),
             created_by=actor,
         )

@@ -14,6 +14,9 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'workflows', to: '/app/workflows/check-in', translationKey: 'navigation.workflows', roles: ['admin', 'operations'] },
+  { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
   { key: 'settings', to: '/app/settings', translationKey: 'navigation.settings', roles: ['admin'] },
 ];
@@ -33,7 +36,7 @@ export function AppLayout() {
         </div>
         <div className="top-bar__actions">
           <LanguageSelector />
-          <button className="secondary-button" type="button" onClick={logout}>
+          <button className="secondary-button" type="button" onClick={() => void logout()}>
             {t('navigation.logout')}
           </button>
         </div>

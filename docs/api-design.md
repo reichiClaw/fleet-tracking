@@ -190,12 +190,15 @@ split creation and completion into separate endpoints.
 Upload request should use multipart form data with:
 
 - `file`
-- `media_type`
-- `vehicle`
+- `media_type` (`photo`, `signature`, `pdf`, `import`)
+- optional `vehicle`
 - optional `loan`
 - optional `damage_report`
 - optional `related_type`
 - optional `related_id`
+
+Files are downloaded through authenticated API endpoints. Deployments should not
+serve the media volume directly.
 
 ## Documents
 
@@ -203,6 +206,10 @@ Upload request should use multipart form data with:
 |---|---|---|
 | GET | `/documents/` | List generated PDFs |
 | GET | `/documents/{id}/download/` | Download generated PDF |
+
+PDF generation endpoints accept JSON `{ "language": "de" }` or `{ "language": "en" }`.
+If the same protocol/type/language already exists, the existing PDF metadata is
+returned instead of overwriting the file.
 
 ## Imports
 

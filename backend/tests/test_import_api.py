@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from io import BytesIO
+import shutil
+import tempfile
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from openpyxl import Workbook
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -13,6 +15,9 @@ from audit.models import AuditLog
 from imports.models import ImportJob
 from mediafiles.models import MediaFile, MediaType
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
+
+
+IMPORT_MEDIA_ROOT = tempfile.mkdtemp(prefix="fleet-import-tests-")
 
 
 HEADER = [
@@ -30,7 +35,13 @@ HEADER = [
 ]
 
 
+@override_settings(MEDIA_ROOT=IMPORT_MEDIA_ROOT)
 class VehicleImportAPITests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(IMPORT_MEDIA_ROOT, ignore_errors=True)
+
     def setUp(self):
         user_model = get_user_model()
         self.admin_user = user_model.objects.create_user(

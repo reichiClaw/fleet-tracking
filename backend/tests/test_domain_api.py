@@ -112,6 +112,29 @@ class DomainPermissionTests(DomainAPITestCase):
         self.assertEqual(readonly_list_response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(admin_create_response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_operations_can_read_but_not_mutate_vehicle_master_data(self):
+        category = VehicleCategory.objects.create(name="Telehandler")
+        vehicle = Vehicle.objects.create(
+            internal_number="VH-OPS",
+            category=category,
+            manufacturer="Acme",
+            model="TH100",
+            status=VehicleStatus.ANNOUNCED,
+        )
+        client = self.client_for(self.operations_user)
+
+        retrieve_response = client.get(f"/api/v1/vehicles/{vehicle.id}/")
+        patch_response = client.patch(
+            f"/api/v1/vehicles/{vehicle.id}/",
+            {"model": "TH200"},
+            format="json",
+        )
+
+        self.assertEqual(retrieve_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_response.status_code, status.HTTP_403_FORBIDDEN)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.model, "TH100")
+
 
 class VehicleStatusValidationTests(DomainAPITestCase):
     def setUp(self):

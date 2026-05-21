@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fleet-tracking backend\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-21 00:00+0000\n"
+"POT-Creation-Date: 2026-05-21 17:07+0200\n"
 "PO-Revision-Date: 2026-05-21 00:00+0000\n"
 "Last-Translator: Fleet Tracking Team\n"
 "Language-Team: English\n"
@@ -12,128 +12,403 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Service is healthy."
-msgstr "Service is healthy."
-
-msgid "German"
-msgstr "German"
-
-msgid "English"
-msgstr "English"
-
+#: accounts/apps.py:8
 msgid "Accounts"
 msgstr "Accounts"
 
-msgid "Vehicles"
-msgstr "Vehicles"
+#: accounts/models.py:16
+msgid "Admin"
+msgstr "Admin"
 
-msgid "Parties"
-msgstr "Parties"
+#: accounts/models.py:17
+msgid "Operations"
+msgstr "Operations"
 
-msgid "Drivers"
-msgstr "Drivers"
+#: accounts/models.py:18
+msgid "Read-only"
+msgstr "Read-only"
 
-msgid "Workflows"
-msgstr "Workflows"
+#: accounts/serializers.py:65
+msgid "Unable to log in with the provided credentials."
+msgstr "Unable to log in with the provided credentials."
 
-msgid "Damages"
-msgstr "Damages"
+#: accounts/serializers.py:66
+msgid "This user account is inactive."
+msgstr "This user account is inactive."
 
-msgid "Media files"
-msgstr "Media files"
-
-msgid "Imports"
-msgstr "Imports"
-
+#: audit/apps.py:8
 msgid "Audit"
 msgstr "Audit"
 
-msgid "Borrower name is required when no driver is selected."
-msgstr "Borrower name is required when no driver is selected."
+#: audit/models.py:31
+msgid "Audit logs are immutable."
+msgstr "Audit logs are immutable."
 
-msgid "Return odometer must not be lower than checkout odometer."
-msgstr "Return odometer must not be lower than checkout odometer."
+#: config/settings.py:130
+msgid "German"
+msgstr "German"
 
-msgid "Return operating hours must not be lower than checkout operating hours."
-msgstr "Return operating hours must not be lower than checkout operating hours."
+#: config/settings.py:131
+msgid "English"
+msgstr "English"
 
-msgid "This vehicle cannot be checked in from its current status."
-msgstr "This vehicle cannot be checked in from its current status."
+#: config/views.py:16
+msgid "Service is healthy."
+msgstr "Service is healthy."
 
-msgid "Only available or checked-in vehicles can be loaned."
-msgstr "Only available or checked-in vehicles can be loaned."
+#: damages/apps.py:8
+msgid "Damages"
+msgstr "Damages"
 
-msgid "This vehicle already has an active loan."
-msgstr "This vehicle already has an active loan."
+#: damages/models.py:15
+msgid "Minor"
+msgstr "Minor"
 
-msgid "Loan return requires an active loan."
-msgstr "Loan return requires an active loan."
+#: damages/models.py:16
+msgid "Major"
+msgstr "Major"
 
-msgid "Loaned vehicles cannot be checked out to manufacturers."
-msgstr "Loaned vehicles cannot be checked out to manufacturers."
+#: damages/models.py:17
+msgid "Critical"
+msgstr "Critical"
 
-msgid "This vehicle cannot be checked out to manufacturers from its current status."
-msgstr "This vehicle cannot be checked out to manufacturers from its current status."
+#: damages/models.py:18
+msgid "Unknown"
+msgstr "Unknown"
 
-msgid "Odometer value must not decrease."
-msgstr "Odometer value must not decrease."
+#: damages/models.py:22
+msgid "General"
+msgstr ""
 
-msgid "Operating hours must not decrease."
-msgstr "Operating hours must not decrease."
+#: damages/models.py:23
+#, fuzzy
+#| msgid "Checked in"
+msgid "Check-in"
+msgstr "Checked in"
 
-msgid "This workflow cannot move the vehicle to the requested status."
-msgstr "This workflow cannot move the vehicle to the requested status."
+#: damages/models.py:24
+#, fuzzy
+#| msgid "Manufacturer checkout"
+msgid "Loan checkout"
+msgstr "Manufacturer checkout"
 
+#: damages/models.py:25
+msgid "Loan return"
+msgstr ""
+
+#: damages/models.py:26
+#, fuzzy
+#| msgid "Manufacturer checkout"
+msgid "Manufacturer check-out"
+msgstr "Manufacturer checkout"
+
+#: damages/models.py:61 tests/test_settings.py:39 tests/test_settings.py:43
+msgid "Damage description is required."
+msgstr "Damage description is required."
+
+#: drivers/apps.py:8 imports/models.py:15
+msgid "Drivers"
+msgstr "Drivers"
+
+#: imports/apps.py:8
+msgid "Imports"
+msgstr "Imports"
+
+#: imports/models.py:14 vehicles/apps.py:8
+msgid "Vehicles"
+msgstr "Vehicles"
+
+#: imports/models.py:16
+msgid "Companies"
+msgstr "Companies"
+
+#: imports/models.py:19
+msgid "Uploaded"
+msgstr "Uploaded"
+
+#: imports/models.py:20
+msgid "Validated"
+msgstr "Validated"
+
+#: imports/models.py:21
+msgid "Failed"
+msgstr "Failed"
+
+#: imports/models.py:22
+msgid "Committed"
+msgstr "Committed"
+
+#: imports/services.py:86
 msgid "Only .xlsx or .xlsm files are supported."
 msgstr "Only .xlsx or .xlsm files are supported."
 
+#: imports/services.py:91
 msgid "The uploaded Excel file could not be read."
 msgstr "The uploaded Excel file could not be read."
 
+#: imports/services.py:104
 msgid "The workbook must contain a header row."
 msgstr "The workbook must contain a header row."
 
-msgid "Missing required column: %(column)s."
-msgstr "Missing required column: %(column)s."
-
+#: imports/services.py:185
 msgid "Only vehicle import jobs can be committed by this endpoint."
 msgstr "Only vehicle import jobs can be committed by this endpoint."
 
+#: imports/services.py:187
 msgid "This import job has already been committed."
 msgstr "This import job has already been committed."
 
+#: imports/services.py:189
 msgid "Import job must be successfully validated before commit."
 msgstr "Import job must be successfully validated before commit."
 
-msgid "Import file is required."
-msgstr "Import file is required."
+#: imports/services.py:293
+#, python-format
+msgid "Missing required column: %(column)s."
+msgstr "Missing required column: %(column)s."
 
-msgid "Import file must not be empty."
-msgstr "Import file must not be empty."
-
+#: imports/services.py:330
+#, python-format
 msgid "%(field)s is required."
 msgstr "%(field)s is required."
 
+#: imports/services.py:338
+#, python-format
 msgid "Unknown or inactive vehicle category: %(category)s."
 msgstr "Unknown or inactive vehicle category: %(category)s."
 
+#: imports/services.py:371
+#, python-format
 msgid "Duplicate internal_number in import file. First seen on row %(row)s."
 msgstr "Duplicate internal_number in import file. First seen on row %(row)s."
 
+#: imports/services.py:386
 msgid "Serial number already belongs to another vehicle."
 msgstr "Serial number already belongs to another vehicle."
 
+#: imports/services.py:387
+#, python-format
 msgid "Duplicate serial_number in import file. First seen on row %(row)s."
 msgstr "Duplicate serial_number in import file. First seen on row %(row)s."
 
+#: imports/services.py:397
 msgid "License plate already belongs to another vehicle."
 msgstr "License plate already belongs to another vehicle."
 
+#: imports/services.py:398
+#, python-format
 msgid "Duplicate license_plate in import file. First seen on row %(row)s."
 msgstr "Duplicate license_plate in import file. First seen on row %(row)s."
 
+#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:320
+msgid "Odometer value must not decrease."
+msgstr "Odometer value must not decrease."
+
+#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:326
+msgid "Operating hours must not decrease."
+msgstr "Operating hours must not decrease."
+
+#: imports/services.py:478
+#, python-format
 msgid "%(field)s must be a non-negative integer."
 msgstr "%(field)s must be a non-negative integer."
 
+#: imports/services.py:498
+#, python-format
 msgid "%(field)s must be a non-negative decimal number."
 msgstr "%(field)s must be a non-negative decimal number."
+
+#: imports/views.py:26
+msgid "Import file is required."
+msgstr "Import file is required."
+
+#: imports/views.py:28
+msgid "Import file must not be empty."
+msgstr "Import file must not be empty."
+
+#: mediafiles/apps.py:8
+msgid "Media files"
+msgstr "Media files"
+
+#: mediafiles/models.py:14
+msgid "Photo"
+msgstr "Photo"
+
+#: mediafiles/models.py:15
+msgid "Signature"
+msgstr "Signature"
+
+#: mediafiles/models.py:16
+msgid "PDF"
+msgstr "PDF"
+
+#: mediafiles/models.py:17
+msgid "Import"
+msgstr "Import"
+
+#: mediafiles/models.py:44
+msgid "File size must be greater than zero."
+msgstr "File size must be greater than zero."
+
+#: mediafiles/services.py:146
+msgid "Stored media file is missing."
+msgstr "Stored media file is missing."
+
+#: mediafiles/services.py:151
+msgid "Unsupported media type."
+msgstr "Unsupported media type."
+
+#: mediafiles/services.py:153
+msgid "File must not be empty."
+msgstr "File must not be empty."
+
+#: mediafiles/services.py:157
+#, python-format
+msgid "File exceeds the maximum upload size of %(size)d MB."
+msgstr "File exceeds the maximum upload size of %(size)d MB."
+
+#: mediafiles/services.py:163
+msgid "File extension is not allowed for this media type."
+msgstr "File extension is not allowed for this media type."
+
+#: mediafiles/services.py:165
+msgid "File content type is not allowed for this media type."
+msgstr "File content type is not allowed for this media type."
+
+#: mediafiles/services.py:167
+msgid "File content does not match the selected media type."
+msgstr "File content does not match the selected media type."
+
+#: parties/apps.py:8
+msgid "Parties"
+msgstr "Parties"
+
+#: parties/models.py:13
+msgid "Subcontractor"
+msgstr "Subcontractor"
+
+#: parties/models.py:14
+msgid "Manufacturer"
+msgstr "Manufacturer"
+
+#: parties/models.py:15
+msgid "Supplier"
+msgstr "Supplier"
+
+#: parties/models.py:16
+msgid "Internal"
+msgstr "Internal"
+
+#: tests/test_settings.py:38 tests/test_settings.py:42 vehicles/models.py:19
+msgid "Available"
+msgstr "Available"
+
+#: vehicles/models.py:17
+msgid "Announced"
+msgstr "Announced"
+
+#: vehicles/models.py:18
+msgid "Checked in"
+msgstr "Checked in"
+
+#: vehicles/models.py:20
+msgid "Reserved"
+msgstr "Reserved"
+
+#: vehicles/models.py:21
+msgid "Loaned"
+msgstr "Loaned"
+
+#: vehicles/models.py:22
+msgid "Maintenance"
+msgstr "Maintenance"
+
+#: vehicles/models.py:23
+msgid "Damaged"
+msgstr "Damaged"
+
+#: vehicles/models.py:24
+msgid "Manufacturer checkout"
+msgstr "Manufacturer checkout"
+
+#: vehicles/models.py:25
+msgid "Archived"
+msgstr "Archived"
+
+#: vehicles/models.py:100 workflows/models.py:61 workflows/models.py:63
+#: workflows/models.py:109 workflows/models.py:141
+msgid "Operating hours must be non-negative."
+msgstr "Operating hours must be non-negative."
+
+#: vehicles/models.py:108
+#, python-format
+msgid "Invalid vehicle status transition from %(old)s to %(new)s."
+msgstr "Invalid vehicle status transition from %(old)s to %(new)s."
+
+#: workflows/apps.py:8
+msgid "Workflows"
+msgstr "Workflows"
+
+#: workflows/models.py:17
+msgid "Active"
+msgstr "Active"
+
+#: workflows/models.py:18
+msgid "Returned"
+msgstr "Returned"
+
+#: workflows/models.py:19
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: workflows/models.py:59 workflows/serializers.py:57
+#: workflows/serializers.py:125
+msgid "Borrower name is required when no driver is selected."
+msgstr "Borrower name is required when no driver is selected."
+
+#: workflows/models.py:69 workflows/serializers.py:63
+msgid "Return odometer must not be lower than checkout odometer."
+msgstr "Return odometer must not be lower than checkout odometer."
+
+#: workflows/models.py:76 workflows/serializers.py:69
+msgid "Return operating hours must not be lower than checkout operating hours."
+msgstr ""
+"Return operating hours must not be lower than checkout operating hours."
+
+#: workflows/pdf.py:177
+msgid "Loan return PDF requires a returned loan."
+msgstr "Loan return PDF requires a returned loan."
+
+#: workflows/pdf.py:454
+msgid "Unsupported PDF language."
+msgstr "Unsupported PDF language."
+
+#: workflows/services.py:31
+msgid "This vehicle cannot be checked in from its current status."
+msgstr "This vehicle cannot be checked in from its current status."
+
+#: workflows/services.py:99
+msgid "Only available or checked-in vehicles can be loaned."
+msgstr "Only available or checked-in vehicles can be loaned."
+
+#: workflows/services.py:102
+msgid "This vehicle already has an active loan."
+msgstr "This vehicle already has an active loan."
+
+#: workflows/services.py:169
+msgid "Loan return requires an active loan."
+msgstr "Loan return requires an active loan."
+
+#: workflows/services.py:240
+msgid "Loaned vehicles cannot be checked out to manufacturers."
+msgstr "Loaned vehicles cannot be checked out to manufacturers."
+
+#: workflows/services.py:244
+msgid ""
+"This vehicle cannot be checked out to manufacturers from its current status."
+msgstr ""
+"This vehicle cannot be checked out to manufacturers from its current status."
+
+#: workflows/services.py:403
+msgid "This workflow cannot move the vehicle to the requested status."
+msgstr "This workflow cannot move the vehicle to the requested status."

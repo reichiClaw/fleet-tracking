@@ -1,6 +1,7 @@
 from django.apps import apps
 from django.conf import settings
 from django.test import SimpleTestCase
+from django.utils.translation import gettext, override
 
 
 class SettingsLoadingTests(SimpleTestCase):
@@ -31,3 +32,12 @@ class SettingsLoadingTests(SimpleTestCase):
         self.assertEqual(settings.LANGUAGE_CODE, "de")
         self.assertIn("de", language_codes)
         self.assertIn("en", language_codes)
+
+    def test_backend_catalogs_translate_representative_user_messages(self):
+        with override("de"):
+            self.assertEqual(gettext("Available"), "Verfügbar")
+            self.assertEqual(gettext("Damage description is required."), "Eine Schadensbeschreibung ist erforderlich.")
+
+        with override("en"):
+            self.assertEqual(gettext("Available"), "Available")
+            self.assertEqual(gettext("Damage description is required."), "Damage description is required.")
