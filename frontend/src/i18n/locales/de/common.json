@@ -305,13 +305,33 @@
       "pending": "Ausstehend",
       "validated": "Validiert",
       "failed": "Fehlgeschlagen",
-      "committed": "Übernommen"
+      "committed": "Übernommen",
+      "uploaded": "Hochgeladen"
     },
     "table": {
       "row": "Zeile",
       "action": "Aktion",
       "errors": "Fehler",
       "noErrors": "Keine Fehler"
+    },
+    "errorFormat": "{{field}}: {{message}}",
+    "errorSeparator": "; ",
+    "actions": {
+      "create": "Anlegen",
+      "update": "Aktualisieren"
+    },
+    "fields": {
+      "internal_number": "Interne Nummer",
+      "category": "Kategorie",
+      "manufacturer": "Hersteller",
+      "model": "Modell",
+      "serial_number": "Seriennummer",
+      "license_plate": "Kennzeichen",
+      "current_odometer_km": "Aktueller Kilometerstand (km)",
+      "current_operating_hours": "Aktuelle Betriebsstunden",
+      "current_location": "Aktueller Standort",
+      "supplier": "Lieferant",
+      "notes": "Notizen"
     }
   },
   "adminImports": {

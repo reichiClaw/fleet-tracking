@@ -18,23 +18,23 @@ msgstr "Konten"
 
 #: accounts/models.py:16
 msgid "Admin"
-msgstr ""
+msgstr "Admin"
 
 #: accounts/models.py:17
 msgid "Operations"
-msgstr ""
+msgstr "Disposition"
 
 #: accounts/models.py:18
 msgid "Read-only"
-msgstr ""
+msgstr "Nur Lesen"
 
 #: accounts/serializers.py:65
 msgid "Unable to log in with the provided credentials."
-msgstr ""
+msgstr "Anmeldung mit den angegebenen Zugangsdaten nicht möglich."
 
 #: accounts/serializers.py:66
 msgid "This user account is inactive."
-msgstr ""
+msgstr "Dieses Benutzerkonto ist inaktiv."
 
 #: audit/apps.py:8
 msgid "Audit"
@@ -42,7 +42,7 @@ msgstr "Audit"
 
 #: audit/models.py:31
 msgid "Audit logs are immutable."
-msgstr ""
+msgstr "Audit-Logs sind unveränderlich."
 
 #: config/settings.py:130
 msgid "German"
@@ -62,25 +62,24 @@ msgstr "Schäden"
 
 #: damages/models.py:15
 msgid "Minor"
-msgstr ""
+msgstr "Gering"
 
 #: damages/models.py:16
 msgid "Major"
-msgstr ""
+msgstr "Erheblich"
 
 #: damages/models.py:17
 msgid "Critical"
-msgstr ""
+msgstr "Kritisch"
 
 #: damages/models.py:18
 msgid "Unknown"
-msgstr ""
+msgstr "Unbekannt"
 
 #: damages/models.py:48
-#, fuzzy
 #| msgid "Import file is required."
 msgid "Damage description is required."
-msgstr "Eine Importdatei ist erforderlich."
+msgstr "Eine Schadensbeschreibung ist erforderlich."
 
 #: drivers/apps.py:8 imports/models.py:15
 msgid "Drivers"
@@ -96,23 +95,23 @@ msgstr "Fahrzeuge"
 
 #: imports/models.py:16
 msgid "Companies"
-msgstr ""
+msgstr "Firmen"
 
 #: imports/models.py:19
 msgid "Uploaded"
-msgstr ""
+msgstr "Hochgeladen"
 
 #: imports/models.py:20
 msgid "Validated"
-msgstr ""
+msgstr "Validiert"
 
 #: imports/models.py:21
 msgid "Failed"
-msgstr ""
+msgstr "Fehlgeschlagen"
 
 #: imports/models.py:22
 msgid "Committed"
-msgstr ""
+msgstr "Übernommen"
 
 #: imports/services.py:86
 msgid "Only .xlsx or .xlsm files are supported."
@@ -156,8 +155,7 @@ msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
 #: imports/services.py:371
 #, python-format
 msgid "Duplicate internal_number in import file. First seen on row %(row)s."
-msgstr ""
-"Doppelte internal_number in der Importdatei. Erstmals in Zeile %(row)s."
+msgstr "Doppelte interne Nummer in der Importdatei. Erstmals in Zeile %(row)s."
 
 #: imports/services.py:386
 msgid "Serial number already belongs to another vehicle."
@@ -209,25 +207,24 @@ msgstr "Mediendateien"
 
 #: mediafiles/models.py:14
 msgid "Photo"
-msgstr ""
+msgstr "Foto"
 
 #: mediafiles/models.py:15
 msgid "Signature"
-msgstr ""
+msgstr "Unterschrift"
 
 #: mediafiles/models.py:16
 msgid "PDF"
-msgstr ""
+msgstr "PDF"
 
 #: mediafiles/models.py:17
-#, fuzzy
 #| msgid "Imports"
 msgid "Import"
-msgstr "Importe"
+msgstr "Import"
 
 #: mediafiles/models.py:44
 msgid "File size must be greater than zero."
-msgstr ""
+msgstr "Die Dateigröße muss größer als null sein."
 
 #: mediafiles/services.py:146
 msgid "Stored media file is missing."
@@ -235,10 +232,9 @@ msgstr "Die gespeicherte Mediendatei fehlt."
 
 #: mediafiles/services.py:151
 msgid "Unsupported media type."
-msgstr "Nicht unterstuetzter Medientyp."
+msgstr "Nicht unterstützter Medientyp."
 
 #: mediafiles/services.py:153
-#, fuzzy
 #| msgid "Import file must not be empty."
 msgid "File must not be empty."
 msgstr "Die Datei darf nicht leer sein."
@@ -246,19 +242,19 @@ msgstr "Die Datei darf nicht leer sein."
 #: mediafiles/services.py:157
 #, python-format
 msgid "File exceeds the maximum upload size of %(size)d MB."
-msgstr "Die Datei ueberschreitet die maximale Uploadgroesse von %(size)d MB."
+msgstr "Die Datei überschreitet die maximale Uploadgröße von %(size)d MB."
 
 #: mediafiles/services.py:163
 msgid "File extension is not allowed for this media type."
-msgstr "Die Dateiendung ist fuer diesen Medientyp nicht erlaubt."
+msgstr "Die Dateiendung ist für diesen Medientyp nicht erlaubt."
 
 #: mediafiles/services.py:165
 msgid "File content type is not allowed for this media type."
-msgstr "Der Dateiinhaltstyp ist fuer diesen Medientyp nicht erlaubt."
+msgstr "Der Dateiinhaltstyp ist für diesen Medientyp nicht erlaubt."
 
 #: mediafiles/services.py:167
 msgid "File content does not match the selected media type."
-msgstr "Der Dateiinhalt passt nicht zum ausgewaehlten Medientyp."
+msgstr "Der Dateiinhalt passt nicht zum ausgewählten Medientyp."
 
 #: parties/apps.py:8
 msgid "Parties"
@@ -266,69 +262,67 @@ msgstr "Parteien"
 
 #: parties/models.py:13
 msgid "Subcontractor"
-msgstr ""
+msgstr "Subunternehmer"
 
 #: parties/models.py:14
 msgid "Manufacturer"
-msgstr ""
+msgstr "Hersteller"
 
 #: parties/models.py:15
 msgid "Supplier"
-msgstr ""
+msgstr "Lieferant"
 
 #: parties/models.py:16
 msgid "Internal"
-msgstr ""
+msgstr "Intern"
 
 #: vehicles/models.py:17
 msgid "Announced"
-msgstr ""
+msgstr "Angekündigt"
 
 #: vehicles/models.py:18
 msgid "Checked in"
-msgstr ""
+msgstr "Eingecheckt"
 
 #: vehicles/models.py:19
 msgid "Available"
-msgstr ""
+msgstr "Verfügbar"
 
 #: vehicles/models.py:20
 msgid "Reserved"
-msgstr ""
+msgstr "Reserviert"
 
 #: vehicles/models.py:21
 msgid "Loaned"
-msgstr ""
+msgstr "Ausgeliehen"
 
 #: vehicles/models.py:22
 msgid "Maintenance"
-msgstr ""
+msgstr "Wartung"
 
 #: vehicles/models.py:23
-#, fuzzy
 #| msgid "Damages"
 msgid "Damaged"
-msgstr "Schäden"
+msgstr "Beschädigt"
 
 #: vehicles/models.py:24
 msgid "Manufacturer checkout"
-msgstr ""
+msgstr "Hersteller-Check-out"
 
 #: vehicles/models.py:25
 msgid "Archived"
-msgstr ""
+msgstr "Archiviert"
 
 #: vehicles/models.py:100 workflows/models.py:61 workflows/models.py:63
 #: workflows/models.py:109 workflows/models.py:141
-#, fuzzy
 #| msgid "Operating hours must not decrease."
 msgid "Operating hours must be non-negative."
-msgstr "Betriebsstunden dürfen nicht sinken."
+msgstr "Betriebsstunden müssen nicht negativ sein."
 
 #: vehicles/models.py:108
 #, python-format
 msgid "Invalid vehicle status transition from %(old)s to %(new)s."
-msgstr ""
+msgstr "Ungültiger Fahrzeugstatuswechsel von %(old)s zu %(new)s."
 
 #: workflows/apps.py:8
 msgid "Workflows"
@@ -336,15 +330,15 @@ msgstr "Arbeitsabläufe"
 
 #: workflows/models.py:17
 msgid "Active"
-msgstr ""
+msgstr "Aktiv"
 
 #: workflows/models.py:18
 msgid "Returned"
-msgstr ""
+msgstr "Zurückgegeben"
 
 #: workflows/models.py:19
 msgid "Cancelled"
-msgstr ""
+msgstr "Storniert"
 
 #: workflows/models.py:59 workflows/serializers.py:57
 #: workflows/serializers.py:125
@@ -353,30 +347,24 @@ msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
 
 #: workflows/models.py:69 workflows/serializers.py:63
 msgid "Return odometer must not be lower than checkout odometer."
-msgstr ""
-"Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei "
-"Ausleihe."
+msgstr "Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei Ausleihe."
 
 #: workflows/models.py:76 workflows/serializers.py:69
 msgid "Return operating hours must not be lower than checkout operating hours."
-msgstr ""
-"Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden "
-"bei Ausleihe."
+msgstr "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden bei Ausleihe."
 
 #: workflows/pdf.py:175
-#, fuzzy
 #| msgid "Loan return requires an active loan."
 msgid "Loan return PDF requires a returned loan."
-msgstr "Das Rueckgabe-PDF erfordert eine zurueckgegebene Ausleihe."
+msgstr "Das Rückgabe-PDF erfordert eine zurückgegebene Ausleihe."
 
 #: workflows/pdf.py:446
 msgid "Unsupported PDF language."
-msgstr "Nicht unterstuetzte PDF-Sprache."
+msgstr "Nicht unterstützte PDF-Sprache."
 
 #: workflows/services.py:31
 msgid "This vehicle cannot be checked in from its current status."
-msgstr ""
-"Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
 
 #: workflows/services.py:98
 msgid "Only available or checked-in vehicles can be loaned."
@@ -403,6 +391,4 @@ msgstr ""
 
 #: workflows/services.py:399
 msgid "This workflow cannot move the vehicle to the requested status."
-msgstr ""
-"Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status "
-"versetzen."
+msgstr "Dieser Workflow kann das Fahrzeug nicht in den angeforderten Status verschieben."

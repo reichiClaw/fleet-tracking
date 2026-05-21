@@ -1,4 +1,6 @@
 const DEFAULT_API_BASE_URL = '/api/v1';
+const LANGUAGE_STORAGE_KEY = 'fleet-language';
+const SUPPORTED_REQUEST_LANGUAGES = new Set(['de', 'en']);
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
 
@@ -18,6 +20,28 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown>;
   language?: string;
 };
+
+function normalizeLanguage(language?: string | null) {
+  const code = language?.split('-', 1)[0]?.toLowerCase();
+  return code && SUPPORTED_REQUEST_LANGUAGES.has(code) ? code : undefined;
+}
+
+function resolveRequestLanguage(language?: string) {
+  if (language) {
+    return normalizeLanguage(language);
+  }
+
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return (
+    normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)) ??
+    normalizeLanguage(document.documentElement.lang) ??
+    normalizeLanguage(window.navigator.language) ??
+    'de'
+  );
+}
 
 export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | null | undefined>) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -40,13 +64,14 @@ export function buildApiUrl(path: string, query?: Record<string, string | number
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, language, ...requestInit } = options;
   const isFormData = body instanceof FormData;
+  const requestLanguage = resolveRequestLanguage(language);
 
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
     ...requestInit,
     headers: {
       Accept: 'application/json',
-      ...(language ? { 'Accept-Language': language } : {}),
+      ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
       ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },

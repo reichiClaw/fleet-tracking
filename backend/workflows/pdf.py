@@ -37,6 +37,7 @@ _T = {
         "manufacturer_checkout_title": "Manufacturer Check-Out Protocol",
         "protocol_number": "Protocol number",
         "language": "Language",
+        "language_name": "English",
         "workflow_type": "Workflow type",
         "date_time": "Date/time",
         "user": "User",
@@ -86,6 +87,7 @@ _T = {
         "manufacturer_checkout_title": "Hersteller-R\u00fcckgabeprotokoll",
         "protocol_number": "Protokollnummer",
         "language": "Sprache",
+        "language_name": "Deutsch",
         "workflow_type": "Workflow-Typ",
         "date_time": "Datum/Uhrzeit",
         "user": "Benutzer",
@@ -325,7 +327,7 @@ def _render_pdf(
 
     rows = [
         (labels["protocol_number"], protocol_number),
-        (labels["language"], language),
+        (labels["language"], labels["language_name"]),
         (labels["workflow_type"], workflow_type),
         (labels["date_time"], _format_datetime(performed_at)),
         (labels["user"], _display_user(performed_by)),

@@ -18,7 +18,18 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { StatusBadge } from '../components/StatusBadge';
 
-const statuses = ['', 'available', 'loaned', 'maintenance', 'damaged', 'manufacturer_checkout'] as const;
+const statuses = [
+  '',
+  'announced',
+  'checked_in',
+  'available',
+  'reserved',
+  'loaned',
+  'maintenance',
+  'damaged',
+  'manufacturer_checkout',
+  'archived',
+] as const;
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();

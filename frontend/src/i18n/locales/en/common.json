@@ -305,13 +305,33 @@
       "pending": "Pending",
       "validated": "Validated",
       "failed": "Failed",
-      "committed": "Committed"
+      "committed": "Committed",
+      "uploaded": "Uploaded"
     },
     "table": {
       "row": "Row",
       "action": "Action",
       "errors": "Errors",
       "noErrors": "No errors"
+    },
+    "errorFormat": "{{field}}: {{message}}",
+    "errorSeparator": "; ",
+    "actions": {
+      "create": "Create",
+      "update": "Update"
+    },
+    "fields": {
+      "internal_number": "Internal number",
+      "category": "Category",
+      "manufacturer": "Manufacturer",
+      "model": "Model",
+      "serial_number": "Serial number",
+      "license_plate": "License plate",
+      "current_odometer_km": "Current odometer (km)",
+      "current_operating_hours": "Current operating hours",
+      "current_location": "Current location",
+      "supplier": "Supplier",
+      "notes": "Notes"
     }
   },
   "adminImports": {

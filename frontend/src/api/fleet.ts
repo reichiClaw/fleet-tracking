@@ -165,7 +165,7 @@ export type ImportJob = {
   id: string;
   import_type: string;
   source_media?: string | null;
-  status: 'pending' | 'validated' | 'failed' | 'committed' | string;
+  status: 'uploaded' | 'pending' | 'validated' | 'failed' | 'committed' | string;
   row_count: number;
   error_count: number;
   result?: {

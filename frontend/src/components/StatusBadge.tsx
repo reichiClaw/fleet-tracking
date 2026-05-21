@@ -5,8 +5,10 @@ import type { LoanStatus, VehicleStatus } from '../api/fleet';
 type BadgeStatus = VehicleStatus | LoanStatus | string;
 
 export function StatusBadge({ status }: { status: BadgeStatus }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const normalized = status || 'unknown';
+  const statusKey = `status.${normalized}`;
+  const label = i18n.exists(statusKey) ? t(statusKey) : t('status.unknown');
 
-  return <span className={`status-badge status-badge--${normalized}`}>{t(`status.${normalized}`, normalized)}</span>;
+  return <span className={`status-badge status-badge--${normalized}`}>{label}</span>;
 }

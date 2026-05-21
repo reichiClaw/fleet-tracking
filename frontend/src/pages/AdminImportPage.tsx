@@ -5,7 +5,7 @@ import { commitVehicleImport, uploadVehicleImport, type ImportJob } from '../api
 import { ErrorState } from '../components/ErrorState';
 
 export function AdminImportPage() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -51,6 +51,28 @@ export function AdminImportPage() {
 
   const canCommit = job?.status === 'validated' && job.error_count === 0;
 
+  function importStatusLabel(status: string) {
+    const key = `imports.status.${status}`;
+    return i18n.exists(key) ? t(key) : t('common.unknown');
+  }
+
+  function importActionLabel(action?: string) {
+    if (!action) {
+      return t('common.notAvailable');
+    }
+    const key = `imports.actions.${action}`;
+    return i18n.exists(key) ? t(key) : t('common.unknown');
+  }
+
+  function importFieldLabel(field: string) {
+    const key = `imports.fields.${field}`;
+    return i18n.exists(key) ? t(key) : field;
+  }
+
+  function importErrorLabel(errorItem: { field: string; message: string }) {
+    return t('imports.errorFormat', { field: importFieldLabel(errorItem.field), message: errorItem.message });
+  }
+
   return (
     <section className="page-stack">
       <div className="page-header">
@@ -77,7 +99,7 @@ export function AdminImportPage() {
           <div className="card-title-row">
             <div>
               <h3>{t('imports.resultTitle')}</h3>
-              <p>{t(`imports.status.${job.status}`, job.status)}</p>
+              <p>{importStatusLabel(job.status)}</p>
             </div>
             <strong>{t('imports.rowSummary', { rows: job.row_count, errors: job.error_count })}</strong>
           </div>
@@ -96,10 +118,10 @@ export function AdminImportPage() {
                   {job.result.rows.slice(0, 20).map((row) => (
                     <tr key={row.row_number}>
                       <td>{row.row_number}</td>
-                      <td>{row.action || t('common.notAvailable')}</td>
+                      <td>{importActionLabel(row.action)}</td>
                       <td>
                         {row.errors?.length
-                          ? row.errors.map((item) => `${item.field}: ${item.message}`).join('; ')
+                          ? row.errors.map(importErrorLabel).join(t('imports.errorSeparator'))
                           : t('imports.table.noErrors')}
                       </td>
                     </tr>

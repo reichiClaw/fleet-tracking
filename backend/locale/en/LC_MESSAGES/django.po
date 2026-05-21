@@ -18,23 +18,23 @@ msgstr "Accounts"
 
 #: accounts/models.py:16
 msgid "Admin"
-msgstr ""
+msgstr "Admin"
 
 #: accounts/models.py:17
 msgid "Operations"
-msgstr ""
+msgstr "Operations"
 
 #: accounts/models.py:18
 msgid "Read-only"
-msgstr ""
+msgstr "Read-only"
 
 #: accounts/serializers.py:65
 msgid "Unable to log in with the provided credentials."
-msgstr ""
+msgstr "Unable to log in with the provided credentials."
 
 #: accounts/serializers.py:66
 msgid "This user account is inactive."
-msgstr ""
+msgstr "This user account is inactive."
 
 #: audit/apps.py:8
 msgid "Audit"
@@ -42,7 +42,7 @@ msgstr "Audit"
 
 #: audit/models.py:31
 msgid "Audit logs are immutable."
-msgstr ""
+msgstr "Audit logs are immutable."
 
 #: config/settings.py:130
 msgid "German"
@@ -62,25 +62,24 @@ msgstr "Damages"
 
 #: damages/models.py:15
 msgid "Minor"
-msgstr ""
+msgstr "Minor"
 
 #: damages/models.py:16
 msgid "Major"
-msgstr ""
+msgstr "Major"
 
 #: damages/models.py:17
 msgid "Critical"
-msgstr ""
+msgstr "Critical"
 
 #: damages/models.py:18
 msgid "Unknown"
-msgstr ""
+msgstr "Unknown"
 
 #: damages/models.py:48
-#, fuzzy
 #| msgid "Import file is required."
 msgid "Damage description is required."
-msgstr "Import file is required."
+msgstr "Damage description is required."
 
 #: drivers/apps.py:8 imports/models.py:15
 msgid "Drivers"
@@ -96,23 +95,23 @@ msgstr "Vehicles"
 
 #: imports/models.py:16
 msgid "Companies"
-msgstr ""
+msgstr "Companies"
 
 #: imports/models.py:19
 msgid "Uploaded"
-msgstr ""
+msgstr "Uploaded"
 
 #: imports/models.py:20
 msgid "Validated"
-msgstr ""
+msgstr "Validated"
 
 #: imports/models.py:21
 msgid "Failed"
-msgstr ""
+msgstr "Failed"
 
 #: imports/models.py:22
 msgid "Committed"
-msgstr ""
+msgstr "Committed"
 
 #: imports/services.py:86
 msgid "Only .xlsx or .xlsm files are supported."
@@ -208,25 +207,24 @@ msgstr "Media files"
 
 #: mediafiles/models.py:14
 msgid "Photo"
-msgstr ""
+msgstr "Photo"
 
 #: mediafiles/models.py:15
 msgid "Signature"
-msgstr ""
+msgstr "Signature"
 
 #: mediafiles/models.py:16
 msgid "PDF"
-msgstr ""
+msgstr "PDF"
 
 #: mediafiles/models.py:17
-#, fuzzy
 #| msgid "Imports"
 msgid "Import"
-msgstr "Imports"
+msgstr "Import"
 
 #: mediafiles/models.py:44
 msgid "File size must be greater than zero."
-msgstr ""
+msgstr "File size must be greater than zero."
 
 #: mediafiles/services.py:146
 msgid "Stored media file is missing."
@@ -237,7 +235,6 @@ msgid "Unsupported media type."
 msgstr "Unsupported media type."
 
 #: mediafiles/services.py:153
-#, fuzzy
 #| msgid "Import file must not be empty."
 msgid "File must not be empty."
 msgstr "File must not be empty."
@@ -265,69 +262,67 @@ msgstr "Parties"
 
 #: parties/models.py:13
 msgid "Subcontractor"
-msgstr ""
+msgstr "Subcontractor"
 
 #: parties/models.py:14
 msgid "Manufacturer"
-msgstr ""
+msgstr "Manufacturer"
 
 #: parties/models.py:15
 msgid "Supplier"
-msgstr ""
+msgstr "Supplier"
 
 #: parties/models.py:16
 msgid "Internal"
-msgstr ""
+msgstr "Internal"
 
 #: vehicles/models.py:17
 msgid "Announced"
-msgstr ""
+msgstr "Announced"
 
 #: vehicles/models.py:18
 msgid "Checked in"
-msgstr ""
+msgstr "Checked in"
 
 #: vehicles/models.py:19
 msgid "Available"
-msgstr ""
+msgstr "Available"
 
 #: vehicles/models.py:20
 msgid "Reserved"
-msgstr ""
+msgstr "Reserved"
 
 #: vehicles/models.py:21
 msgid "Loaned"
-msgstr ""
+msgstr "Loaned"
 
 #: vehicles/models.py:22
 msgid "Maintenance"
-msgstr ""
+msgstr "Maintenance"
 
 #: vehicles/models.py:23
-#, fuzzy
 #| msgid "Damages"
 msgid "Damaged"
-msgstr "Damages"
+msgstr "Damaged"
 
 #: vehicles/models.py:24
 msgid "Manufacturer checkout"
-msgstr ""
+msgstr "Manufacturer checkout"
 
 #: vehicles/models.py:25
 msgid "Archived"
-msgstr ""
+msgstr "Archived"
 
 #: vehicles/models.py:100 workflows/models.py:61 workflows/models.py:63
 #: workflows/models.py:109 workflows/models.py:141
-#, fuzzy
 #| msgid "Operating hours must not decrease."
 msgid "Operating hours must be non-negative."
-msgstr "Operating hours must not decrease."
+msgstr "Operating hours must be non-negative."
 
 #: vehicles/models.py:108
 #, python-format
 msgid "Invalid vehicle status transition from %(old)s to %(new)s."
-msgstr ""
+msgstr "Invalid vehicle status transition from %(old)s to %(new)s."
 
 #: workflows/apps.py:8
 msgid "Workflows"
@@ -335,15 +330,15 @@ msgstr "Workflows"
 
 #: workflows/models.py:17
 msgid "Active"
-msgstr ""
+msgstr "Active"
 
 #: workflows/models.py:18
 msgid "Returned"
-msgstr ""
+msgstr "Returned"
 
 #: workflows/models.py:19
 msgid "Cancelled"
-msgstr ""
+msgstr "Cancelled"
 
 #: workflows/models.py:59 workflows/serializers.py:57
 #: workflows/serializers.py:125
@@ -356,11 +351,9 @@ msgstr "Return odometer must not be lower than checkout odometer."
 
 #: workflows/models.py:76 workflows/serializers.py:69
 msgid "Return operating hours must not be lower than checkout operating hours."
-msgstr ""
-"Return operating hours must not be lower than checkout operating hours."
+msgstr "Return operating hours must not be lower than checkout operating hours."
 
 #: workflows/pdf.py:175
-#, fuzzy
 #| msgid "Loan return requires an active loan."
 msgid "Loan return PDF requires a returned loan."
 msgstr "Loan return PDF requires a returned loan."
