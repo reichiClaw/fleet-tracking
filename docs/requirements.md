@@ -17,6 +17,18 @@ The application must support vehicle categories such as:
 - Lifting platform
 - Other configurable categories
 
+
+## Language support
+
+The application must be fully usable in German and English. German and English
+translations are required for the user interface, workflow labels, validation
+messages, status labels, PDF protocols, and import result messages.
+
+Implementation agents must not hard-code user-facing text directly in frontend
+components or PDF templates. User-facing text should be stored in translation
+resources and maintained for both `de` and `en`. See `docs/i18n.md` for the
+translation strategy and terminology.
+
 ## Roles
 
 ### Admin
@@ -249,6 +261,7 @@ The MVP includes:
 - Photo uploads.
 - Signature capture.
 - PDF protocol generation.
+- German and English localization for UI, validation messages, statuses, and PDFs.
 - Audit log for important changes.
 - Docker Compose deployment with persistent database and media storage.
 

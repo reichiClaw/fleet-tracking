@@ -10,6 +10,7 @@ Implement the core backend domain model, APIs, and permissions.
 - `docs/data-model.md`
 - `docs/api-design.md`
 - `AGENTS.md`
+- `docs/i18n.md`
 
 ## Scope
 
@@ -30,6 +31,7 @@ Implement the core backend domain model, APIs, and permissions.
 
 - Role-based access control.
 - Status transition validation.
+- Stable status/workflow codes that can be translated in the UI.
 - Basic admin registration.
 - API serializers and viewsets.
 - Tests for CRUD, permissions, and business invariants.

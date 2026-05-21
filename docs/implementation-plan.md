@@ -9,6 +9,7 @@ Deliverables:
 
 - Django backend scaffold.
 - React frontend scaffold.
+- German/English i18n foundation.
 - PostgreSQL connection.
 - Dockerfiles.
 - Development Compose stack.
@@ -90,7 +91,7 @@ Exit criteria:
 - Photos and signatures persist in Docker volumes.
 - PDFs are generated and linked to workflow history.
 
-## Phase 5: Frontend workflows
+## Phase 5: Frontend workflows and localization
 
 Deliverables:
 
@@ -98,16 +99,19 @@ Deliverables:
 - Vehicle pool.
 - Vehicle details.
 - Workflow wizards.
+- German and English translations for all user-facing workflow text.
 - Admin screens or links to Django admin for MVP.
 
 Use:
 
 - `agent-tasks/08-frontend-workflows.md`
+- `agent-tasks/10-i18n.md`
 
 Exit criteria:
 
 - Operations users can complete MVP workflows through the UI.
 - UI is usable on tablet/mobile widths.
+- Users can switch between German and English.
 
 ## Phase 6: Excel import
 
@@ -129,7 +133,7 @@ Exit criteria:
 - Invalid rows are reported.
 - Valid rows create/update vehicles.
 
-## Phase 7: Deployment hardening and QA
+## Phase 7: Deployment hardening, localization QA, and acceptance
 
 Deliverables:
 
@@ -138,6 +142,7 @@ Deliverables:
 - Backup and restore scripts.
 - Deployment documentation.
 - End-to-end tests or manual acceptance checklist.
+- Translation coverage check for German and English.
 
 Use:
 
@@ -159,6 +164,6 @@ Exit criteria:
   vehicles.
 - Vehicle pool displays availability and expected returns.
 - Damage notes, photos, and signatures are stored.
-- PDF protocols are generated.
+- PDF protocols are generated in German and English.
 - Audit log captures important changes.
 - Docker Compose deployment is documented and repeatable.

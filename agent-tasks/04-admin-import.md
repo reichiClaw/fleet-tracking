@@ -9,6 +9,7 @@ Implement admin-facing management and Excel import for vehicle setup.
 - `docs/requirements.md`
 - `docs/backlog.md`
 - `docs/data-model.md`
+- `docs/i18n.md`
 
 ## Scope
 
@@ -22,6 +23,7 @@ Implement admin-facing management and Excel import for vehicle setup.
 - Vehicle Excel import.
 - Import template documentation.
 - Row-level validation.
+- Localized German and English import validation messages where shown to users.
 - Import job history.
 
 ## Suggested vehicle import columns

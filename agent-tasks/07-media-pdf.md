@@ -11,6 +11,7 @@ generation.
 - `docs/architecture.md`
 - `docs/api-design.md`
 - `docs/data-model.md`
+- `docs/i18n.md`
 
 ## Scope
 
@@ -18,7 +19,7 @@ generation.
 - Signature uploads.
 - Media metadata.
 - Secure download endpoints.
-- PDF generation for:
+- German and English PDF generation for:
   - Check-in.
   - Loan checkout.
   - Loan return.
@@ -31,6 +32,7 @@ generation.
 Each PDF should include:
 
 - Protocol number.
+- Language code (`de` or `en`).
 - Vehicle data.
 - Workflow type.
 - Date/time.
@@ -47,3 +49,4 @@ Each PDF should include:
 - Unsafe upload types are rejected.
 - Generated PDFs are linked to the correct workflow.
 - PDFs are treated as immutable after generation.
+- PDFs can be generated with German or English labels.

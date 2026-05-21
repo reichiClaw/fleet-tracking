@@ -266,9 +266,46 @@ Acceptance criteria:
 
 - A test restore can recreate database and media state.
 
-## Epic 10: QA and hardening
+## Epic 10: Internationalization
 
-### Task 10.1: Backend tests
+### Task 10.1: Translation foundation
+
+- Add frontend i18n library and locale resource files.
+- Add German and English translations for common UI, vehicles, workflows,
+  validation, and admin/import screens.
+- Add a language selector and persisted preference.
+
+Acceptance criteria:
+
+- Users can switch between German and English.
+- Selected language persists across reloads.
+- No main workflow screen contains hard-coded user-facing text.
+
+### Task 10.2: Localized PDFs and backend messages
+
+- Add backend translation support for user-facing validation/import messages.
+- Generate PDF protocols in German and English.
+- Store the language code used for each generated PDF.
+
+Acceptance criteria:
+
+- PDF protocols can be generated in both languages.
+- Status labels and workflow labels are translated in PDFs.
+- Import validation messages are localized where practical.
+
+### Task 10.3: Translation quality checks
+
+- Add tests or checks for missing translation keys.
+- Verify status labels exist in both languages.
+
+Acceptance criteria:
+
+- Translation resources for `de` and `en` contain the same required keys.
+- Main workflows have German and English labels and error text.
+
+## Epic 11: QA and hardening
+
+### Task 11.1: Backend tests
 
 - Status transitions.
 - Workflow permissions.
@@ -279,7 +316,7 @@ Acceptance criteria:
 
 - Business invariants are covered.
 
-### Task 10.2: Frontend tests
+### Task 11.2: Frontend tests
 
 - Form validation.
 - Route guards.
@@ -289,7 +326,7 @@ Acceptance criteria:
 
 - Main UI flows have automated coverage.
 
-### Task 10.3: Deployment readiness review
+### Task 11.3: Deployment readiness review
 
 - Security settings.
 - Nginx config.

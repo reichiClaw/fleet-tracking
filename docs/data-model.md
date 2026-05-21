@@ -93,6 +93,8 @@ Fixed employees or regular drivers.
 | return_operating_hours | decimal | Nullable |
 | checkout_notes | text | Optional |
 | return_notes | text | Optional |
+| checkout_pdf_language | string | `de` or `en`, nullable until PDF is generated |
+| return_pdf_language | string | `de` or `en`, nullable until PDF is generated |
 | created_by_id | UUID | User who created loan |
 | returned_by_id | UUID | Nullable until returned |
 
@@ -109,6 +111,7 @@ Fixed employees or regular drivers.
 | operating_hours | decimal | Nullable |
 | condition_notes | text | Optional |
 | pdf_media_id | UUID | Optional FK to MediaFile |
+| pdf_language | string | `de` or `en`, nullable until PDF is generated |
 
 ## ManufacturerCheckOutProtocol
 
@@ -123,6 +126,7 @@ Fixed employees or regular drivers.
 | operating_hours | decimal | Nullable |
 | condition_notes | text | Optional |
 | pdf_media_id | UUID | Optional FK to MediaFile |
+| pdf_language | string | `de` or `en`, nullable until PDF is generated |
 
 ## DamageReport
 
@@ -170,6 +174,13 @@ Fixed employees or regular drivers.
 | result | json | Row-level messages |
 | created_by_id | UUID | FK to User |
 | committed_at | datetime | Nullable |
+
+## Translation resources
+
+Translation resources are primarily frontend files, not database tables. Store
+stable codes in the database, such as status codes and workflow types, and
+translate them at the presentation layer. Generated PDF records should store the
+language code used at generation time.
 
 ## AuditLog
 

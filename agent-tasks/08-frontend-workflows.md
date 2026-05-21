@@ -9,6 +9,7 @@ Build the user-facing screens for daily fleet operations.
 - `docs/requirements.md`
 - `docs/api-design.md`
 - `docs/feedback-loops.md`
+- `docs/i18n.md`
 
 ## Scope
 
@@ -22,6 +23,7 @@ Build the user-facing screens for daily fleet operations.
 - Driver management.
 - Company management.
 - Admin import screen.
+- German and English translations for all user-facing labels and messages.
 
 ## UX requirements
 
@@ -33,6 +35,7 @@ Build the user-facing screens for daily fleet operations.
 - Clear required fields.
 - Field-specific validation errors.
 - Role-based actions and navigation.
+- Language selector and locale-aware date/number formatting.
 
 ## Acceptance criteria
 
@@ -40,3 +43,4 @@ Build the user-facing screens for daily fleet operations.
 - Admin user can access admin screens.
 - Loaned vehicles show borrower and expected return.
 - Vehicle history shows protocols, photos, signatures, and PDFs.
+- Screens are usable in German and English.

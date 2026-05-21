@@ -10,6 +10,7 @@ and safer than microservices.
 
 - Backend: Django + Django REST Framework
 - Frontend: React + TypeScript + Vite
+- Internationalization: German and English via structured translation resources
 - Database: PostgreSQL
 - Media storage: local Docker volume for MVP, optional MinIO/S3 later
 - PDF generation: backend service using stored workflow data
@@ -129,6 +130,15 @@ Nginx / reverse proxy
 - Manufacturer check-out wizard.
 - Photo upload and signature capture steps.
 
+
+### i18n
+
+- German and English translation resources.
+- Language selector and persisted preference.
+- Locale-aware date, time, and number formatting.
+- Shared translated status labels.
+- Translation coverage checks for both languages.
+
 ### Admin area
 
 - User management.
@@ -167,6 +177,8 @@ Later:
 ## PDF strategy
 
 - Generate PDFs in the backend after workflow completion.
+- Support German and English PDF labels, titles, and status text.
+- Store the language code used to generate each PDF.
 - Store generated PDFs as media records.
 - Use a stable protocol number.
 - Treat generated PDFs as immutable.

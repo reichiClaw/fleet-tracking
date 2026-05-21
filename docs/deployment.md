@@ -85,6 +85,8 @@ Important production values:
 - restricted `DJANGO_CSRF_TRUSTED_ORIGINS`
 - restricted `DJANGO_CORS_ALLOWED_ORIGINS`
 - strong `POSTGRES_PASSWORD`
+- `DEFAULT_LANGUAGE=de` or `en` according to the deployment team
+- `SUPPORTED_LANGUAGES=de,en`
 - secure cookie settings enabled behind HTTPS
 
 ## Backup

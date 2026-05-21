@@ -10,6 +10,7 @@ Implement the transactional operational workflows.
 - `docs/api-design.md`
 - `docs/data-model.md`
 - `AGENTS.md`
+- `docs/i18n.md`
 
 ## Workflows
 
@@ -51,3 +52,4 @@ Implement the transactional operational workflows.
 - Vehicle history reflects each workflow.
 - Tests cover happy paths and invalid transitions.
 - Audit log entries are created for completed workflows.
+- User-facing workflow labels and validation messages have German and English translations.

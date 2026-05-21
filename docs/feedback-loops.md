@@ -22,7 +22,7 @@ Output:
 
 - Updated workflow fields.
 - Required/optional field matrix.
-- Confirmed status labels in German or English.
+- Confirmed status labels in German and English.
 
 ## Feedback loop 2: Excel import sample
 
@@ -61,6 +61,7 @@ Output:
 
 - Adjusted form order.
 - Confirmed required fields.
+- Confirmed German and English wording for operational users.
 - Confirmed mobile layout.
 
 ## Feedback loop 4: MVP dry run
@@ -76,13 +77,14 @@ Scenarios:
 - Loan another vehicle to a fixed driver.
 - Return it with new damage and photos.
 - Check a vehicle out to manufacturer.
-- Download PDFs.
+- Download German and English PDFs.
 - Review vehicle history.
 
 Output:
 
 - Bugs and UX friction points.
 - Missing operational fields.
+- Missing or unclear translations.
 - Final MVP acceptance list.
 
 ## Feedback loop 5: Deployment and operations review

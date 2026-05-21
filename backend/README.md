@@ -39,5 +39,6 @@ Start with:
 - Role-based permissions.
 - Transactional vehicle status workflows.
 - Media uploads stored in Docker media volume.
-- PDF protocol generation.
+- PDF protocol generation in German and English.
 - Automated tests for business invariants.
+- Localized validation/import messages where shown to users.

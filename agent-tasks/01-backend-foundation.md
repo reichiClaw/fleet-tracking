@@ -10,6 +10,7 @@ Create the initial Django backend structure for the fleet-tracking application.
 - `docs/architecture.md`
 - `docs/api-design.md`
 - `docs/data-model.md`
+- `docs/i18n.md`
 
 ## Scope
 
@@ -18,6 +19,7 @@ Create the initial Django backend structure for the fleet-tracking application.
 - Configure settings through environment variables.
 - Connect to PostgreSQL through `DATABASE_URL`.
 - Add `/api/health/`.
+- Add backend translation foundation for German and English messages.
 - Add placeholder apps:
   - `accounts`
   - `vehicles`

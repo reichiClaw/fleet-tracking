@@ -16,8 +16,8 @@ Read:
 
 Refine the MVP specification without implementing code. Confirm user roles,
 status transitions, required fields for each workflow, Excel import columns,
-and open questions. Update docs only. Keep the scope aligned with a Dockerized
-Django + React implementation.
+German/English localization requirements, and open questions. Update docs only.
+Keep the scope aligned with a Dockerized Django + React implementation.
 ```
 
 ## Backend foundation agent
@@ -32,6 +32,7 @@ Requirements:
 - PostgreSQL using DATABASE_URL.
 - Environment-driven settings.
 - Health endpoint at /api/health/.
+- Backend translation foundation for German and English user-facing messages.
 - Apps for accounts, vehicles, parties, drivers, workflows, damages, media,
   imports, audit.
 - Dockerfile using Gunicorn.
@@ -94,10 +95,12 @@ Implement the React + TypeScript + Vite frontend under frontend/.
 
 Requirements:
 - API base URL from VITE_API_BASE_URL.
+- German and English i18n setup with locale resource files.
 - Routing.
 - Login screen.
 - Authenticated layout.
 - Role-aware navigation.
+- Language selector with persisted German/English preference.
 - Dashboard placeholder.
 - Vehicle pool placeholder.
 - Shared API client.
@@ -129,6 +132,7 @@ Requirements:
 - Signature canvas.
 - Clear validation errors.
 - Role-based actions.
+- Do not hard-code user-facing strings in components.
 ```
 
 ## PDF and media agent
@@ -142,11 +146,36 @@ Implement:
 - Media metadata.
 - Safe download endpoints.
 - PDF protocol generation for check-in, loan checkout, loan return, and
-  manufacturer check-out.
+  manufacturer check-out in German and English.
 - Tests for upload validation and PDF generation.
 
 PDFs must include vehicle data, readings, damage notes, photos where practical,
-borrower/receiver details, signature, timestamp, and protocol number.
+borrower/receiver details, signature, timestamp, protocol number, and the
+language code used to generate the PDF.
+```
+
+
+## Internationalization agent
+
+```text
+You are the internationalization agent for fleet-tracking.
+
+Implement German and English localization across the application.
+
+Requirements:
+- Read docs/i18n.md first.
+- Add frontend i18n infrastructure and locale resource files.
+- Translate all user-facing navigation, forms, workflow labels, status labels,
+  validation messages, empty states, errors, and admin/import screens.
+- Add a language selector with persisted preference.
+- Use locale-aware date, time, and number formatting.
+- Keep API enum values and database values as stable language-neutral codes.
+- Add backend translation support for user-facing validation/import messages.
+- Ensure PDF protocols can be generated in German and English and store the
+  language code used for each generated PDF.
+- Add tests or checks for missing required translation keys in `de` and `en`.
+
+Do not hard-code user-facing strings in React components or PDF templates.
 ```
 
 ## DevOps agent
@@ -179,6 +208,7 @@ Validate the implementation end-to-end:
 - Docker Compose build/start.
 - Login and role permissions.
 - Excel import.
+- German/English language switching and translation coverage.
 - Check-in.
 - Loan checkout.
 - Loan return.

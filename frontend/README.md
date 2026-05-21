@@ -30,9 +30,11 @@ Start with:
 ## Key requirements
 
 - API base URL from `VITE_API_BASE_URL`.
+- German and English translations using structured locale resources.
 - Mobile-first workflow wizards.
 - Vehicle pool with status filtering.
 - Camera/photo upload support.
 - Signature capture.
 - Role-aware navigation and actions.
 - Clear loading, empty, and error states.
+- Language selector with persisted German/English preference.

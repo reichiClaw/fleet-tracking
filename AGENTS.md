@@ -11,6 +11,8 @@ small, documented, and aligned with the product requirements in `docs/`.
   `scripts/`.
 - Update documentation when implementation decisions change.
 - Add tests for every business workflow that changes vehicle status.
+- Add German and English translations for every new user-facing label, message,
+  status display, and PDF field.
 - Do not commit secrets. Use `.env.example` as the template.
 
 ## Recommended implementation order
@@ -36,3 +38,6 @@ small, documented, and aligned with the product requirements in `docs/`.
 - PDF protocols should be generated from stored data and treated as immutable.
 - Uploaded media paths must be generated server-side; never trust user-provided
   filenames for storage paths.
+- Store stable status/workflow codes and translate labels at the presentation
+  layer.
+- Generated PDFs must record whether they were created in German or English.

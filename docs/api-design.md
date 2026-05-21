@@ -9,6 +9,7 @@
 - ISO 8601 timestamps.
 - Paginated list endpoints.
 - Role-based permissions.
+- German and English localization for user-facing API messages.
 - Explicit workflow action endpoints.
 - Consistent validation error format.
 
@@ -42,6 +43,25 @@
 {
   "type": "permission_denied",
   "detail": "You do not have permission to perform this action."
+}
+```
+
+
+## Localization
+
+Supported languages are German (`de`) and English (`en`). Clients should send
+the preferred language using `Accept-Language` or a user profile preference.
+Backend enum values and API field names remain stable English codes, while
+user-facing labels and messages can be localized.
+
+PDF generation endpoints should accept an optional language code. If omitted,
+use the current user's language preference or deployment default.
+
+Example:
+
+```json
+{
+  "language": "de"
 }
 ```
 
@@ -221,6 +241,9 @@ Admin only.
 | Audit log | Read | No | No |
 
 ## Validation rules
+
+Validation messages must be translatable in German and English when shown to end users.
+
 
 - Only available vehicles can be loaned.
 - Loan return requires an active loan.
