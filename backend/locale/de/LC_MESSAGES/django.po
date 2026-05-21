@@ -78,7 +78,7 @@ msgstr "Unbekannt"
 
 #: damages/models.py:22
 msgid "General"
-msgstr ""
+msgstr "Allgemein"
 
 #: damages/models.py:23
 #, fuzzy
@@ -94,7 +94,7 @@ msgstr "Hersteller-Check-out"
 
 #: damages/models.py:25
 msgid "Loan return"
-msgstr ""
+msgstr "Ausleihe-Rückgabe"
 
 #: damages/models.py:26
 #, fuzzy
