@@ -19,16 +19,29 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   language?: string;
 };
 
-function buildUrl(path: string) {
+export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | null | undefined>) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${normalizedPath}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
+  if (!query) {
+    return url;
+  }
+
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, String(value));
+    }
+  });
+
+  const queryString = params.toString();
+  return queryString ? `${url}?${queryString}` : url;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, language, ...requestInit } = options;
   const isFormData = body instanceof FormData;
 
-  const response = await fetch(buildUrl(path), {
+  const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
     ...requestInit,
     headers: {

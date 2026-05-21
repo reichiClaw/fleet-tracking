@@ -1,22 +1,42 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
-export type UserRole = 'admin' | 'operations' | 'readonly';
+import { ApiError } from '../api/client';
+import { getCurrentUser, loginWithPassword, logoutSession, type CurrentUser, type UserRole } from '../api/fleet';
+
+export type { UserRole } from '../api/fleet';
 
 export type AuthUser = {
   name: string;
+  username?: string;
   role: UserRole;
+  isBackendSession?: boolean;
+};
+
+type LoginInput = {
+  username: string;
+  password: string;
+  fallbackUser: AuthUser;
 };
 
 type AuthContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: AuthUser | null;
-  login: (user: AuthUser) => Promise<void>;
-  logout: () => void;
+  login: (input: LoginInput) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AUTH_STORAGE_KEY = 'fleet-auth-user';
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function userFromApi(user: CurrentUser): AuthUser {
+  return {
+    name: user.display_name || user.full_name || user.username,
+    username: user.username,
+    role: user.role,
+    isBackendSession: true,
+  };
+}
 
 function readStoredUser(): AuthUser | null {
   const stored = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -33,13 +53,43 @@ function readStoredUser(): AuthUser | null {
   }
 }
 
+function isBackendReachableError(error: unknown) {
+  return error instanceof ApiError;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    setUser(readStoredUser());
-    setIsLoading(false);
+    let isMounted = true;
+
+    async function loadSession() {
+      try {
+        const currentUser = await getCurrentUser();
+        if (isMounted) {
+          setUser(userFromApi(currentUser));
+        }
+      } catch (error) {
+        if (isMounted) {
+          if (isBackendReachableError(error)) {
+            window.localStorage.removeItem(AUTH_STORAGE_KEY);
+            setUser(null);
+          } else {
+            setUser(readStoredUser());
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -47,11 +97,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isLoading,
       user,
-      login: async (nextUser) => {
-        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
-        setUser(nextUser);
+      login: async ({ username, password, fallbackUser }) => {
+        try {
+          const backendUser = await loginWithPassword(username, password);
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+          setUser(userFromApi(backendUser));
+        } catch (error) {
+          if (isBackendReachableError(error)) {
+            throw error;
+          }
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(fallbackUser));
+          setUser(fallbackUser);
+        }
       },
-      logout: () => {
+      logout: async () => {
+        try {
+          await logoutSession();
+        } catch {
+          // Local fallback sessions and expired backend sessions both clear client-side state.
+        }
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
         setUser(null);
       },

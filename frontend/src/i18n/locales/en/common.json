@@ -4,6 +4,10 @@
     "subtitle": "Fleet management",
     "documentTitle": "Fleet Tracking"
   },
+  "common": {
+    "notAvailable": "Not available",
+    "unknown": "Unknown"
+  },
   "language": {
     "label": "Language",
     "options": {
@@ -20,6 +24,9 @@
     "primaryLabel": "Primary navigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Vehicle pool",
+    "workflows": "Workflows",
+    "drivers": "Drivers",
+    "companies": "Companies",
     "imports": "Imports",
     "settings": "Settings",
     "logout": "Log out"
@@ -37,16 +44,16 @@
   "auth": {
     "login": {
       "title": "Sign in",
-      "intro": "Sign in to access the dashboard, vehicle pool, and role-aware features.",
-      "nameLabel": "Name",
-      "namePlaceholder": "Jane Doe",
-      "roleLabel": "Role",
+      "intro": "Sign in with your backend username and password. If the backend is unavailable, the role selector keeps local demo access available for frontend work.",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "jane.doe",
+      "roleLabel": "Demo role",
       "submit": "Sign in",
       "submitting": "Signing in...",
-      "demoHint": "This placeholder sign-in will be replaced by backend authentication later.",
+      "demoHint": "Backend session endpoints are used when reachable; local demo sign-in is only a frontend fallback.",
       "error": "The sign-in could not be completed.",
       "validation": {
-        "nameRequired": "Please enter a name.",
+        "usernameRequired": "Please enter a username.",
         "passwordRequired": "Please enter a password."
       },
       "passwordLabel": "Password",
@@ -56,28 +63,69 @@
   "dashboard": {
     "eyebrow": "Overview",
     "title": "Dashboard",
-    "description": "Status cards and activity feeds will connect here once the API endpoints are ready.",
+    "description": "A quick operational summary from vehicles and active loans.",
+    "apiFallback": "Dashboard API data is not available yet. Showing placeholders where no data can be loaded.",
     "cards": {
       "available": "Available",
       "loaned": "Loaned",
       "maintenance": "Maintenance",
       "damaged": "Damaged"
     },
-    "placeholder": {
-      "title": "Dashboard placeholder",
-      "body": "Availability, overdue loans, and recent activity will appear here."
+    "overdue": {
+      "title": "Overdue loans",
+      "empty": "No overdue loans found."
+    },
+    "activity": {
+      "title": "Recent activity",
+      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed."
     }
   },
   "vehicles": {
     "eyebrow": "Inventory",
     "title": "Vehicle pool",
-    "description": "Mobile cards, filters, and role-aware actions will be added in upcoming workflow work.",
+    "description": "Find vehicles, review availability, and start workflow actions.",
+    "loadError": "Vehicle data could not be loaded.",
+    "noIdentifier": "No plate or serial number",
+    "borrower": "Borrower",
+    "expectedReturn": "Expected return: {{date}}",
     "filters": {
-      "label": "Status filters"
+      "label": "Status filters",
+      "search": "Search",
+      "status": "Status",
+      "category": "Category",
+      "allStatuses": "All statuses",
+      "allCategories": "All categories",
+      "apply": "Apply filters"
     },
-    "placeholder": {
-      "title": "No vehicle data loaded yet",
-      "body": "The list is ready to be connected to the vehicle endpoint."
+    "fields": {
+      "location": "Location",
+      "odometer": "Odometer (km)",
+      "hours": "Operating hours",
+      "licensePlate": "License plate",
+      "serialNumber": "Serial number"
+    },
+    "actions": {
+      "details": "Details"
+    },
+    "empty": {
+      "title": "No vehicles found",
+      "body": "Adjust the filters or import vehicles as an admin."
+    },
+    "detail": {
+      "eyebrow": "Vehicle detail",
+      "description": "Current data, history, media, and workflow actions.",
+      "loadError": "The vehicle detail could not be loaded.",
+      "dataTitle": "Vehicle data"
+    },
+    "history": {
+      "loans": "Loan history",
+      "checkIns": "Check-in protocols",
+      "manufacturer": "Manufacturer check-outs",
+      "media": "Media",
+      "emptyLoans": "No loans recorded.",
+      "emptyCheckIns": "No check-in protocols recorded.",
+      "emptyManufacturer": "No manufacturer check-outs recorded.",
+      "emptyMedia": "No media uploaded."
     }
   },
   "status": {
@@ -89,11 +137,186 @@
     "maintenance": "Maintenance",
     "damaged": "Damaged",
     "manufacturer_checkout": "Checked out to manufacturer",
-    "archived": "Archived"
+    "archived": "Archived",
+    "active": "Active",
+    "returned": "Returned",
+    "cancelled": "Cancelled",
+    "unknown": "Unknown"
+  },
+  "severity": {
+    "unknown": "Unknown",
+    "minor": "Minor",
+    "major": "Major",
+    "critical": "Critical"
+  },
+  "companyTypes": {
+    "subcontractor": "Subcontractor",
+    "manufacturer": "Manufacturer",
+    "supplier": "Supplier",
+    "internal": "Internal"
+  },
+  "workflows": {
+    "eyebrow": "Workflow",
+    "loadError": "Workflow support data could not be loaded.",
+    "submitError": "The workflow could not be completed.",
+    "submit": "Complete workflow",
+    "submitting": "Submitting...",
+    "checkIn": {
+      "title": "Check-in",
+      "description": "Record arrival condition and make the vehicle available, damaged, or in maintenance.",
+      "completed": "Check-in completed"
+    },
+    "loanCheckout": {
+      "title": "Loan checkout",
+      "shortTitle": "Loan",
+      "description": "Hand a vehicle to a borrower and create an active loan.",
+      "completed": "Loan checkout completed"
+    },
+    "loanReturn": {
+      "title": "Loan return",
+      "description": "Close an active loan and update the vehicle condition.",
+      "completed": "Loan return completed"
+    },
+    "manufacturerCheckout": {
+      "title": "Manufacturer check-out",
+      "description": "Record handoff to a manufacturer or supplier.",
+      "completed": "Manufacturer check-out completed"
+    },
+    "fields": {
+      "vehicle": "Vehicle",
+      "loan": "Active loan",
+      "company": "Company",
+      "recipientCompany": "Recipient company",
+      "driver": "Driver",
+      "borrowerName": "Borrower name",
+      "borrowerPhone": "Borrower phone",
+      "expectedReturn": "Expected return",
+      "performedAt": "Performed at",
+      "actualReturn": "Actual return",
+      "odometer": "Odometer (km)",
+      "hours": "Operating hours",
+      "checkoutOdometer": "Checkout odometer (km)",
+      "checkoutHours": "Checkout operating hours",
+      "returnOdometer": "Return odometer (km)",
+      "returnHours": "Return operating hours",
+      "targetStatus": "Target status",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "selectVehicle": "Select vehicle",
+      "selectLoan": "Select active loan",
+      "optionalCompany": "No company selected",
+      "optionalDriver": "No driver selected"
+    },
+    "validation": {
+      "vehicleRequired": "Please select a vehicle.",
+      "loanRequired": "Please select an active loan.",
+      "borrowerRequired": "Select a driver or enter a borrower name.",
+      "phoneRequired": "Please enter a borrower phone number.",
+      "expectedReturnRequired": "Please choose an expected return date.",
+      "damageDescriptionRequired": "Please describe the damage."
+    },
+    "damage": {
+      "title": "Damage report",
+      "description": "Damage description",
+      "severity": "Severity"
+    }
+  },
+  "media": {
+    "title": "Photos and signatures",
+    "photoLabel": "Photo upload or camera",
+    "signatureLabel": "Signature",
+    "signatureFallback": "Upload signature image",
+    "handoffNote": "Signatures can be drawn on the canvas or uploaded as an image; uploaded media is attached when the workflow is submitted.",
+    "uploading": "Uploading...",
+    "uploadError": "The media file could not be uploaded.",
+    "uploaded": "Uploaded: {{name}}",
+    "clearSignature": "Clear",
+    "saveSignature": "Save signature",
+    "download": "Download",
+    "types": {
+      "photo": "Photo",
+      "signature": "Signature",
+      "pdf": "PDF",
+      "import": "Import file"
+    }
+  },
+  "pdf": {
+    "generate": "Generate PDF",
+    "generateCheckout": "Generate checkout PDF",
+    "generateReturn": "Generate return PDF",
+    "generated": "PDF generated",
+    "error": "The PDF could not be generated."
+  },
+  "management": {
+    "loadError": "Management data could not be loaded.",
+    "saveError": "The record could not be saved.",
+    "saving": "Saving...",
+    "addCompany": "Add company",
+    "addDriver": "Add driver",
+    "validation": {
+      "nameRequired": "Please enter a company name.",
+      "driverNameRequired": "Please enter first and last name."
+    },
+    "companies": {
+      "eyebrow": "Management",
+      "title": "Companies",
+      "description": "Create and review subcontractors, manufacturers, suppliers, and internal contacts.",
+      "empty": "No companies found."
+    },
+    "drivers": {
+      "eyebrow": "Management",
+      "title": "Drivers",
+      "description": "Create and review drivers for loan workflows.",
+      "empty": "No drivers found."
+    },
+    "fields": {
+      "name": "Name",
+      "companyType": "Company type",
+      "contactName": "Contact name",
+      "phone": "Phone",
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "company": "Company",
+      "noCompany": "No company",
+      "licenseClasses": "License classes"
+    }
+  },
+  "imports": {
+    "eyebrow": "Admin",
+    "title": "Vehicle import",
+    "description": "Upload an Excel file, validate rows, then commit a clean import.",
+    "fileLabel": "Excel file",
+    "templateHint": "Expected columns: internal_number, category, manufacturer, model, serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes.",
+    "validate": "Upload and validate",
+    "uploading": "Validating...",
+    "resultTitle": "Validation result",
+    "rowSummary": "{{rows}} rows, {{errors}} errors",
+    "commit": "Commit import",
+    "committing": "Committing...",
+    "commitHint": "Commit is available only after a validated import without errors.",
+    "validation": {
+      "fileRequired": "Please choose an Excel file."
+    },
+    "uploadError": "The import file could not be uploaded.",
+    "commitError": "The import could not be committed.",
+    "status": {
+      "pending": "Pending",
+      "validated": "Validated",
+      "failed": "Failed",
+      "committed": "Committed"
+    },
+    "table": {
+      "row": "Row",
+      "action": "Action",
+      "errors": "Errors",
+      "noErrors": "No errors"
+    }
   },
   "adminImports": {
     "title": "Imports",
-    "body": "This admin area is available as a navigation placeholder."
+    "body": "Use Vehicle import to upload and commit vehicle Excel files."
   },
   "settings": {
     "title": "Settings",

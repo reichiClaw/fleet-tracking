@@ -4,6 +4,10 @@
     "subtitle": "Fuhrparkverwaltung",
     "documentTitle": "Fleet Tracking"
   },
+  "common": {
+    "notAvailable": "Nicht verfügbar",
+    "unknown": "Unbekannt"
+  },
   "language": {
     "label": "Sprache",
     "options": {
@@ -20,6 +24,9 @@
     "primaryLabel": "Hauptnavigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Fahrzeugpool",
+    "workflows": "Workflows",
+    "drivers": "Fahrer",
+    "companies": "Firmen",
     "imports": "Importe",
     "settings": "Einstellungen",
     "logout": "Abmelden"
@@ -37,16 +44,16 @@
   "auth": {
     "login": {
       "title": "Anmelden",
-      "intro": "Melden Sie sich an, um auf Dashboard, Fahrzeugpool und rollenbasierte Funktionen zuzugreifen.",
-      "nameLabel": "Name",
-      "namePlaceholder": "Max Mustermann",
-      "roleLabel": "Rolle",
+      "intro": "Melden Sie sich mit Backend-Benutzername und Passwort an. Wenn das Backend nicht erreichbar ist, hält die Rollenauswahl einen lokalen Demo-Zugang für Frontend-Arbeiten bereit.",
+      "usernameLabel": "Benutzername",
+      "usernamePlaceholder": "max.mustermann",
+      "roleLabel": "Demo-Rolle",
       "submit": "Anmelden",
       "submitting": "Anmeldung läuft...",
-      "demoHint": "Diese Platzhalter-Anmeldung wird später durch die Backend-Authentifizierung ersetzt.",
+      "demoHint": "Backend-Sitzungsendpunkte werden genutzt, wenn sie erreichbar sind; die lokale Demo-Anmeldung ist nur ein Frontend-Fallback.",
       "error": "Die Anmeldung konnte nicht abgeschlossen werden.",
       "validation": {
-        "nameRequired": "Bitte geben Sie einen Namen ein.",
+        "usernameRequired": "Bitte geben Sie einen Benutzernamen ein.",
         "passwordRequired": "Bitte geben Sie ein Passwort ein."
       },
       "passwordLabel": "Passwort",
@@ -56,28 +63,69 @@
   "dashboard": {
     "eyebrow": "Übersicht",
     "title": "Dashboard",
-    "description": "Statuskarten und Aktivitäten werden hier angebunden, sobald die API-Endpunkte bereitstehen.",
+    "description": "Eine schnelle operative Übersicht aus Fahrzeugen und aktiven Ausleihen.",
+    "apiFallback": "Dashboard-API-Daten sind noch nicht verfügbar. Platzhalter werden angezeigt, wenn keine Daten geladen werden können.",
     "cards": {
       "available": "Verfügbar",
       "loaned": "Ausgeliehen",
       "maintenance": "Wartung",
       "damaged": "Beschädigt"
     },
-    "placeholder": {
-      "title": "Dashboard-Platzhalter",
-      "body": "Hier erscheinen später Verfügbarkeiten, überfällige Ausleihen und aktuelle Aktivitäten."
+    "overdue": {
+      "title": "Überfällige Ausleihen",
+      "empty": "Keine überfälligen Ausleihen gefunden."
+    },
+    "activity": {
+      "title": "Aktuelle Aktivitäten",
+      "placeholder": "Aktuelle Aktivitäten nutzen den dedizierten Dashboard-Endpunkt, sobald er bereitsteht."
     }
   },
   "vehicles": {
     "eyebrow": "Bestand",
     "title": "Fahrzeugpool",
-    "description": "Mobile Karten, Filter und rollenabhängige Aktionen werden in den nächsten Workflows ergänzt.",
+    "description": "Fahrzeuge finden, Verfügbarkeit prüfen und Workflows starten.",
+    "loadError": "Fahrzeugdaten konnten nicht geladen werden.",
+    "noIdentifier": "Kein Kennzeichen oder keine Seriennummer",
+    "borrower": "Entleiher",
+    "expectedReturn": "Erwartete Rückgabe: {{date}}",
     "filters": {
-      "label": "Statusfilter"
+      "label": "Statusfilter",
+      "search": "Suche",
+      "status": "Status",
+      "category": "Kategorie",
+      "allStatuses": "Alle Status",
+      "allCategories": "Alle Kategorien",
+      "apply": "Filter anwenden"
     },
-    "placeholder": {
-      "title": "Noch keine Fahrzeugdaten geladen",
-      "body": "Die Liste ist vorbereitet und kann an den Fahrzeug-Endpunkt angeschlossen werden."
+    "fields": {
+      "location": "Standort",
+      "odometer": "Kilometerstand (km)",
+      "hours": "Betriebsstunden",
+      "licensePlate": "Kennzeichen",
+      "serialNumber": "Seriennummer"
+    },
+    "actions": {
+      "details": "Details"
+    },
+    "empty": {
+      "title": "Keine Fahrzeuge gefunden",
+      "body": "Passen Sie die Filter an oder importieren Sie Fahrzeuge als Admin."
+    },
+    "detail": {
+      "eyebrow": "Fahrzeugdetail",
+      "description": "Aktuelle Daten, Historie, Medien und Workflow-Aktionen.",
+      "loadError": "Das Fahrzeugdetail konnte nicht geladen werden.",
+      "dataTitle": "Fahrzeugdaten"
+    },
+    "history": {
+      "loans": "Ausleihhistorie",
+      "checkIns": "Check-in-Protokolle",
+      "manufacturer": "Hersteller-Check-outs",
+      "media": "Medien",
+      "emptyLoans": "Keine Ausleihen erfasst.",
+      "emptyCheckIns": "Keine Check-in-Protokolle erfasst.",
+      "emptyManufacturer": "Keine Hersteller-Check-outs erfasst.",
+      "emptyMedia": "Keine Medien hochgeladen."
     }
   },
   "status": {
@@ -89,11 +137,186 @@
     "maintenance": "Wartung",
     "damaged": "Beschädigt",
     "manufacturer_checkout": "An Hersteller ausgecheckt",
-    "archived": "Archiviert"
+    "archived": "Archiviert",
+    "active": "Aktiv",
+    "returned": "Zurückgegeben",
+    "cancelled": "Storniert",
+    "unknown": "Unbekannt"
+  },
+  "severity": {
+    "unknown": "Unbekannt",
+    "minor": "Gering",
+    "major": "Erheblich",
+    "critical": "Kritisch"
+  },
+  "companyTypes": {
+    "subcontractor": "Subunternehmer",
+    "manufacturer": "Hersteller",
+    "supplier": "Lieferant",
+    "internal": "Intern"
+  },
+  "workflows": {
+    "eyebrow": "Workflow",
+    "loadError": "Workflow-Hilfsdaten konnten nicht geladen werden.",
+    "submitError": "Der Workflow konnte nicht abgeschlossen werden.",
+    "submit": "Workflow abschließen",
+    "submitting": "Wird gesendet...",
+    "checkIn": {
+      "title": "Check-in",
+      "description": "Ankunftszustand erfassen und das Fahrzeug verfügbar, beschädigt oder in Wartung setzen.",
+      "completed": "Check-in abgeschlossen"
+    },
+    "loanCheckout": {
+      "title": "Ausleihe ausgeben",
+      "shortTitle": "Ausleihe",
+      "description": "Fahrzeug an einen Entleiher übergeben und eine aktive Ausleihe anlegen.",
+      "completed": "Ausleihe ausgegeben"
+    },
+    "loanReturn": {
+      "title": "Ausleihe zurückgeben",
+      "description": "Aktive Ausleihe schließen und Fahrzeugzustand aktualisieren.",
+      "completed": "Ausleihe zurückgegeben"
+    },
+    "manufacturerCheckout": {
+      "title": "Hersteller-Check-out",
+      "description": "Übergabe an Hersteller oder Lieferant erfassen.",
+      "completed": "Hersteller-Check-out abgeschlossen"
+    },
+    "fields": {
+      "vehicle": "Fahrzeug",
+      "loan": "Aktive Ausleihe",
+      "company": "Firma",
+      "recipientCompany": "Empfängerfirma",
+      "driver": "Fahrer",
+      "borrowerName": "Name des Entleihers",
+      "borrowerPhone": "Telefon des Entleihers",
+      "expectedReturn": "Erwartete Rückgabe",
+      "performedAt": "Durchgeführt am",
+      "actualReturn": "Tatsächliche Rückgabe",
+      "odometer": "Kilometerstand (km)",
+      "hours": "Betriebsstunden",
+      "checkoutOdometer": "Ausgabe-Kilometerstand (km)",
+      "checkoutHours": "Ausgabe-Betriebsstunden",
+      "returnOdometer": "Rückgabe-Kilometerstand (km)",
+      "returnHours": "Rückgabe-Betriebsstunden",
+      "targetStatus": "Zielstatus",
+      "notes": "Notizen"
+    },
+    "placeholders": {
+      "selectVehicle": "Fahrzeug auswählen",
+      "selectLoan": "Aktive Ausleihe auswählen",
+      "optionalCompany": "Keine Firma ausgewählt",
+      "optionalDriver": "Kein Fahrer ausgewählt"
+    },
+    "validation": {
+      "vehicleRequired": "Bitte wählen Sie ein Fahrzeug aus.",
+      "loanRequired": "Bitte wählen Sie eine aktive Ausleihe aus.",
+      "borrowerRequired": "Wählen Sie einen Fahrer aus oder geben Sie einen Entleiher ein.",
+      "phoneRequired": "Bitte geben Sie eine Telefonnummer des Entleihers ein.",
+      "expectedReturnRequired": "Bitte wählen Sie eine erwartete Rückgabe.",
+      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden."
+    },
+    "damage": {
+      "title": "Schadensmeldung",
+      "description": "Schadensbeschreibung",
+      "severity": "Schweregrad"
+    }
+  },
+  "media": {
+    "title": "Fotos und Unterschriften",
+    "photoLabel": "Foto hochladen oder Kamera",
+    "signatureLabel": "Unterschrift",
+    "signatureFallback": "Unterschrift als Bild hochladen",
+    "handoffNote": "Unterschriften können im Canvas gezeichnet oder als Bild hochgeladen werden; hochgeladene Medien werden beim Absenden dem Workflow zugeordnet.",
+    "uploading": "Wird hochgeladen...",
+    "uploadError": "Die Mediendatei konnte nicht hochgeladen werden.",
+    "uploaded": "Hochgeladen: {{name}}",
+    "clearSignature": "Leeren",
+    "saveSignature": "Unterschrift speichern",
+    "download": "Herunterladen",
+    "types": {
+      "photo": "Foto",
+      "signature": "Unterschrift",
+      "pdf": "PDF",
+      "import": "Importdatei"
+    }
+  },
+  "pdf": {
+    "generate": "PDF erzeugen",
+    "generateCheckout": "Ausgabe-PDF erzeugen",
+    "generateReturn": "Rückgabe-PDF erzeugen",
+    "generated": "PDF erzeugt",
+    "error": "Das PDF konnte nicht erzeugt werden."
+  },
+  "management": {
+    "loadError": "Verwaltungsdaten konnten nicht geladen werden.",
+    "saveError": "Der Datensatz konnte nicht gespeichert werden.",
+    "saving": "Wird gespeichert...",
+    "addCompany": "Firma hinzufügen",
+    "addDriver": "Fahrer hinzufügen",
+    "validation": {
+      "nameRequired": "Bitte geben Sie einen Firmennamen ein.",
+      "driverNameRequired": "Bitte geben Sie Vor- und Nachnamen ein."
+    },
+    "companies": {
+      "eyebrow": "Verwaltung",
+      "title": "Firmen",
+      "description": "Subunternehmer, Hersteller, Lieferanten und interne Kontakte anlegen und prüfen.",
+      "empty": "Keine Firmen gefunden."
+    },
+    "drivers": {
+      "eyebrow": "Verwaltung",
+      "title": "Fahrer",
+      "description": "Fahrer für Ausleih-Workflows anlegen und prüfen.",
+      "empty": "Keine Fahrer gefunden."
+    },
+    "fields": {
+      "name": "Name",
+      "companyType": "Firmentyp",
+      "contactName": "Kontaktname",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "company": "Firma",
+      "noCompany": "Keine Firma",
+      "licenseClasses": "Führerscheinklassen"
+    }
+  },
+  "imports": {
+    "eyebrow": "Admin",
+    "title": "Fahrzeugimport",
+    "description": "Excel-Datei hochladen, Zeilen validieren und einen fehlerfreien Import übernehmen.",
+    "fileLabel": "Excel-Datei",
+    "templateHint": "Erwartete Spalten: internal_number, category, manufacturer, model, serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes.",
+    "validate": "Hochladen und validieren",
+    "uploading": "Wird validiert...",
+    "resultTitle": "Validierungsergebnis",
+    "rowSummary": "{{rows}} Zeilen, {{errors}} Fehler",
+    "commit": "Import übernehmen",
+    "committing": "Wird übernommen...",
+    "commitHint": "Übernehmen ist nur nach einem validierten Import ohne Fehler möglich.",
+    "validation": {
+      "fileRequired": "Bitte wählen Sie eine Excel-Datei aus."
+    },
+    "uploadError": "Die Importdatei konnte nicht hochgeladen werden.",
+    "commitError": "Der Import konnte nicht übernommen werden.",
+    "status": {
+      "pending": "Ausstehend",
+      "validated": "Validiert",
+      "failed": "Fehlgeschlagen",
+      "committed": "Übernommen"
+    },
+    "table": {
+      "row": "Zeile",
+      "action": "Aktion",
+      "errors": "Fehler",
+      "noErrors": "Keine Fehler"
+    }
   },
   "adminImports": {
     "title": "Importe",
-    "body": "Dieser Admin-Bereich ist als Navigationsplatzhalter angelegt."
+    "body": "Nutzen Sie den Fahrzeugimport, um Fahrzeug-Excel-Dateien hochzuladen und zu übernehmen."
   },
   "settings": {
     "title": "Einstellungen",
