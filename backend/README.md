@@ -1,44 +1,64 @@
-# Backend Implementation Target
+# Fleet Tracking Backend
 
-This directory is reserved for the Django + Django REST Framework backend.
+Django + Django REST Framework backend for the fleet tracking application.
 
-## Expected contents after implementation
+## Local setup
 
-```text
-backend/
-├── Dockerfile
-├── manage.py
-├── pyproject.toml or requirements.txt
-├── config/
-├── accounts/
-├── vehicles/
-├── parties/
-├── drivers/
-├── workflows/
-├── damages/
-├── mediafiles/
-├── imports/
-├── audit/
-└── tests/
+```bash
+cd backend
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
 ```
 
-## Backend agent handoff
+The health endpoint is available at:
 
-Start with:
+```text
+GET /api/health/
+```
 
-- `agent-tasks/01-backend-foundation.md`
-- `agent-tasks/03-domain-backend.md`
-- `agent-tasks/05-workflows.md`
-- `agent-tasks/07-media-pdf.md`
+## Configuration
 
-## Key requirements
+Settings are driven by environment variables. Important values:
 
-- PostgreSQL through `DATABASE_URL`.
-- Environment-driven settings.
-- `/api/health/` endpoint.
-- Role-based permissions.
-- Transactional vehicle status workflows.
-- Media uploads stored in Docker media volume.
-- PDF protocol generation in German and English.
-- Automated tests for business invariants.
-- Localized validation/import messages where shown to users.
+- `DATABASE_URL` - PostgreSQL connection string, for example
+  `postgres://fleet_tracking:change-me@localhost:5432/fleet_tracking`
+- `DJANGO_SECRET_KEY`
+- `DJANGO_DEBUG`
+- `DJANGO_ALLOWED_HOSTS`
+- `DEFAULT_LANGUAGE` (`de` by default)
+- `SUPPORTED_LANGUAGES` (`de,en` by default)
+- `DJANGO_STATIC_ROOT` and `DJANGO_MEDIA_ROOT`
+
+Without `DATABASE_URL`, local development and tests fall back to SQLite. In
+`ENVIRONMENT=production`, both `DATABASE_URL` and a real `DJANGO_SECRET_KEY`
+are required.
+
+## Tests
+
+```bash
+cd backend
+. .venv/bin/activate
+python manage.py test
+```
+
+## Translations
+
+Backend user-facing messages use Django's translation framework with German and
+English catalogs under `locale/`.
+
+```bash
+cd backend
+python manage.py makemessages -l de -l en
+python manage.py compilemessages
+```
+
+## Docker
+
+```bash
+cd backend
+docker build -t fleet-tracking-backend .
+docker run --rm -p 8000:8000 --env-file ../.env fleet-tracking-backend
+```

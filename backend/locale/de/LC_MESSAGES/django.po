@@ -1,0 +1,49 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: fleet-tracking backend\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-21 00:00+0000\n"
+"PO-Revision-Date: 2026-05-21 00:00+0000\n"
+"Last-Translator: Fleet Tracking Team\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Service is healthy."
+msgstr "Der Dienst ist fehlerfrei."
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "Accounts"
+msgstr "Konten"
+
+msgid "Vehicles"
+msgstr "Fahrzeuge"
+
+msgid "Parties"
+msgstr "Parteien"
+
+msgid "Drivers"
+msgstr "Fahrer"
+
+msgid "Workflows"
+msgstr "Arbeitsabläufe"
+
+msgid "Damages"
+msgstr "Schäden"
+
+msgid "Media files"
+msgstr "Mediendateien"
+
+msgid "Imports"
+msgstr "Importe"
+
+msgid "Audit"
+msgstr "Audit"
