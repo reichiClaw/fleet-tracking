@@ -47,3 +47,39 @@ msgstr "Importe"
 
 msgid "Audit"
 msgstr "Audit"
+
+msgid "Borrower name is required when no driver is selected."
+msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
+
+msgid "Return odometer must not be lower than checkout odometer."
+msgstr "Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei Ausleihe."
+
+msgid "Return operating hours must not be lower than checkout operating hours."
+msgstr "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden bei Ausleihe."
+
+msgid "This vehicle cannot be checked in from its current status."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+
+msgid "Only available or checked-in vehicles can be loaned."
+msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
+
+msgid "This vehicle already has an active loan."
+msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
+
+msgid "Loan return requires an active loan."
+msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
+
+msgid "Loaned vehicles cannot be checked out to manufacturers."
+msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
+
+msgid "This vehicle cannot be checked out to manufacturers from its current status."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller ausgecheckt werden."
+
+msgid "Odometer value must not decrease."
+msgstr "Der Kilometerstand darf nicht sinken."
+
+msgid "Operating hours must not decrease."
+msgstr "Betriebsstunden dürfen nicht sinken."
+
+msgid "This workflow cannot move the vehicle to the requested status."
+msgstr "Dieser Arbeitsablauf kann das Fahrzeug nicht in den angeforderten Status versetzen."

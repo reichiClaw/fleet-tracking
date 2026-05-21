@@ -47,3 +47,39 @@ msgstr "Imports"
 
 msgid "Audit"
 msgstr "Audit"
+
+msgid "Borrower name is required when no driver is selected."
+msgstr "Borrower name is required when no driver is selected."
+
+msgid "Return odometer must not be lower than checkout odometer."
+msgstr "Return odometer must not be lower than checkout odometer."
+
+msgid "Return operating hours must not be lower than checkout operating hours."
+msgstr "Return operating hours must not be lower than checkout operating hours."
+
+msgid "This vehicle cannot be checked in from its current status."
+msgstr "This vehicle cannot be checked in from its current status."
+
+msgid "Only available or checked-in vehicles can be loaned."
+msgstr "Only available or checked-in vehicles can be loaned."
+
+msgid "This vehicle already has an active loan."
+msgstr "This vehicle already has an active loan."
+
+msgid "Loan return requires an active loan."
+msgstr "Loan return requires an active loan."
+
+msgid "Loaned vehicles cannot be checked out to manufacturers."
+msgstr "Loaned vehicles cannot be checked out to manufacturers."
+
+msgid "This vehicle cannot be checked out to manufacturers from its current status."
+msgstr "This vehicle cannot be checked out to manufacturers from its current status."
+
+msgid "Odometer value must not decrease."
+msgstr "Odometer value must not decrease."
+
+msgid "Operating hours must not decrease."
+msgstr "Operating hours must not decrease."
+
+msgid "This workflow cannot move the vehicle to the requested status."
+msgstr "This workflow cannot move the vehicle to the requested status."
