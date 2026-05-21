@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Fleet Tracking",
+    "subtitle": "Fuhrparkverwaltung",
+    "documentTitle": "Fleet Tracking"
+  },
+  "language": {
+    "label": "Sprache",
+    "options": {
+      "de": "Deutsch",
+      "en": "Englisch"
+    }
+  },
+  "roles": {
+    "admin": "Admin",
+    "operations": "Disposition",
+    "readonly": "Nur Lesen"
+  },
+  "navigation": {
+    "primaryLabel": "Hauptnavigation",
+    "dashboard": "Dashboard",
+    "vehiclePool": "Fahrzeugpool",
+    "imports": "Importe",
+    "settings": "Einstellungen",
+    "logout": "Abmelden"
+  },
+  "layout": {
+    "signedInAs": "Angemeldet als"
+  },
+  "states": {
+    "loading": "Wird geladen...",
+    "error": {
+      "title": "Etwas ist schiefgelaufen",
+      "defaultMessage": "Bitte versuchen Sie es erneut."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "intro": "Melden Sie sich an, um auf Dashboard, Fahrzeugpool und rollenbasierte Funktionen zuzugreifen.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Max Mustermann",
+      "roleLabel": "Rolle",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft...",
+      "demoHint": "Diese Platzhalter-Anmeldung wird später durch die Backend-Authentifizierung ersetzt.",
+      "error": "Die Anmeldung konnte nicht abgeschlossen werden.",
+      "validation": {
+        "nameRequired": "Bitte geben Sie einen Namen ein.",
+        "passwordRequired": "Bitte geben Sie ein Passwort ein."
+      },
+      "passwordLabel": "Passwort",
+      "passwordPlaceholder": "Passwort eingeben"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Übersicht",
+    "title": "Dashboard",
+    "description": "Statuskarten und Aktivitäten werden hier angebunden, sobald die API-Endpunkte bereitstehen.",
+    "cards": {
+      "available": "Verfügbar",
+      "loaned": "Ausgeliehen",
+      "maintenance": "Wartung",
+      "damaged": "Beschädigt"
+    },
+    "placeholder": {
+      "title": "Dashboard-Platzhalter",
+      "body": "Hier erscheinen später Verfügbarkeiten, überfällige Ausleihen und aktuelle Aktivitäten."
+    }
+  },
+  "vehicles": {
+    "eyebrow": "Bestand",
+    "title": "Fahrzeugpool",
+    "description": "Mobile Karten, Filter und rollenabhängige Aktionen werden in den nächsten Workflows ergänzt.",
+    "filters": {
+      "label": "Statusfilter"
+    },
+    "placeholder": {
+      "title": "Noch keine Fahrzeugdaten geladen",
+      "body": "Die Liste ist vorbereitet und kann an den Fahrzeug-Endpunkt angeschlossen werden."
+    }
+  },
+  "status": {
+    "announced": "Angekündigt",
+    "checked_in": "Eingecheckt",
+    "available": "Verfügbar",
+    "reserved": "Reserviert",
+    "loaned": "Ausgeliehen",
+    "maintenance": "Wartung",
+    "damaged": "Beschädigt",
+    "manufacturer_checkout": "An Hersteller ausgecheckt",
+    "archived": "Archiviert"
+  },
+  "adminImports": {
+    "title": "Importe",
+    "body": "Dieser Admin-Bereich ist als Navigationsplatzhalter angelegt."
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "body": "Dieser Admin-Bereich ist als Navigationsplatzhalter angelegt."
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "body": "Die angeforderte Seite existiert nicht.",
+    "action": "Zum Dashboard"
+  }
+}

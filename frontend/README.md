@@ -1,40 +1,37 @@
-# Frontend Implementation Target
+# Frontend
 
-This directory is reserved for the React + TypeScript + Vite frontend.
+React + TypeScript + Vite frontend for the fleet tracking application.
 
-## Expected contents after implementation
+## Requirements
 
-```text
-frontend/
-├── Dockerfile
-├── index.html
-├── package.json
-├── vite.config.ts
-├── src/
-│   ├── api/
-│   ├── components/
-│   ├── features/
-│   ├── pages/
-│   ├── routes/
-│   └── main.tsx
-└── tests/
+- Node.js 22+
+- npm 10+
+
+## Configuration
+
+Create a local environment file when the backend is not served from the same origin:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-## Frontend agent handoff
+If `VITE_API_BASE_URL` is not set, the API client falls back to `/api/v1`.
 
-Start with:
+## Commands
 
-- `agent-tasks/02-frontend-foundation.md`
-- `agent-tasks/08-frontend-workflows.md`
+```bash
+npm install
+npm run dev
+npm run build
+npm run preview
+npm test
+```
 
-## Key requirements
+## Implemented foundation
 
-- API base URL from `VITE_API_BASE_URL`.
-- German and English translations using structured locale resources.
-- Mobile-first workflow wizards.
-- Vehicle pool with status filtering.
-- Camera/photo upload support.
-- Signature capture.
-- Role-aware navigation and actions.
-- Clear loading, empty, and error states.
-- Language selector with persisted German/English preference.
+- React Router routes for login and authenticated app pages.
+- API client that reads `VITE_API_BASE_URL` and sends JSON requests with credentials.
+- German and English i18n resources with persisted language preference.
+- Placeholder login flow, authenticated layout, dashboard, vehicle pool, and admin navigation entries.
+- Smoke tests for rendering, language persistence, and role-aware navigation.
+- Dockerfile for building static assets and serving them with Nginx.

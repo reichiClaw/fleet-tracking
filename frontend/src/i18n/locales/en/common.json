@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Fleet Tracking",
+    "subtitle": "Fleet management",
+    "documentTitle": "Fleet Tracking"
+  },
+  "language": {
+    "label": "Language",
+    "options": {
+      "de": "German",
+      "en": "English"
+    }
+  },
+  "roles": {
+    "admin": "Admin",
+    "operations": "Operations",
+    "readonly": "Read-only"
+  },
+  "navigation": {
+    "primaryLabel": "Primary navigation",
+    "dashboard": "Dashboard",
+    "vehiclePool": "Vehicle pool",
+    "imports": "Imports",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "layout": {
+    "signedInAs": "Signed in as"
+  },
+  "states": {
+    "loading": "Loading...",
+    "error": {
+      "title": "Something went wrong",
+      "defaultMessage": "Please try again."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "intro": "Sign in to access the dashboard, vehicle pool, and role-aware features.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Jane Doe",
+      "roleLabel": "Role",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "demoHint": "This placeholder sign-in will be replaced by backend authentication later.",
+      "error": "The sign-in could not be completed.",
+      "validation": {
+        "nameRequired": "Please enter a name.",
+        "passwordRequired": "Please enter a password."
+      },
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter password"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Overview",
+    "title": "Dashboard",
+    "description": "Status cards and activity feeds will connect here once the API endpoints are ready.",
+    "cards": {
+      "available": "Available",
+      "loaned": "Loaned",
+      "maintenance": "Maintenance",
+      "damaged": "Damaged"
+    },
+    "placeholder": {
+      "title": "Dashboard placeholder",
+      "body": "Availability, overdue loans, and recent activity will appear here."
+    }
+  },
+  "vehicles": {
+    "eyebrow": "Inventory",
+    "title": "Vehicle pool",
+    "description": "Mobile cards, filters, and role-aware actions will be added in upcoming workflow work.",
+    "filters": {
+      "label": "Status filters"
+    },
+    "placeholder": {
+      "title": "No vehicle data loaded yet",
+      "body": "The list is ready to be connected to the vehicle endpoint."
+    }
+  },
+  "status": {
+    "announced": "Announced",
+    "checked_in": "Checked in",
+    "available": "Available",
+    "reserved": "Reserved",
+    "loaned": "Loaned",
+    "maintenance": "Maintenance",
+    "damaged": "Damaged",
+    "manufacturer_checkout": "Checked out to manufacturer",
+    "archived": "Archived"
+  },
+  "adminImports": {
+    "title": "Imports",
+    "body": "This admin area is available as a navigation placeholder."
+  },
+  "settings": {
+    "title": "Settings",
+    "body": "This admin area is available as a navigation placeholder."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The requested page does not exist.",
+    "action": "Go to dashboard"
+  }
+}
