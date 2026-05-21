@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
 BACKUP_DIR="${BACKUP_DIR:-backups}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-fleet-tracking}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"

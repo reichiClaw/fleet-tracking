@@ -35,10 +35,9 @@ manufacturer check-out, Excel imports, and role-based administration.
 
 ## Current repository state
 
-This repository currently contains the complete planning, architecture,
-documentation, agent task breakdown, and deployment scaffold. The backend and
-frontend folders are intentionally prepared as implementation targets for the
-next coding-agent passes.
+This repository contains the planning, architecture, documentation, agent task
+breakdown, deployment scaffold, and initial backend/frontend implementation
+foundations.
 
 ## Start here
 
@@ -50,6 +49,21 @@ next coding-agent passes.
    `agent-tasks/`.
 6. Use `docs/deployment.md` when turning the implementation into a running
    Docker Compose deployment.
+
+## Common Docker commands
+
+```bash
+cp .env.example .env
+make compose-config
+make up
+make logs
+make backup
+make restore DB=backups/fleet_tracking_YYYYMMDD_HHMMSS.dump MEDIA=backups/media_YYYYMMDD_HHMMSS.tar.gz
+```
+
+The bundled Nginx service listens on `NGINX_HTTP_PORT` and proxies `/api/` and
+`/admin/` to the backend while serving the frontend from the frontend static
+container.
 
 ## MVP definition
 
