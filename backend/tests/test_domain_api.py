@@ -193,6 +193,29 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         self.assertEqual(set(response.data.keys()), {"loans", "check_ins", "manufacturer_checkouts", "damages", "media"})
         self.assertEqual(len(response.data["loans"]), 1)
 
+    def test_vehicle_qr_resolver_uses_generated_code_not_id(self):
+        response = self.client_for(self.readonly_user).get(f"/api/v1/vehicles/qr/{self.vehicle.qr_code}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(self.vehicle.qr_code, str(self.vehicle.id))
+        self.assertEqual(response.data["vehicle"]["id"], str(self.vehicle.id))
+        self.assertEqual(response.data["vehicle"]["qr_code"], self.vehicle.qr_code)
+        self.assertIsNone(response.data["active_loan"])
+
+    def test_vehicle_qr_resolver_returns_active_loan(self):
+        loan = Loan.objects.create(
+            vehicle=self.vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.client_for(self.readonly_user).get(f"/api/v1/vehicles/qr/{self.vehicle.qr_code}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["active_loan"]["id"], str(loan.id))
+
 
 class DashboardAPITests(DomainAPITestCase):
     def setUp(self):

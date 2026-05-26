@@ -273,6 +273,10 @@
       "manualLabel": "QR-Link oder App-Pfad",
       "open": "Link öffnen"
     },
+    "resolve": {
+      "missing": "Der QR-Code fehlt.",
+      "error": "Der QR-Code konnte nicht aufgelöst werden."
+    },
     "labels": {
       "title": "Druckbare Fahrzeug-QR-Labels",
       "description": "Drucken Sie diese Labels und bringen Sie sie an Fahrzeugen an. Jedes Fahrzeug erhält einen Detail-Code und einen statusabhängigen Nächste-Aktion-Code."

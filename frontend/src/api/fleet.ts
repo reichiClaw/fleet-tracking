@@ -52,6 +52,7 @@ export type VehicleCategory = {
 
 export type Vehicle = {
   id: string;
+  qr_code: string;
   internal_number: string;
   category: string | VehicleCategory | null;
   manufacturer: string;
@@ -181,6 +182,11 @@ export type VehicleHistory = {
   media: MediaFile[];
 };
 
+export type VehicleQrResolution = {
+  vehicle: Vehicle;
+  active_loan: Loan | null;
+};
+
 export type ImportJob = {
   id: string;
   import_type: string;
@@ -276,6 +282,10 @@ export async function listVehicles(filters: VehicleFilters = {}) {
 
 export async function getVehicle(id: string) {
   return apiClient.get<Vehicle>(`/vehicles/${id}/`);
+}
+
+export async function resolveVehicleQrCode(qrCode: string) {
+  return apiClient.get<VehicleQrResolution>(`/vehicles/qr/${encodeURIComponent(qrCode)}/`);
 }
 
 export async function getVehicleHistory(id: string) {

@@ -1,11 +1,12 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import {
   displayVehicleName,
   listLoans,
   listVehicles,
+  resolveVehicleQrCode,
   type Loan,
   type Vehicle,
 } from '../api/fleet';
@@ -30,6 +31,8 @@ type QRTarget = {
   description: string;
   path: string;
 };
+
+type QRAction = 'details' | 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
 
 export function QRAccessPage() {
   const { t } = useTranslation();
@@ -238,13 +241,54 @@ export function QRAccessPage() {
   );
 }
 
+export function QRResolvePage() {
+  const { qrCode } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function resolve() {
+      if (!qrCode) {
+        setError(t('qr.resolve.missing'));
+        return;
+      }
+      try {
+        const resolution = await resolveVehicleQrCode(qrCode);
+        if (!isMounted) {
+          return;
+        }
+        const action = normalizeQrAction(searchParams.get('action'));
+        navigate(pathForQrAction(resolution.vehicle, resolution.active_loan ?? undefined, action), { replace: true });
+      } catch {
+        if (isMounted) {
+          setError(t('qr.resolve.error'));
+        }
+      }
+    }
+    resolve();
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, qrCode, searchParams, t]);
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
+
+  return <LoadingState />;
+}
+
 export function vehicleQrTargets(vehicle: Vehicle, activeLoan: Loan | undefined, t: (key: string) => string): QRTarget[] {
+  const qrCode = vehicle.qr_code;
   const targets: QRTarget[] = [
     {
       key: 'details',
       title: t('qr.targets.details.title'),
       description: t('qr.targets.details.description'),
-      path: `/app/vehicles/${vehicle.id}`,
+      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=details`,
     },
   ];
 
@@ -253,7 +297,7 @@ export function vehicleQrTargets(vehicle: Vehicle, activeLoan: Loan | undefined,
       key: 'loan-return',
       title: t('qr.targets.loanReturn.title'),
       description: t('qr.targets.loanReturn.description'),
-      path: `/app/workflows/loan-return?loan=${activeLoan.id}`,
+      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=loan-return`,
     });
     return targets;
   }
@@ -263,25 +307,56 @@ export function vehicleQrTargets(vehicle: Vehicle, activeLoan: Loan | undefined,
       key: 'loan-checkout',
       title: t('qr.targets.loanCheckout.title'),
       description: t('qr.targets.loanCheckout.description'),
-      path: `/app/workflows/loan-checkout?vehicle=${vehicle.id}`,
+      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=loan-checkout`,
     });
   } else if (vehicle.status === 'announced') {
     targets.push({
       key: 'check-in',
       title: t('qr.targets.checkIn.title'),
       description: t('qr.targets.checkIn.description'),
-      path: `/app/workflows/check-in?vehicle=${vehicle.id}`,
+      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=check-in`,
     });
   } else if (!['loaned', 'manufacturer_checkout', 'archived'].includes(vehicle.status)) {
     targets.push({
       key: 'manufacturer-checkout',
       title: t('qr.targets.manufacturerCheckout.title'),
       description: t('qr.targets.manufacturerCheckout.description'),
-      path: `/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`,
+      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=manufacturer-checkout`,
     });
   }
 
   return targets;
+}
+
+function normalizeQrAction(action: string | null): QRAction {
+  if (
+    action === 'check-in' ||
+    action === 'loan-checkout' ||
+    action === 'loan-return' ||
+    action === 'manufacturer-checkout'
+  ) {
+    return action;
+  }
+  return 'details';
+}
+
+function pathForQrAction(vehicle: Vehicle, activeLoan: Loan | undefined, action: QRAction) {
+  if (action === 'check-in' && ['announced', 'checked_in', 'available', 'damaged', 'maintenance'].includes(vehicle.status)) {
+    return `/app/workflows/check-in?vehicle=${vehicle.id}`;
+  }
+  if (action === 'loan-checkout' && vehicle.status === 'available') {
+    return `/app/workflows/loan-checkout?vehicle=${vehicle.id}`;
+  }
+  if (action === 'loan-return' && activeLoan) {
+    return `/app/workflows/loan-return?loan=${activeLoan.id}`;
+  }
+  if (
+    action === 'manufacturer-checkout' &&
+    !['announced', 'loaned', 'manufacturer_checkout', 'archived'].includes(vehicle.status)
+  ) {
+    return `/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`;
+  }
+  return `/app/vehicles/${vehicle.id}`;
 }
 
 function parseQrTarget(value: string) {

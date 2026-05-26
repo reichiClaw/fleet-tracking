@@ -19,6 +19,7 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             "id",
+            "qr_code",
             "internal_number",
             "category",
             "manufacturer",
@@ -34,7 +35,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "archived_at", "created_at", "updated_at"]
+        read_only_fields = ["id", "qr_code", "archived_at", "created_at", "updated_at"]
 
     def validate(self, attrs):
         if self.instance is not None:

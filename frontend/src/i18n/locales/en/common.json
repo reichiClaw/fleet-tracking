@@ -273,6 +273,10 @@
       "manualLabel": "QR link or app path",
       "open": "Open link"
     },
+    "resolve": {
+      "missing": "The QR code is missing.",
+      "error": "The QR code could not be resolved."
+    },
     "labels": {
       "title": "Printable vehicle QR labels",
       "description": "Print these labels and attach them to vehicles. Each vehicle gets a detail code and a status-aware next-action code."
