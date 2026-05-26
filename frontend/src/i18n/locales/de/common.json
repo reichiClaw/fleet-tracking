@@ -24,6 +24,7 @@
     "primaryLabel": "Hauptnavigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Fahrzeugpool",
+    "qrAccess": "QR-Zugriff",
     "workflows": "Workflows",
     "drivers": "Fahrer",
     "companies": "Firmen",
@@ -252,6 +253,56 @@
     "generateReturn": "Rückgabe-PDF erzeugen",
     "generated": "PDF erzeugt",
     "error": "Das PDF konnte nicht erzeugt werden."
+  },
+  "qr": {
+    "eyebrow": "QR-Schnellzugriff",
+    "title": "QR-Zugriff",
+    "description": "Fahrzeug-QR-Codes scannen, um Details zu öffnen oder direkt in den nächsten Workflow zu springen.",
+    "loadError": "QR-Daten konnten nicht geladen werden.",
+    "print": "QR-Codes drucken",
+    "scan": {
+      "title": "QR-Code scannen",
+      "description": "Nutzen Sie die Kamera von Tablet oder Smartphone, um Fahrzeugdetails, Rückgabe, Ausleihe, Check-in oder Hersteller-Check-out zu öffnen.",
+      "start": "Scanner starten",
+      "stop": "Scanner stoppen",
+      "scanning": "Scan läuft...",
+      "unsupported": "Dieser Browser unterstützt keinen QR-Scan per Kamera. Nutzen Sie das manuelle Feld oder die Kamera-App des Geräts.",
+      "cameraError": "Die Kamera konnte nicht gestartet werden.",
+      "invalid": "Dieser QR-Code ist kein Fleet-Tracking-App-Link.",
+      "empty": "Bitte geben Sie einen QR-Link oder App-Pfad ein.",
+      "manualLabel": "QR-Link oder App-Pfad",
+      "open": "Link öffnen"
+    },
+    "labels": {
+      "title": "Druckbare Fahrzeug-QR-Labels",
+      "description": "Drucken Sie diese Labels und bringen Sie sie an Fahrzeugen an. Jedes Fahrzeug erhält einen Detail-Code und einen statusabhängigen Nächste-Aktion-Code."
+    },
+    "shortcuts": {
+      "title": "QR-Schnellzugriffe",
+      "description": "Drucken oder teilen Sie diese Codes für schnellen Zugriff auf dieses Fahrzeug und seine aktuelle Workflow-Aktion."
+    },
+    "targets": {
+      "details": {
+        "title": "Fahrzeugdetails",
+        "description": "Status, Historie, Medien und PDF-Aktionen öffnen."
+      },
+      "checkIn": {
+        "title": "Check-in",
+        "description": "Liefer-Check-in für dieses Fahrzeug starten."
+      },
+      "loanCheckout": {
+        "title": "Ausleihe ausgeben",
+        "description": "Ausleihe für dieses verfügbare Fahrzeug starten."
+      },
+      "loanReturn": {
+        "title": "Ausleihe zurückgeben",
+        "description": "Aktiven Rückgabe-Workflow öffnen."
+      },
+      "manufacturerCheckout": {
+        "title": "Hersteller-Check-out",
+        "description": "Check-out an Hersteller oder Lieferant starten."
+      }
+    }
   },
   "management": {
     "loadError": "Verwaltungsdaten konnten nicht geladen werden.",

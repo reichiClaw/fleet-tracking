@@ -5,7 +5,8 @@ Planning and implementation scaffold for a Dockerized fleet management web app.
 The target application manages delivered vehicles and equipment, including
 check-in protocols, vehicle pool availability, loans to subcontractors or
 internal drivers, return handling, damage/photo documentation, signatures,
-manufacturer check-out, Excel imports, and role-based administration.
+manufacturer check-out, QR shortcuts for fast vehicle access, Excel imports, and
+role-based administration.
 
 ## Target stack
 

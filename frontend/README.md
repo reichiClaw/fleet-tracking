@@ -36,6 +36,8 @@ npm test
 - German and English i18n resources with persisted language preference.
 - Workflow screens for check-in, loan checkout/return, manufacturer check-out,
   media uploads, signatures, and PDF generation.
+- QR access for scanning vehicle labels and printing QR shortcuts for details,
+  check-in, loan checkout/return, and manufacturer check-out.
 - Admin screens for users, categories, vehicles, imports, and audit review.
 - Smoke tests for rendering, language persistence, role-aware navigation, API
   client behavior, and translations.
