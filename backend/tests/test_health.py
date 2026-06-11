@@ -1,8 +1,8 @@
-from django.test import SimpleTestCase
+from django.test import TestCase
 from django.urls import reverse
 
 
-class HealthEndpointTests(SimpleTestCase):
+class HealthEndpointTests(TestCase):
     def test_health_endpoint_returns_ok(self):
         response = self.client.get(reverse("health"))
 

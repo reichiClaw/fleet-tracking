@@ -17,6 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import serializers
 
+from audit.models import AuditLog
 from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile, MediaType
 from mediafiles.services import create_media_file_from_bytes
@@ -274,6 +275,17 @@ def _generate_document(
         language=language_code,
     )
     _link_record_if_empty(record=record, media=media, language=language_code, link_fields=link_fields)
+    AuditLog.objects.create(
+        actor=actor,
+        action="document.pdf.generated",
+        entity_type=document_type,
+        entity_id=record.id,
+        after={
+            "media_id": str(media.id),
+            "language": language_code,
+            "protocol_number": protocol_number,
+        },
+    )
     return media
 
 

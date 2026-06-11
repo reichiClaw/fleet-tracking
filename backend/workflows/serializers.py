@@ -79,16 +79,34 @@ class MediaMetadataInputSerializer(serializers.Serializer):
 
 
 class DamageReportInputSerializer(serializers.Serializer):
-    description = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True)
     severity = serializers.ChoiceField(choices=DamageSeverity.choices, required=False)
     discovered_at = serializers.DateTimeField(required=False)
     media_files = MediaMetadataInputSerializer(many=True, required=False)
     media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
 
+    def validate(self, attrs):
+        if attrs.get("media_files"):
+            raise serializers.ValidationError(
+                {"media_files": _("Upload files through the media endpoint and submit media_file_ids.")}
+            )
+        if not attrs.get("description") and not attrs.get("media_file_ids"):
+            raise serializers.ValidationError(
+                {"description": _("Damage reports require a description or uploaded media.")}
+            )
+        return attrs
+
 
 class WorkflowMediaMixin(serializers.Serializer):
     media_files = MediaMetadataInputSerializer(many=True, required=False)
     media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
+
+    def validate(self, attrs):
+        if attrs.get("media_files"):
+            raise serializers.ValidationError(
+                {"media_files": _("Upload files through the media endpoint and submit media_file_ids.")}
+            )
+        return super().validate(attrs)
 
 
 class CheckInWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer):

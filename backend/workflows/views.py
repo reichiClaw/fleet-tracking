@@ -4,7 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accounts.permissions import AuthenticatedReadAdminOperationsWriteNoDelete
+from accounts.permissions import AuthenticatedReadAdminOperationsWriteNoDelete, IsAdminRole
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
 from workflows.serializers import (
     CheckInProtocolSerializer,
@@ -23,6 +23,7 @@ from workflows.pdf import (
     generate_manufacturer_checkout_pdf,
 )
 from workflows.services import (
+    cancel_loan,
     complete_check_in,
     complete_loan_checkout,
     complete_loan_return,
@@ -60,6 +61,15 @@ class LoanViewSet(viewsets.ModelViewSet):
             request_meta=_request_meta(request),
         )
         return Response(LoanSerializer(returned_loan, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminRole])
+    def cancel(self, request, pk=None):
+        cancelled_loan = cancel_loan(
+            loan=self.get_object(),
+            actor=request.user,
+            request_meta=_request_meta(request),
+        )
+        return Response(LoanSerializer(cancelled_loan, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="generate-checkout-pdf")
     def generate_checkout_pdf(self, request, pk=None):

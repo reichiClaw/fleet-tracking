@@ -24,6 +24,7 @@
     "primaryLabel": "Primary navigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Vehicle pool",
+    "qrAccess": "QR access",
     "workflows": "Workflows",
     "drivers": "Drivers",
     "companies": "Companies",
@@ -77,7 +78,8 @@
     },
     "activity": {
       "title": "Recent activity",
-      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed."
+      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed.",
+      "empty": "No recent activity found."
     }
   },
   "vehicles": {
@@ -121,11 +123,14 @@
       "loans": "Loan history",
       "checkIns": "Check-in protocols",
       "manufacturer": "Manufacturer check-outs",
+      "damages": "Damage reports",
       "media": "Media",
       "emptyLoans": "No loans recorded.",
       "emptyCheckIns": "No check-in protocols recorded.",
       "emptyManufacturer": "No manufacturer check-outs recorded.",
-      "emptyMedia": "No media uploaded."
+      "emptyDamages": "No damage reports recorded.",
+      "emptyMedia": "No media uploaded.",
+      "damageWithoutDescription": "Damage without description"
     }
   },
   "status": {
@@ -214,7 +219,8 @@
       "borrowerRequired": "Select a driver or enter a borrower name.",
       "phoneRequired": "Please enter a borrower phone number.",
       "expectedReturnRequired": "Please choose an expected return date.",
-      "damageDescriptionRequired": "Please describe the damage."
+      "damageDescriptionRequired": "Please describe the damage.",
+      "vehicleUnavailable": "This vehicle is not available for the selected workflow."
     },
     "damage": {
       "title": "Damage report",
@@ -248,6 +254,60 @@
     "generated": "PDF generated",
     "error": "The PDF could not be generated."
   },
+  "qr": {
+    "eyebrow": "QR shortcuts",
+    "title": "QR access",
+    "description": "Scan vehicle QR codes to open details or jump straight into the next workflow.",
+    "loadError": "QR data could not be loaded.",
+    "print": "Print QR codes",
+    "scan": {
+      "title": "Scan QR code",
+      "description": "Use a tablet or phone camera to open a vehicle detail, loan return, loan checkout, check-in, or manufacturer check-out link.",
+      "start": "Start scanner",
+      "stop": "Stop scanner",
+      "scanning": "Scanning...",
+      "unsupported": "This browser does not support camera QR scanning. Use the manual field or your device camera app.",
+      "cameraError": "The camera could not be started.",
+      "invalid": "This QR code is not a Fleet Tracking app link.",
+      "empty": "Please enter a QR link or app path.",
+      "manualLabel": "QR link or app path",
+      "open": "Open link"
+    },
+    "resolve": {
+      "missing": "The QR code is missing.",
+      "error": "The QR code could not be resolved."
+    },
+    "labels": {
+      "title": "Printable vehicle QR labels",
+      "description": "Print these labels and attach them to vehicles. Each vehicle gets a detail code and a status-aware next-action code."
+    },
+    "shortcuts": {
+      "title": "QR shortcuts",
+      "description": "Print or share these codes for fast access to this vehicle and its current workflow action."
+    },
+    "targets": {
+      "details": {
+        "title": "Vehicle details",
+        "description": "Open status, history, media, and PDF actions."
+      },
+      "checkIn": {
+        "title": "Check-in",
+        "description": "Start delivery check-in for this vehicle."
+      },
+      "loanCheckout": {
+        "title": "Loan checkout",
+        "description": "Start a loan for this available vehicle."
+      },
+      "loanReturn": {
+        "title": "Loan return",
+        "description": "Open the active loan return workflow."
+      },
+      "manufacturerCheckout": {
+        "title": "Manufacturer check-out",
+        "description": "Start manufacturer or supplier check-out."
+      }
+    }
+  },
   "management": {
     "loadError": "Management data could not be loaded.",
     "saveError": "The record could not be saved.",
@@ -256,7 +316,22 @@
     "addDriver": "Add driver",
     "validation": {
       "nameRequired": "Please enter a company name.",
-      "driverNameRequired": "Please enter first and last name."
+      "driverNameRequired": "Please enter first and last name.",
+      "userRequired": "Please enter a username and password.",
+      "categoryRequired": "Please enter a category name.",
+      "vehicleRequired": "Please enter vehicle number, category, manufacturer, and model."
+    },
+    "admin": {
+      "eyebrow": "Admin",
+      "title": "Administration",
+      "description": "Manage users, categories, vehicles, and audit history for deployment operations.",
+      "usersTitle": "Users",
+      "categoriesTitle": "Categories",
+      "vehiclesTitle": "Vehicles",
+      "auditTitle": "Audit log",
+      "addUser": "Add user",
+      "addCategory": "Add category",
+      "addVehicle": "Add vehicle"
     },
     "companies": {
       "eyebrow": "Management",
@@ -281,6 +356,14 @@
       "company": "Company",
       "noCompany": "No company",
       "licenseClasses": "License classes"
+      ,
+      "username": "Username",
+      "password": "Password",
+      "role": "Role",
+      "category": "Category",
+      "internalNumber": "Internal number",
+      "manufacturer": "Manufacturer",
+      "model": "Model"
     }
   },
   "imports": {
@@ -297,7 +380,8 @@
     "committing": "Committing...",
     "commitHint": "Commit is available only after a validated import without errors.",
     "validation": {
-      "fileRequired": "Please choose an Excel file."
+      "fileRequired": "Please choose an Excel file.",
+      "fileType": "Please choose an .xlsx or .xlsm file."
     },
     "uploadError": "The import file could not be uploaded.",
     "commitError": "The import could not be committed.",
@@ -341,6 +425,25 @@
   "settings": {
     "title": "Settings",
     "body": "This admin area is available as a navigation placeholder."
+  },
+  "audit": {
+    "actions": {
+      "workflow.check_in.completed": "Check-in completed",
+      "workflow.loan_checkout.completed": "Loan checkout completed",
+      "workflow.loan_return.completed": "Loan return completed",
+      "workflow.manufacturer_checkout.completed": "Manufacturer check-out completed",
+      "workflow.loan_cancelled": "Loan cancelled",
+      "document.pdf.generated": "PDF generated",
+      "vehicle.created": "Vehicle created",
+      "vehicle.updated": "Vehicle updated",
+      "vehicle.archived": "Vehicle archived",
+      "vehicle_category.created": "Category created",
+      "vehicle_category.updated": "Category updated",
+      "vehicle_category.deactivated": "Category deactivated",
+      "user.created": "User created",
+      "user.updated": "User updated",
+      "user.deactivated": "User deactivated"
+    }
   },
   "notFound": {
     "title": "Page not found",

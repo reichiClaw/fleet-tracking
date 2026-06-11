@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import LoginView, LogoutView, MeView, UserViewSet
 from audit.views import AuditLogViewSet
-from config.views import health
+from config.views import dashboard_overdue_loans, dashboard_recent_activity, dashboard_status_summary, health
 from damages.views import DamageReportViewSet
 from drivers.views import DriverViewSet
 from imports.views import ImportJobViewSet
@@ -38,6 +38,9 @@ router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
+    path("api/v1/dashboard/status-summary/", dashboard_status_summary, name="dashboard-status-summary"),
+    path("api/v1/dashboard/overdue-loans/", dashboard_overdue_loans, name="dashboard-overdue-loans"),
+    path("api/v1/dashboard/recent-activity/", dashboard_recent_activity, name="dashboard-recent-activity"),
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),

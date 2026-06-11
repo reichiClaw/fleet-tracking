@@ -23,6 +23,10 @@ export function AdminImportPage() {
       setError(t('imports.validation.fileRequired'));
       return;
     }
+    if (!/\.(xlsx|xlsm)$/i.test(file.name)) {
+      setError(t('imports.validation.fileType'));
+      return;
+    }
     setIsUploading(true);
     setError(null);
     try {
@@ -86,7 +90,7 @@ export function AdminImportPage() {
       <section className="content-card form-stack">
         <label>
           <span>{t('imports.fileLabel')}</span>
-          <input accept=".xlsx,.xls" type="file" onChange={handleFileChange} />
+          <input accept=".xlsx,.xlsm" type="file" onChange={handleFileChange} />
         </label>
         <p className="hint-text">{t('imports.templateHint')}</p>
         <button type="button" disabled={isUploading} onClick={handleUpload}>

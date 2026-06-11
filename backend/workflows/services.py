@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
-from uuid import uuid4
-
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -94,10 +92,8 @@ def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[st
     with transaction.atomic():
         vehicle = _locked_vehicle(data["vehicle"])
         before = _vehicle_snapshot(vehicle)
-        if vehicle.status not in {VehicleStatus.AVAILABLE, VehicleStatus.CHECKED_IN}:
-            raise serializers.ValidationError(
-                {"vehicle": [_("Only available or checked-in vehicles can be loaned.")]}
-            )
+        if vehicle.status != VehicleStatus.AVAILABLE:
+            raise serializers.ValidationError({"vehicle": [_("Only available vehicles can be loaned.")]})
         if Loan.objects.select_for_update().filter(vehicle=vehicle, status=LoanStatus.ACTIVE).exists():
             raise serializers.ValidationError({"vehicle": [_("This vehicle already has an active loan.")]})
         _validate_readings_do_not_decrease(
@@ -221,6 +217,42 @@ def complete_loan_return(
                 "vehicle": _vehicle_snapshot(vehicle),
                 "loan_id": str(locked_loan.id),
                 "damage_report_ids": [str(damage.id) for damage in damages],
+            },
+            request_meta=request_meta,
+        )
+        return locked_loan
+
+
+def cancel_loan(*, loan: Loan, actor, request_meta: dict[str, str] | None = None) -> Loan:
+    """Cancel an active loan and return the vehicle to the available pool."""
+    request_meta = request_meta or {}
+    with transaction.atomic():
+        locked_loan = Loan.objects.select_for_update().select_related("vehicle").get(pk=loan.pk)
+        if locked_loan.status != LoanStatus.ACTIVE:
+            raise serializers.ValidationError({"loan": [_("Only active loans can be cancelled.")]})
+        vehicle = _locked_vehicle(locked_loan.vehicle)
+        before = _vehicle_snapshot(vehicle)
+
+        locked_loan.status = LoanStatus.CANCELLED
+        locked_loan.actual_return_at = timezone.now()
+        locked_loan.returned_by = actor
+        locked_loan.save(update_fields=["status", "actual_return_at", "returned_by", "updated_at"])
+        _transition_vehicle(
+            vehicle,
+            target_status=VehicleStatus.AVAILABLE,
+            odometer=None,
+            operating_hours=None,
+        )
+        _create_audit_log(
+            actor=actor,
+            action="workflow.loan_cancelled",
+            entity_type="loan",
+            entity_id=locked_loan.id,
+            before=before,
+            after={
+                "vehicle": _vehicle_snapshot(vehicle),
+                "loan_id": str(locked_loan.id),
+                "status": locked_loan.status,
             },
             request_meta=request_meta,
         )
@@ -423,7 +455,7 @@ def _create_damage_reports(
             loan=loan,
             check_in_protocol=check_in_protocol,
             manufacturer_checkout_protocol=manufacturer_checkout_protocol,
-            description=payload["description"],
+            description=payload.get("description", ""),
             severity=payload.get("severity", "unknown"),
             workflow_phase=workflow_phase,
             discovered_at=payload.get("discovered_at") or timezone.now(),
@@ -462,19 +494,9 @@ def _attach_media(
         media.related_id = related_id
         media.save(update_fields=["vehicle", "loan", "damage_report", "related_type", "related_id", "updated_at"])
 
-    for payload in media_payloads:
-        MediaFile.objects.create(
-            vehicle=vehicle,
-            loan=loan,
-            damage_report=damage_report,
-            related_type=related_type,
-            related_id=related_id,
-            media_type=payload["media_type"],
-            original_filename=payload["original_filename"],
-            storage_key=f"metadata/{related_type}/{uuid4()}",
-            content_type=payload["content_type"],
-            size_bytes=payload["size_bytes"],
-            uploaded_by=actor,
+    if list(media_payloads):
+        raise serializers.ValidationError(
+            {"media_files": [_("Upload files through the media endpoint and submit media_file_ids.")]}
         )
 
 

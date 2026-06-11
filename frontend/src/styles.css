@@ -412,6 +412,58 @@ td {
   background: #f2fbf6;
 }
 
+.qr-scanner {
+  overflow: hidden;
+  border: 2px dashed #9cb3c7;
+  border-radius: 1rem;
+  background: #0f1720;
+}
+
+.qr-scanner video {
+  display: block;
+  width: 100%;
+  min-height: 14rem;
+  object-fit: cover;
+}
+
+.qr-label-grid,
+.qr-card-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.qr-label {
+  display: grid;
+  gap: 1rem;
+  break-inside: avoid;
+  border: 1px solid #d7e2ec;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #ffffff;
+}
+
+.qr-card {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  border: 1px solid #d7e2ec;
+  border-radius: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.qr-card img {
+  width: min(100%, 13rem);
+  height: auto;
+}
+
+.qr-card code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #607083;
+  font-size: 0.75rem;
+}
+
 .state-card--error {
   border-color: #f0b4b4;
   background: #fff5f5;
@@ -469,6 +521,10 @@ td {
     grid-template-columns: minmax(14rem, 1fr) 12rem 12rem auto;
     align-items: end;
   }
+
+  .qr-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -486,5 +542,37 @@ td {
   button,
   .button-link {
     width: 100%;
+  }
+}
+
+@media print {
+  .top-bar,
+  .side-nav,
+  .qr-scanner,
+  .content-card > .action-row,
+  .button-link,
+  button,
+  form {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .shell-body,
+  .qr-label-grid {
+    display: block;
+  }
+
+  .content-panel,
+  .qr-label,
+  .qr-card {
+    box-shadow: none;
+  }
+
+  .qr-label {
+    margin-bottom: 1rem;
+    page-break-inside: avoid;
   }
 }

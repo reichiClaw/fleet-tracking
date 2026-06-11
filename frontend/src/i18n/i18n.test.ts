@@ -34,6 +34,8 @@ const requiredCoverageKeys = [
   'imports.fields.internal_number',
   'media.download',
   'pdf.generateReturn',
+  'qr.scan.start',
+  'qr.targets.loanReturn.title',
   ...vehicleStatusKeys,
 ];
 

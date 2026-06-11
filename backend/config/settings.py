@@ -148,10 +148,18 @@ MAX_UPLOAD_SIZE_MB = int(env("MAX_UPLOAD_SIZE_MB", "25"))
 
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=ENVIRONMENT == "production")
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=ENVIRONMENT == "production")
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=ENVIRONMENT == "production")
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "31536000" if ENVIRONMENT == "production" else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=ENVIRONMENT == "production")
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=ENVIRONMENT == "production")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
+
+_DEFAULT_RENDERERS = ["rest_framework.renderers.JSONRenderer"]
+if DEBUG:
+    _DEFAULT_RENDERERS.append("rest_framework.renderers.BrowsableAPIRenderer")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -160,10 +168,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
-    ],
+    "DEFAULT_RENDERER_CLASSES": _DEFAULT_RENDERERS,
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.FormParser",
@@ -171,7 +176,10 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
 }
+
+CORS_ALLOW_CREDENTIALS = True
 
 PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "http://localhost")
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

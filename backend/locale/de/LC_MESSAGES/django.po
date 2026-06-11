@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fleet-tracking backend\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-21 17:07+0200\n"
+"POT-Creation-Date: 2026-05-21 17:54+0200\n"
 "PO-Revision-Date: 2026-05-21 00:00+0000\n"
 "Last-Translator: Fleet Tracking Team\n"
 "Language-Team: German\n"
@@ -52,7 +52,7 @@ msgstr "Deutsch"
 msgid "English"
 msgstr "Englisch"
 
-#: config/views.py:16
+#: config/views.py:31
 msgid "Service is healthy."
 msgstr "Der Dienst ist fehlerfrei."
 
@@ -200,11 +200,11 @@ msgstr "Das Kennzeichen gehört bereits zu einem anderen Fahrzeug."
 msgid "Duplicate license_plate in import file. First seen on row %(row)s."
 msgstr "Doppelte license_plate in der Importdatei. Erstmals in Zeile %(row)s."
 
-#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:320
+#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:352
 msgid "Odometer value must not decrease."
 msgstr "Der Kilometerstand darf nicht sinken."
 
-#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:326
+#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:358
 msgid "Operating hours must not decrease."
 msgstr "Betriebsstunden dürfen nicht sinken."
 
@@ -362,7 +362,7 @@ msgid "Cancelled"
 msgstr "Storniert"
 
 #: workflows/models.py:59 workflows/serializers.py:57
-#: workflows/serializers.py:125
+#: workflows/serializers.py:143
 msgid "Borrower name is required when no driver is selected."
 msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
 
@@ -378,43 +378,58 @@ msgstr ""
 "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden "
 "bei Ausleihe."
 
-#: workflows/pdf.py:177
+#: workflows/pdf.py:178
 msgid "Loan return PDF requires a returned loan."
 msgstr "Das Rückgabe-PDF erfordert eine zurückgegebene Ausleihe."
 
-#: workflows/pdf.py:454
+#: workflows/pdf.py:466
 msgid "Unsupported PDF language."
 msgstr "Nicht unterstützte PDF-Sprache."
 
-#: workflows/services.py:31
+#: workflows/serializers.py:91 workflows/serializers.py:107
+#: workflows/services.py:499
+msgid "Upload files through the media endpoint and submit media_file_ids."
+msgstr ""
+
+#: workflows/serializers.py:95
+msgid "Damage reports require a description or uploaded media."
+msgstr ""
+
+#: workflows/services.py:29
 msgid "This vehicle cannot be checked in from its current status."
 msgstr ""
 "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
 
-#: workflows/services.py:99
-msgid "Only available or checked-in vehicles can be loaned."
+#: workflows/services.py:96
+#, fuzzy
+#| msgid "Only available or checked-in vehicles can be loaned."
+msgid "Only available vehicles can be loaned."
 msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
 
-#: workflows/services.py:102
+#: workflows/services.py:98
 msgid "This vehicle already has an active loan."
 msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
 
-#: workflows/services.py:169
+#: workflows/services.py:165
 msgid "Loan return requires an active loan."
 msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
 
-#: workflows/services.py:240
+#: workflows/services.py:232
+msgid "Only active loans can be cancelled."
+msgstr ""
+
+#: workflows/services.py:272
 msgid "Loaned vehicles cannot be checked out to manufacturers."
 msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
 
-#: workflows/services.py:244
+#: workflows/services.py:276
 msgid ""
 "This vehicle cannot be checked out to manufacturers from its current status."
 msgstr ""
 "Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller "
 "ausgecheckt werden."
 
-#: workflows/services.py:403
+#: workflows/services.py:435
 msgid "This workflow cannot move the vehicle to the requested status."
 msgstr ""
 "Dieser Workflow kann das Fahrzeug nicht in den angeforderten Status "

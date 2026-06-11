@@ -18,7 +18,9 @@ import {
 } from '../api/fleet';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { vehicleQrTargets } from './QRAccessPage';
 
 export function VehicleDetailPage() {
   const { vehicleId } = useParams();
@@ -61,6 +63,17 @@ export function VehicleDetailPage() {
   }, [t, vehicleId]);
 
   const activeLoan = useMemo(() => history?.loans.find((loan) => loan.status === 'active'), [history]);
+  const canCheckIn = ['announced', 'checked_in', 'available', 'damaged', 'maintenance'].includes(vehicle?.status ?? '');
+  const canLoan = vehicle?.status === 'available';
+  const canManufacturerCheckout = vehicle && !['announced', 'loaned', 'manufacturer_checkout', 'archived'].includes(vehicle.status);
+  const qrTargets = useMemo(() => (vehicle ? vehicleQrTargets(vehicle, activeLoan, t) : []), [activeLoan, t, vehicle]);
+
+  function appUrl(path: string) {
+    if (typeof window === 'undefined') {
+      return path;
+    }
+    return `${window.location.origin}${path}`;
+  }
 
   async function handleGeneratePdf(kind: 'checkIn' | 'loanCheckout' | 'loanReturn' | 'manufacturer', id: string) {
     setPdfError(null);
@@ -100,20 +113,26 @@ export function VehicleDetailPage() {
       </div>
 
       <div className="action-row action-row--wrap">
-        <Link className="button-link" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
-          {t('workflows.checkIn.title')}
-        </Link>
-        <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
-          {t('workflows.loanCheckout.title')}
-        </Link>
+        {canCheckIn ? (
+          <Link className="button-link" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
+            {t('workflows.checkIn.title')}
+          </Link>
+        ) : null}
+        {canLoan ? (
+          <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
+            {t('workflows.loanCheckout.title')}
+          </Link>
+        ) : null}
         {activeLoan ? (
           <Link className="button-link" to={`/app/workflows/loan-return?loan=${activeLoan.id}`}>
             {t('workflows.loanReturn.title')}
           </Link>
         ) : null}
-        <Link className="button-link" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
-          {t('workflows.manufacturerCheckout.title')}
-        </Link>
+        {canManufacturerCheckout ? (
+          <Link className="button-link" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
+            {t('workflows.manufacturerCheckout.title')}
+          </Link>
+        ) : null}
       </div>
 
       {pdfError ? <ErrorState message={pdfError} /> : null}
@@ -123,6 +142,28 @@ export function VehicleDetailPage() {
           <a href={mediaDownloadUrl(generatedMedia)}>{generatedMedia.original_filename}</a>
         </article>
       ) : null}
+
+      <section className="content-card">
+        <div className="card-title-row">
+          <div>
+            <h3>{t('qr.shortcuts.title')}</h3>
+            <p className="hint-text">{t('qr.shortcuts.description')}</p>
+          </div>
+          <button className="secondary-button" type="button" onClick={() => window.print()}>
+            {t('qr.print')}
+          </button>
+        </div>
+        <div className="qr-card-grid">
+          {qrTargets.map((target) => (
+            <QRCodeCard
+              key={target.key}
+              title={target.title}
+              description={target.description}
+              value={appUrl(target.path)}
+            />
+          ))}
+        </div>
+      </section>
 
       <section className="content-card">
         <h3>{t('vehicles.detail.dataTitle')}</h3>
@@ -203,6 +244,25 @@ export function VehicleDetailPage() {
             <button type="button" onClick={() => handleGeneratePdf('manufacturer', protocol.id)}>
               {t('pdf.generate')}
             </button>
+          </li>
+        )}
+      />
+
+      <HistorySection
+        title={t('vehicles.history.damages')}
+        empty={t('vehicles.history.emptyDamages')}
+        items={history?.damages ?? []}
+        renderItem={(damage) => (
+          <li key={damage.id}>
+            <div>
+              <strong>{damage.description || t('vehicles.history.damageWithoutDescription')}</strong>
+              <small>
+                {damage.discovered_at
+                  ? new Intl.DateTimeFormat(i18n.language).format(new Date(damage.discovered_at))
+                  : t('common.notAvailable')}
+              </small>
+            </div>
+            <StatusBadge status={damage.severity || 'unknown'} />
           </li>
         )}
       />

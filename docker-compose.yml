@@ -24,6 +24,7 @@ services:
   backend:
     build:
       context: ./backend
+      network: host
     restart: unless-stopped
     env_file:
       - path: .env
@@ -53,6 +54,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      network: host
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
     restart: unless-stopped
