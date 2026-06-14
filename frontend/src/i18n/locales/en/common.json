@@ -28,7 +28,7 @@
     "drivers": "Drivers",
     "companies": "Companies",
     "imports": "Imports",
-    "settings": "Settings",
+    "users": "Users",
     "logout": "Log out"
   },
   "layout": {
@@ -338,9 +338,36 @@
     "title": "Imports",
     "body": "Use Vehicle import to upload and commit vehicle Excel files."
   },
-  "settings": {
-    "title": "Settings",
-    "body": "This admin area is available as a navigation placeholder."
+  "users": {
+    "eyebrow": "Administration",
+    "title": "User management",
+    "description": "Create accounts, assign roles, and activate or deactivate users.",
+    "addUser": "Add user",
+    "saving": "Saving...",
+    "created": "User created.",
+    "loadError": "Users could not be loaded.",
+    "saveError": "The user could not be saved.",
+    "empty": "No users found.",
+    "you": "You",
+    "validation": {
+      "usernameRequired": "Please enter a username.",
+      "passwordRequired": "Please enter a password with at least 8 characters."
+    },
+    "fields": {
+      "username": "Username",
+      "fullName": "Full name",
+      "email": "Email",
+      "role": "Role",
+      "password": "Password"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "activate": "Activate",
+      "deactivate": "Deactivate"
+    }
   },
   "notFound": {
     "title": "Page not found",

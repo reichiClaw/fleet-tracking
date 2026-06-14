@@ -28,7 +28,7 @@
     "drivers": "Fahrer",
     "companies": "Firmen",
     "imports": "Importe",
-    "settings": "Einstellungen",
+    "users": "Benutzer",
     "logout": "Abmelden"
   },
   "layout": {
@@ -338,9 +338,36 @@
     "title": "Importe",
     "body": "Nutzen Sie den Fahrzeugimport, um Fahrzeug-Excel-Dateien hochzuladen und zu übernehmen."
   },
-  "settings": {
-    "title": "Einstellungen",
-    "body": "Dieser Admin-Bereich ist als Navigationsplatzhalter angelegt."
+  "users": {
+    "eyebrow": "Administration",
+    "title": "Benutzerverwaltung",
+    "description": "Konten anlegen, Rollen zuweisen und Benutzer aktivieren oder deaktivieren.",
+    "addUser": "Benutzer hinzufügen",
+    "saving": "Wird gespeichert...",
+    "created": "Benutzer angelegt.",
+    "loadError": "Benutzer konnten nicht geladen werden.",
+    "saveError": "Der Benutzer konnte nicht gespeichert werden.",
+    "empty": "Keine Benutzer gefunden.",
+    "you": "Sie",
+    "validation": {
+      "usernameRequired": "Bitte geben Sie einen Benutzernamen ein.",
+      "passwordRequired": "Bitte geben Sie ein Passwort mit mindestens 8 Zeichen ein."
+    },
+    "fields": {
+      "username": "Benutzername",
+      "fullName": "Vollständiger Name",
+      "email": "E-Mail",
+      "role": "Rolle",
+      "password": "Passwort"
+    },
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "actions": {
+      "activate": "Aktivieren",
+      "deactivate": "Deaktivieren"
+    }
   },
   "notFound": {
     "title": "Seite nicht gefunden",

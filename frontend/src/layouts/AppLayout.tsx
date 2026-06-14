@@ -18,7 +18,7 @@ const navigationItems: NavigationItem[] = [
   { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
   { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
-  { key: 'settings', to: '/app/settings', translationKey: 'navigation.settings', roles: ['admin'] },
+  { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
 ];
 
 export function AppLayout() {

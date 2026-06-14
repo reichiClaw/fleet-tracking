@@ -9,7 +9,7 @@ import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
 import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { UserManagementPage } from '../pages/UserManagementPage';
 import { VehicleDetailPage } from '../pages/VehicleDetailPage';
 import { VehiclePoolPage } from '../pages/VehiclePoolPage';
 import { WorkflowPage } from '../pages/WorkflowPage';
@@ -66,7 +66,7 @@ export function AppRoutes() {
         <Route path="drivers" element={<DriverManagementPage />} />
         <Route path="companies" element={<CompanyManagementPage />} />
         <Route path="imports" element={<RequireRole roles={adminRoles}><AdminImportPage /></RequireRole>} />
-        <Route path="settings" element={<RequireRole roles={adminRoles}><PlaceholderPage translationKey="settings" /></RequireRole>} />
+        <Route path="users" element={<RequireRole roles={adminRoles}><UserManagementPage /></RequireRole>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

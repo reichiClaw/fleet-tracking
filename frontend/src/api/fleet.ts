@@ -12,6 +12,27 @@ export type CurrentUser = {
   is_active?: boolean;
 };
 
+export type ManagedUser = {
+  id: string;
+  username: string;
+  email?: string;
+  full_name?: string;
+  role: UserRole;
+  is_active: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+  last_login?: string | null;
+  date_joined?: string;
+};
+
+export type CreateUserPayload = {
+  username: string;
+  full_name?: string;
+  email?: string;
+  role: UserRole;
+  password: string;
+};
+
 export type VehicleStatus =
   | 'announced'
   | 'checked_in'
@@ -222,6 +243,23 @@ export async function logoutSession() {
 
 export async function getCurrentUser() {
   return apiClient.get<CurrentUser>('/auth/me/');
+}
+
+export async function listUsers() {
+  const response = await apiClient.get<ManagedUser[] | PaginatedResponse<ManagedUser>>('/users/');
+  return listFromResponse(response);
+}
+
+export async function createUser(payload: CreateUserPayload) {
+  return apiClient.post<ManagedUser>('/users/', payload as unknown as Record<string, unknown>);
+}
+
+export async function updateUser(id: string, payload: Partial<ManagedUser> & { password?: string }) {
+  return apiClient.patch<ManagedUser>(`/users/${id}/`, payload as Record<string, unknown>);
+}
+
+export async function deactivateUser(id: string) {
+  return apiClient.post<ManagedUser>(`/users/${id}/deactivate/`);
 }
 
 function pathWithQuery(path: string, query: Record<string, string | number | boolean | null | undefined>) {
