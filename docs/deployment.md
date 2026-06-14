@@ -64,7 +64,7 @@ sudo chown "$USER:$USER" /opt/fleet-tracking
 cd /opt/fleet-tracking
 git clone <repo-url> .
 cp .env.example .env
-nano .env
+nano .env   # set ENVIRONMENT=production and the production values below
 docker compose up -d --build
 ```
 
@@ -74,6 +74,21 @@ an initial administrator after the stack is healthy:
 ```bash
 docker compose exec backend python manage.py createsuperuser
 ```
+
+Additional users can then be managed in the in-app Users screen (admin role) or
+the Django admin at `/admin/`.
+
+### Verify the deployment
+
+```bash
+docker compose ps                 # all services should be "running"/"healthy"
+docker compose logs -f backend    # watch migrations and Gunicorn start
+curl -fsS http://localhost:${NGINX_HTTP_PORT:-80}/api/health/   # -> {"status": "ok"}
+```
+
+Open `http://<host>:${NGINX_HTTP_PORT}` and sign in. If the backend container is
+unhealthy, check that `DATABASE_URL` matches the `POSTGRES_*` values and that
+`ENVIRONMENT=production` is set with a valid `DJANGO_SECRET_KEY`.
 
 ## Automatic HTTPS (easiest TLS)
 
@@ -113,8 +128,11 @@ Use `.env.example` as the template. Never commit real `.env` files.
 
 Important production values:
 
+- `ENVIRONMENT=production` (required: enables secure-cookie defaults and the
+  startup checks that enforce a real `DJANGO_SECRET_KEY` and `DATABASE_URL`)
 - `DJANGO_DEBUG=False`
-- strong `DJANGO_SECRET_KEY`
+- strong `DJANGO_SECRET_KEY` (50+ random characters)
+- `DATABASE_URL` set and aligned with the `POSTGRES_*` values
 - restricted `DJANGO_ALLOWED_HOSTS`
 - restricted `DJANGO_CSRF_TRUSTED_ORIGINS`
 - restricted `DJANGO_CORS_ALLOWED_ORIGINS`
@@ -194,6 +212,23 @@ media volume, then restarts the stack.
 make restore DB=backups/fleet_tracking_YYYYMMDD_HHMMSS.dump MEDIA=backups/media_YYYYMMDD_HHMMSS.tar.gz
 # or: ./scripts/restore.sh backups/fleet_tracking_YYYYMMDD_HHMMSS.dump backups/media_YYYYMMDD_HHMMSS.tar.gz
 ```
+
+## Updates
+
+Deploy a new version by pulling the latest code and rebuilding. The backend
+container applies database migrations and `collectstatic` automatically on
+startup. Take a backup first.
+
+```bash
+cd /opt/fleet-tracking
+make backup
+git pull
+make up            # rebuilds and restarts (HTTP); use `make up-tls` for HTTPS
+docker compose ps  # confirm services return to healthy
+```
+
+To roll back, check out the previous commit/tag and run `make up` again; if a
+migration must be reverted, restore from the pre-update backup.
 
 ## Production hardening checklist
 
