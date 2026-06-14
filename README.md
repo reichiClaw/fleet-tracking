@@ -87,6 +87,10 @@ The app is then served on `http://<host>:${NGINX_HTTP_PORT}` (default `80`).
 Sign in with the superuser, or create additional users in the in-app Users
 screen (admin) or Django admin at `/admin/`.
 
+Alternatively, `./scripts/setup.sh` automates dependency install, checks, and
+(optionally) deployment: `./scripts/setup.sh --install-system-packages --deploy
+--create-superuser`.
+
 ### HTTPS (recommended for production)
 
 Set `TLS_DOMAIN`/`TLS_EMAIL` in `.env`, enable secure cookies
