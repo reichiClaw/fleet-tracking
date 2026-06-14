@@ -81,24 +81,18 @@ msgid "General"
 msgstr "Allgemein"
 
 #: damages/models.py:23
-#, fuzzy
-#| msgid "Checked in"
 msgid "Check-in"
-msgstr "Eingecheckt"
+msgstr "Check-in"
 
 #: damages/models.py:24
-#, fuzzy
-#| msgid "Manufacturer checkout"
 msgid "Loan checkout"
-msgstr "Hersteller-Check-out"
+msgstr "Ausleihe-Ausgabe"
 
 #: damages/models.py:25
 msgid "Loan return"
 msgstr "Ausleihe-Rückgabe"
 
 #: damages/models.py:26
-#, fuzzy
-#| msgid "Manufacturer checkout"
 msgid "Manufacturer check-out"
 msgstr "Hersteller-Check-out"
 
