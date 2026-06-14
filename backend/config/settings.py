@@ -9,6 +9,8 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
+from config.storage import build_storages
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -139,12 +141,17 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 
 STATIC_URL = env("STATIC_URL", "/static/")
 STATIC_ROOT = env("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles"))
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 WHITENOISE_AUTOREFRESH = DEBUG
 
 MEDIA_URL = env("MEDIA_URL", "/media/")
 MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
 MAX_UPLOAD_SIZE_MB = int(env("MAX_UPLOAD_SIZE_MB", "25"))
+
+# Media storage backend (local filesystem, SFTP, or S3/MinIO) is selected with
+# the MEDIA_STORAGE_BACKEND environment variable. Static files always use
+# WhiteNoise. See config/storage.py.
+MEDIA_STORAGE_BACKEND = env("MEDIA_STORAGE_BACKEND", "local")
+STORAGES = build_storages(os.environ)
 
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=ENVIRONMENT == "production")
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=ENVIRONMENT == "production")

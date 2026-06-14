@@ -165,14 +165,15 @@ if the deployment requires separate domains or independent clients.
 
 ## Media storage choice
 
-MVP:
-
-- Store files in a Docker volume mounted into the backend and Nginx.
-- Store only metadata and storage keys in PostgreSQL.
-
-Later:
-
-- Replace local storage with MinIO/S3 using a storage abstraction.
+- Store only metadata and server-generated storage keys in PostgreSQL.
+- Select the storage backend with the `MEDIA_STORAGE_BACKEND` environment
+  variable (`local`, `sftp`, or `s3`); see `config/storage.py` and
+  `docs/deployment.md`.
+  - `local` (default): a Docker volume mounted into the backend.
+  - `sftp`: a remote SFTP/NAS server via django-storages + paramiko.
+  - `s3`: S3-compatible object storage / MinIO via boto3.
+- All backends are served through authenticated Django download endpoints, so
+  none needs to expose public object URLs.
 
 ## PDF strategy
 

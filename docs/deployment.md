@@ -131,6 +131,41 @@ Important production values:
 - `VITE_API_BASE_URL=/api/v1` for the Docker/Nginx deployment, or a full URL
   only when running the Vite dev server against a separately exposed API
 
+## Media storage backend
+
+Uploaded media (photos, signatures, generated PDFs, import files) is stored
+through a pluggable backend selected with `MEDIA_STORAGE_BACKEND`. Media is
+always served through authenticated Django download endpoints, so no backend
+needs to expose public URLs. Switching backends needs only environment
+changes; no code, API, or frontend changes.
+
+| `MEDIA_STORAGE_BACKEND` | Storage | Notes |
+|---|---|---|
+| `local` (default) | Filesystem under `DJANGO_MEDIA_ROOT` (the `media_data` volume) | Simplest; back up the volume with `make backup`. |
+| `sftp` | Remote SFTP/NAS server | Good for on-prem NAS. Files survive container redeploys. |
+| `s3` | S3-compatible object storage / MinIO | Most scalable; required for ephemeral PaaS hosts. |
+
+### SFTP
+
+Set `MEDIA_STORAGE_BACKEND=sftp` and configure `SFTP_HOST`, `SFTP_USER`, and
+either `SFTP_PASSWORD` or `SFTP_KEY_PATH` (key-based auth recommended).
+`SFTP_ROOT` is the base directory for stored files. For host-key verification,
+mount a `known_hosts` file into the backend container and point
+`SFTP_KNOWN_HOSTS` at it. Restrict the SFTP account to its media directory
+(chroot/jail).
+
+### S3 / MinIO
+
+Set `MEDIA_STORAGE_BACKEND=s3`, `AWS_STORAGE_BUCKET_NAME`,
+`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`. For AWS S3 set
+`AWS_S3_REGION_NAME`. For MinIO or another S3-compatible service, set
+`AWS_S3_ENDPOINT_URL` (e.g. `https://minio.example.com`) and
+`AWS_S3_ADDRESSING_STYLE=path`. Objects are private (`AWS_DEFAULT_ACL=private`)
+and never overwritten because storage keys are unique per upload.
+
+When using `sftp` or `s3`, the `media_data` volume is unused and the file-based
+media backup step does not apply; back up the SFTP/object store separately.
+
 ## Backup
 
 Use the helper target or script from the repository root. The script loads
