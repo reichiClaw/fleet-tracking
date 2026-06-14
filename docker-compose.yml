@@ -78,7 +78,6 @@ services:
       - "${NGINX_HTTP_PORT:-80}:80"
     volumes:
       - ./deploy/nginx:/etc/nginx/conf.d:ro
-      - media_data:/var/www/media:ro
       - static_data:/var/www/static:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
