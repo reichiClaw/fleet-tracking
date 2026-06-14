@@ -86,7 +86,13 @@ Important production values:
 - strong `POSTGRES_PASSWORD`
 - `DEFAULT_LANGUAGE=de` or `en` according to the deployment team
 - `SUPPORTED_LANGUAGES=de,en`
-- secure cookie settings enabled behind HTTPS
+- secure cookie settings enabled behind HTTPS (`SESSION_COOKIE_SECURE=True`,
+  `CSRF_COOKIE_SECURE=True`)
+- once HTTPS reaches the stack, enable `SECURE_SSL_REDIRECT=True` and set
+  `SECURE_HSTS_SECONDS` (e.g. `31536000`) so `manage.py check --deploy` passes.
+  Leave both off while serving plain HTTP. If TLS terminates on an upstream
+  proxy that already redirects to HTTPS, keep `SECURE_SSL_REDIRECT=False` to
+  avoid redirect loops and rely on the proxy plus `SECURE_PROXY_SSL_HEADER`.
 - `VITE_API_BASE_URL=/api/v1` for the Docker/Nginx deployment, or a full URL
   only when running the Vite dev server against a separately exposed API
 

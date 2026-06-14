@@ -150,6 +150,15 @@ SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=ENVIRONMENT ==
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=ENVIRONMENT == "production")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# HTTPS hardening. Defaults are conservative because TLS may terminate on an
+# upstream reverse proxy. Enable these once HTTPS reaches this stack so that
+# `manage.py check --deploy` passes cleanly in production.
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=False)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=SECURE_HSTS_SECONDS > 0)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=False)
+SECURE_CONTENT_TYPE_NOSNIFF = env_bool("SECURE_CONTENT_TYPE_NOSNIFF", default=True)
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
