@@ -44,6 +44,7 @@ describe('App smoke flow', () => {
 
     expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'QR-Zugriff' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Importe' })).toBeInTheDocument();
   });
 
@@ -81,5 +82,15 @@ describe('App smoke flow', () => {
 
     expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Check-in' })).not.toBeInTheDocument();
+  });
+
+  it('routes authenticated users to the QR access page', async () => {
+    window.localStorage.setItem('fleet-auth-user', JSON.stringify({ name: 'Ada', role: 'operations' }));
+    window.history.pushState({}, '', '/app/qr');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'QR-Zugriff' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scanner starten' })).toBeInTheDocument();
   });
 });

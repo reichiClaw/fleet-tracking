@@ -18,7 +18,9 @@ import {
 } from '../api/fleet';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { vehicleQrTargets } from './QRAccessPage';
 
 export function VehicleDetailPage() {
   const { vehicleId } = useParams();
@@ -61,6 +63,14 @@ export function VehicleDetailPage() {
   }, [t, vehicleId]);
 
   const activeLoan = useMemo(() => history?.loans.find((loan) => loan.status === 'active'), [history]);
+  const qrTargets = useMemo(() => (vehicle ? vehicleQrTargets(vehicle, activeLoan, t) : []), [activeLoan, t, vehicle]);
+
+  function appUrl(path: string) {
+    if (typeof window === 'undefined') {
+      return path;
+    }
+    return `${window.location.origin}${path}`;
+  }
 
   async function handleGeneratePdf(kind: 'checkIn' | 'loanCheckout' | 'loanReturn' | 'manufacturer', id: string) {
     setPdfError(null);
@@ -123,6 +133,28 @@ export function VehicleDetailPage() {
           <a href={mediaDownloadUrl(generatedMedia)}>{generatedMedia.original_filename}</a>
         </article>
       ) : null}
+
+      <section className="content-card">
+        <div className="card-title-row">
+          <div>
+            <h3>{t('qr.shortcuts.title')}</h3>
+            <p className="hint-text">{t('qr.shortcuts.description')}</p>
+          </div>
+          <button className="secondary-button" type="button" onClick={() => window.print()}>
+            {t('qr.print')}
+          </button>
+        </div>
+        <div className="qr-card-grid">
+          {qrTargets.map((target) => (
+            <QRCodeCard
+              key={target.key}
+              title={target.title}
+              description={target.description}
+              value={appUrl(target.path)}
+            />
+          ))}
+        </div>
+      </section>
 
       <section className="content-card">
         <h3>{t('vehicles.detail.dataTitle')}</h3>

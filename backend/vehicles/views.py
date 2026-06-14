@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 
 from accounts.permissions import AuthenticatedReadAdminWrite, IsAdminRole, VehiclePermission
@@ -12,6 +13,7 @@ from damages.serializers import DamageReportSerializer
 from mediafiles.serializers import MediaFileSerializer
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from vehicles.serializers import VehicleCategorySerializer, VehicleSerializer
+from workflows.models import LoanStatus
 from workflows.serializers import CheckInProtocolSerializer, LoanSerializer, ManufacturerCheckOutProtocolSerializer
 
 
@@ -81,3 +83,16 @@ class VehicleViewSet(viewsets.ModelViewSet):
     def media(self, request, pk=None):
         vehicle = self.get_object()
         return Response(MediaFileSerializer(vehicle.media_files.all().order_by("-created_at"), many=True).data)
+
+    @action(detail=False, methods=["get"], url_path=r"qr/(?P<qr_code>[^/.]+)")
+    def qr(self, request, qr_code=None):
+        vehicle = self.get_queryset().filter(qr_code__iexact=qr_code).first()
+        if vehicle is None:
+            raise NotFound("Vehicle QR code was not found.")
+        active_loan = vehicle.loans.filter(status=LoanStatus.ACTIVE).order_by("-created_at").first()
+        return Response(
+            {
+                "vehicle": VehicleSerializer(vehicle, context={"request": request}).data,
+                "active_loan": LoanSerializer(active_loan, context={"request": request}).data if active_loan else None,
+            }
+        )

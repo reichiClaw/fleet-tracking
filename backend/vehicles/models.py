@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+import string
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -11,6 +13,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from config.models import TimeStampedUUIDModel
+
+QR_CODE_ALPHABET = "".join(ch for ch in string.ascii_uppercase + string.digits if ch not in {"0", "O", "1", "I"})
+
+
+def generate_vehicle_qr_code() -> str:
+    """Generate a stable, human-readable vehicle QR code that is not a database ID."""
+    return "VH-" + "".join(secrets.choice(QR_CODE_ALPHABET) for _ in range(10))
 
 
 class VehicleStatus(models.TextChoices):
@@ -64,6 +73,7 @@ class VehicleCategory(TimeStampedUUIDModel):
 
 class Vehicle(TimeStampedUUIDModel):
     internal_number = models.CharField(max_length=80, unique=True)
+    qr_code = models.CharField(max_length=24, unique=True, default=generate_vehicle_qr_code, editable=False)
     category = models.ForeignKey(VehicleCategory, on_delete=models.PROTECT, related_name="vehicles")
     manufacturer = models.CharField(max_length=120)
     model = models.CharField(max_length=120)
@@ -126,5 +136,7 @@ class Vehicle(TimeStampedUUIDModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if not self.qr_code:
+            self.qr_code = generate_vehicle_qr_code()
         self.full_clean()
         return super().save(*args, **kwargs)

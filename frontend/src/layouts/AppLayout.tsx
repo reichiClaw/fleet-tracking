@@ -14,6 +14,7 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
   { key: 'workflows', to: '/app/workflows/check-in', translationKey: 'navigation.workflows', roles: ['admin', 'operations'] },
   { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
   { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
