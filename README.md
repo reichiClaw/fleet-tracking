@@ -65,6 +65,10 @@ The bundled Nginx service listens on `NGINX_HTTP_PORT` and proxies `/api/` and
 `/admin/` to the backend while serving the frontend from the frontend static
 container.
 
+For turn-key HTTPS, set `TLS_DOMAIN`/`TLS_EMAIL` in `.env` and run `make up-tls`,
+which adds a Caddy edge proxy that obtains and renews Let's Encrypt certificates
+automatically. See `docs/deployment.md` for the full HTTPS checklist.
+
 ## MVP definition
 
 The MVP is complete when:

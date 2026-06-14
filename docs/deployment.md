@@ -18,7 +18,8 @@ Target environment: Docker Compose on an Ubuntu VM hosted by Proxmox.
 | `db` | PostgreSQL database |
 | `backend` | Django REST API and background-adjacent tasks |
 | `frontend` | React/Vite application build or dev server during development |
-| `nginx` | Reverse proxy, static/media serving, optional TLS termination |
+| `nginx` | Reverse proxy and static serving |
+| `caddy` | Optional automatic-HTTPS edge proxy (TLS overlay only) |
 
 ## Volumes
 
@@ -27,6 +28,8 @@ Target environment: Docker Compose on an Ubuntu VM hosted by Proxmox.
 | `postgres_data` | PostgreSQL data directory |
 | `media_data` | Photos, signatures, imported files, generated PDFs |
 | `static_data` | Collected Django static files |
+| `caddy_data` | Let's Encrypt certificates and ACME state (TLS overlay only) |
+| `caddy_config` | Caddy autosave configuration (TLS overlay only) |
 
 ## Initial VM preparation
 
@@ -71,6 +74,38 @@ an initial administrator after the stack is healthy:
 ```bash
 docker compose exec backend python manage.py createsuperuser
 ```
+
+## Automatic HTTPS (easiest TLS)
+
+The bundled HTTP stack terminates on Nginx at `NGINX_HTTP_PORT`. For a
+turn-key HTTPS deployment, use the Caddy overlay, which obtains and renews
+Let's Encrypt certificates automatically and sits in front of Nginx.
+
+Prerequisites:
+
+- A domain (`TLS_DOMAIN`) whose DNS A/AAAA record points at this host.
+- Ports `80` and `443` reachable from the internet (open them in `ufw`).
+- Docker Compose `v2.24.4+` (for the `!reset` ports override).
+
+Configure and start:
+
+```bash
+# In .env:
+#   TLS_DOMAIN=fleet.example.com
+#   TLS_EMAIL=admin@example.com
+#   DJANGO_ALLOWED_HOSTS=fleet.example.com
+#   DJANGO_CSRF_TRUSTED_ORIGINS=https://fleet.example.com
+#   SESSION_COOKIE_SECURE=True
+#   CSRF_COOKIE_SECURE=True
+#   SECURE_HSTS_SECONDS=31536000   # enable once HTTPS is confirmed working
+make up-tls
+# or: docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+```
+
+Caddy redirects HTTP to HTTPS automatically, so `SECURE_SSL_REDIRECT` can stay
+`False`. Nginx forwards the original `X-Forwarded-Proto` from Caddy, so Django
+correctly detects HTTPS for secure cookies and CSRF. Stop the TLS stack with
+`make down-tls`.
 
 ## Environment variables
 

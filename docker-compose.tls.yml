@@ -1,0 +1,45 @@
+# Automatic-HTTPS overlay for Fleet Tracking.
+#
+# Adds a Caddy reverse proxy that obtains and renews Let's Encrypt certificates
+# for ${TLS_DOMAIN} and terminates TLS in front of the existing Nginx service.
+# Nginx stops publishing host ports so Caddy can own ports 80 and 443.
+#
+# Usage:
+#   1. Point ${TLS_DOMAIN}'s DNS A/AAAA record at this host.
+#   2. Set TLS_DOMAIN and TLS_EMAIL in .env.
+#   3. docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+#      (or: make up-tls)
+
+services:
+  nginx:
+    # Caddy fronts the stack and owns the public ports.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      nginx:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      TLS_DOMAIN: ${TLS_DOMAIN:?Set TLS_DOMAIN in .env for the TLS overlay}
+      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in .env for the TLS overlay}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+
+volumes:
+  caddy_data:
+  caddy_config:

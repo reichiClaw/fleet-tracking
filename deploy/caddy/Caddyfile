@@ -1,0 +1,21 @@
+# Automatic-HTTPS reverse proxy for Fleet Tracking.
+#
+# Caddy obtains and renews Let's Encrypt certificates for $TLS_DOMAIN and
+# terminates TLS in front of the bundled Nginx service. Set TLS_DOMAIN and
+# TLS_EMAIL in .env and start the stack with the TLS overlay (see
+# docs/deployment.md). HTTP is redirected to HTTPS automatically.
+
+{
+	email {$TLS_EMAIL}
+}
+
+{$TLS_DOMAIN} {
+	encode zstd gzip
+
+	# Larger uploads (photos) must be allowed through to Nginx/Django.
+	request_body {
+		max_size 30MB
+	}
+
+	reverse_proxy nginx:80
+}
