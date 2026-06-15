@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth, type UserRole } from '../auth/AuthContext';
 import { LoadingState } from '../components/LoadingState';
 import { AppLayout } from '../layouts/AppLayout';
+import { AddVehiclePage } from '../pages/AddVehiclePage';
 import { AdminImportPage } from '../pages/AdminImportPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
@@ -68,6 +69,7 @@ export function AppRoutes() {
         <Route path="qr/v/:qrCode" element={<QRResolvePage />} />
         <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
         <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />
+        <Route path="workflows/add-vehicle" element={<RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole>} />
         <Route path="workflows/check-in" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="check-in" /></RequireRole>} />
         <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole>} />
         <Route path="workflows/loan-return" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole>} />

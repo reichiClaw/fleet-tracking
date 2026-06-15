@@ -1,14 +1,19 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 
 type WorkflowMenuType = 'loan' | 'manufacturer';
 
+type MenuAction = { key: string; to: string; adminOnly?: boolean };
+
 export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const prefix = `workflowMenus.${type}`;
-  const actions =
+  const allActions: MenuAction[] =
     type === 'loan'
       ? [
           {
@@ -26,10 +31,13 @@ export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
             to: '/app/workflows/manufacturer-checkout',
           },
           {
+            // Adding a brand-new vehicle is master-data work, so it is admin-only.
             key: 'checkIn',
-            to: '/app/workflows/check-in',
+            to: '/app/workflows/add-vehicle',
+            adminOnly: true,
           },
         ];
+  const actions = allActions.filter((action) => !action.adminOnly || isAdmin);
 
   return (
     <section className="page-stack">

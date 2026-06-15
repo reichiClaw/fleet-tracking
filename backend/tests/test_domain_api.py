@@ -279,6 +279,32 @@ class VehicleStatusValidationTests(DomainAPITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_admin_can_create_vehicle_directly_in_available_pool(self):
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/vehicles/",
+            {
+                "category": str(self.category.id),
+                "manufacturer": "Acme",
+                "model": "PoolStar",
+                "serial_number": "SN-POOL-1",
+                "status": VehicleStatus.AVAILABLE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["status"], VehicleStatus.AVAILABLE)
+        self.assertTrue(response.data["internal_number"].startswith("FZ-"))
+
+    def test_operations_cannot_create_vehicle(self):
+        response = self.client_for(self.operations_user).post(
+            "/api/v1/vehicles/",
+            {"category": str(self.category.id), "manufacturer": "Acme", "model": "Blocked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_internal_number_is_generated_when_omitted(self):
         response = self.client_for(self.admin_user).post(
             "/api/v1/vehicles/",

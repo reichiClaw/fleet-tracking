@@ -284,10 +284,41 @@
         },
         "checkIn": {
           "title": "Fahrzeug zum Pool hinzufügen",
-          "description": "Ein Fahrzeug in den Einsatzpool aufnehmen (Neulieferung oder zurückgegebenes Fahrzeug).",
+          "description": "Ein neues Fahrzeug (Name, Seriennummer und Details) anlegen und in den Einsatzpool aufnehmen.",
           "open": "Fahrzeug hinzufügen"
         }
       }
+    }
+  },
+  "addVehicle": {
+    "eyebrow": "Fahrzeugpool",
+    "title": "Fahrzeug zum Pool hinzufügen",
+    "intro": "Ein neues Fahrzeug anlegen und direkt in den Einsatzpool aufnehmen.",
+    "submit": "Fahrzeug hinzufügen",
+    "submitting": "Wird hinzugefügt...",
+    "completed": "Fahrzeug zum Pool hinzugefügt",
+    "viewVehicle": "Fahrzeug öffnen",
+    "noCategories": "Es existieren noch keine Fahrzeugkategorien. Ein Administrator muss zuerst eine anlegen, bevor Fahrzeuge hinzugefügt werden können.",
+    "loadError": "Das Fahrzeugformular konnte nicht geladen werden.",
+    "saveError": "Das Fahrzeug konnte nicht angelegt werden.",
+    "fields": {
+      "category": "Kategorie",
+      "selectCategory": "Kategorie auswählen",
+      "internalNumber": "Fahrzeugname / -nummer",
+      "internalNumberHint": "Leer lassen, um automatisch zu generieren (z. B. FZ-00001).",
+      "manufacturer": "Hersteller",
+      "model": "Modell",
+      "serialNumber": "Seriennummer",
+      "licensePlate": "Kennzeichen",
+      "location": "Standort",
+      "odometer": "Kilometerstand (km)",
+      "hours": "Betriebsstunden",
+      "notes": "Notizen"
+    },
+    "validation": {
+      "categoryRequired": "Bitte wählen Sie eine Kategorie aus.",
+      "manufacturerRequired": "Bitte geben Sie den Hersteller ein.",
+      "modelRequired": "Bitte geben Sie das Modell ein."
     }
   },
   "media": {

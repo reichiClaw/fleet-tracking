@@ -288,6 +288,24 @@ export async function getVehicle(id: string) {
   return apiClient.get<Vehicle>(`/vehicles/${id}/`);
 }
 
+export type CreateVehiclePayload = {
+  category: string;
+  manufacturer: string;
+  model: string;
+  internal_number?: string;
+  serial_number?: string;
+  license_plate?: string;
+  current_location?: string;
+  current_odometer_km?: number;
+  current_operating_hours?: string;
+  notes?: string;
+  status?: VehicleStatus;
+};
+
+export async function createVehicle(payload: CreateVehiclePayload) {
+  return apiClient.post<Vehicle>('/vehicles/', payload as unknown as Record<string, unknown>);
+}
+
 export async function resolveVehicleQrCode(qrCode: string) {
   return apiClient.get<VehicleQrResolution>(`/vehicles/qr/${encodeURIComponent(qrCode)}/`);
 }

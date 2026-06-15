@@ -284,10 +284,41 @@
         },
         "checkIn": {
           "title": "Add new vehicle to pool",
-          "description": "Check a vehicle into the operational pool (a new delivery or a returned vehicle).",
+          "description": "Create a new vehicle (name, serial number, and details) and add it to the operational pool.",
           "open": "Add vehicle"
         }
       }
+    }
+  },
+  "addVehicle": {
+    "eyebrow": "Vehicle pool",
+    "title": "Add new vehicle to pool",
+    "intro": "Create a new vehicle and add it directly to the operational pool.",
+    "submit": "Add vehicle",
+    "submitting": "Adding...",
+    "completed": "Vehicle added to pool",
+    "viewVehicle": "Open vehicle",
+    "noCategories": "No vehicle categories exist yet. An administrator needs to create one before vehicles can be added.",
+    "loadError": "The vehicle form could not be loaded.",
+    "saveError": "The vehicle could not be created.",
+    "fields": {
+      "category": "Category",
+      "selectCategory": "Select a category",
+      "internalNumber": "Vehicle name / number",
+      "internalNumberHint": "Leave blank to generate one automatically (e.g. FZ-00001).",
+      "manufacturer": "Manufacturer",
+      "model": "Model",
+      "serialNumber": "Serial number",
+      "licensePlate": "License plate",
+      "location": "Location",
+      "odometer": "Odometer (km)",
+      "hours": "Operating hours",
+      "notes": "Notes"
+    },
+    "validation": {
+      "categoryRequired": "Please select a category.",
+      "manufacturerRequired": "Please enter the manufacturer.",
+      "modelRequired": "Please enter the model."
     }
   },
   "media": {
