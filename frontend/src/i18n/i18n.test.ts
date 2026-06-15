@@ -36,6 +36,12 @@ const requiredCoverageKeys = [
   'pdf.generateReturn',
   'qr.scan.start',
   'qr.targets.loanReturn.title',
+  'navigation.loanWorkflows',
+  'navigation.manufacturerWorkflows',
+  'navigation.history',
+  'vehicles.historyIndex.title',
+  'workflowMenus.loan.actions.checkout.title',
+  'workflowMenus.manufacturer.actions.checkIn.title',
   ...vehicleStatusKeys,
 ];
 

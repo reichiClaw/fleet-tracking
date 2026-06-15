@@ -44,6 +44,9 @@ describe('App smoke flow', () => {
 
     expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Historie' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ausleihe-Workflows' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Hersteller-Workflows' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'QR-Zugriff' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Importe' })).toBeInTheDocument();
   });

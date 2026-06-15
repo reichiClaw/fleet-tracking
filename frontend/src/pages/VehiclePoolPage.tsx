@@ -27,18 +27,18 @@ const statuses = [
   'loaned',
   'maintenance',
   'damaged',
-  'manufacturer_checkout',
   'archived',
 ] as const;
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') === 'manufacturer_checkout' ? '' : searchParams.get('status') ?? '';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [status, setStatus] = useState(searchParams.get('status') ?? '');
+  const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -115,6 +115,8 @@ export function VehiclePoolPage() {
     );
   }, [drivers, loans]);
 
+  const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => vehicle.status !== 'manufacturer_checkout'), [vehicles]);
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
@@ -128,8 +130,8 @@ export function VehiclePoolPage() {
           <h2>{t('vehicles.title')}</h2>
           <p>{t('vehicles.description')}</p>
         </div>
-        <Link className="button-link" to="/app/workflows/check-in">
-          {t('workflows.checkIn.title')}
+        <Link className="button-link" to="/app/workflows/loans">
+          {t('navigation.loanWorkflows')}
         </Link>
       </div>
 
@@ -166,7 +168,7 @@ export function VehiclePoolPage() {
       {error ? <ErrorState message={error} /> : null}
 
       <div className="vehicle-grid">
-        {vehicles.map((vehicle) => {
+        {visibleVehicles.map((vehicle) => {
           const activeLoan = activeLoansByVehicle.get(vehicle.id);
           return (
             <article className="content-card vehicle-card" key={vehicle.id}>
@@ -217,7 +219,7 @@ export function VehiclePoolPage() {
         })}
       </div>
 
-      {!isLoading && !vehicles.length ? (
+      {!isLoading && !visibleVehicles.length ? (
         <section className="placeholder-card">
           <h3>{t('vehicles.empty.title')}</h3>
           <p>{t('vehicles.empty.body')}</p>

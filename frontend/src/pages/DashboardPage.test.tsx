@@ -13,6 +13,15 @@ const vehicles = [
   { id: 'v1', qr_code: 'VH-1', internal_number: 'FZ-00001', category: 'cat-steiger', manufacturer: 'A', model: 'm', status: 'available' },
   { id: 'v2', qr_code: 'VH-2', internal_number: 'FZ-00002', category: 'cat-steiger', manufacturer: 'A', model: 'm', status: 'loaned' },
   { id: 'v3', qr_code: 'VH-3', internal_number: 'FZ-00003', category: 'cat-loader', manufacturer: 'A', model: 'm', status: 'damaged' },
+  {
+    id: 'v4',
+    qr_code: 'VH-4',
+    internal_number: 'FZ-00004',
+    category: 'cat-steiger',
+    manufacturer: 'A',
+    model: 'm',
+    status: 'manufacturer_checkout',
+  },
 ];
 
 function jsonResponse(body: unknown) {
@@ -51,6 +60,7 @@ describe('DashboardPage', () => {
 
     const steigerLink = await screen.findByRole('link', { name: /Steiger/ });
     expect(within(steigerLink).getByText('1')).toBeInTheDocument();
+    expect(within(steigerLink).getByText('von 2 gesamt')).toBeInTheDocument();
     expect(steigerLink).toHaveAttribute('href', '/app/vehicles?status=available&category=cat-steiger');
 
     const loaderLink = screen.getByRole('link', { name: /Loader/ });

@@ -70,13 +70,18 @@ export function DashboardPage() {
     };
   }, [t]);
 
+  const operationalVehicles = useMemo(
+    () => vehicles.filter((vehicle) => vehicle.status !== 'manufacturer_checkout'),
+    [vehicles],
+  );
+
   const counts = useMemo(
     () =>
       summaryStatuses.reduce<Record<string, number>>((accumulator, status) => {
-        accumulator[status] = vehicles.filter((vehicle) => vehicle.status === status).length;
+        accumulator[status] = operationalVehicles.filter((vehicle) => vehicle.status === status).length;
         return accumulator;
       }, {}),
-    [vehicles],
+    [operationalVehicles],
   );
 
   const overdueLoans = useMemo(() => {
@@ -88,7 +93,7 @@ export function DashboardPage() {
     return categories
       .filter((category) => category.is_active)
       .map((category) => {
-        const inCategory = vehicles.filter((vehicle) => vehicleCategoryId(vehicle) === category.id);
+        const inCategory = operationalVehicles.filter((vehicle) => vehicleCategoryId(vehicle) === category.id);
         return {
           id: category.id,
           name: category.name,
@@ -98,7 +103,7 @@ export function DashboardPage() {
       })
       .filter((entry) => entry.total > 0)
       .sort((a, b) => b.available - a.available);
-  }, [categories, vehicles]);
+  }, [categories, operationalVehicles]);
 
   return (
     <section className="page-stack">

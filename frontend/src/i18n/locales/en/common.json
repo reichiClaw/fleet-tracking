@@ -24,8 +24,11 @@
     "primaryLabel": "Primary navigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Vehicle pool",
+    "history": "History",
     "qrAccess": "QR access",
     "workflows": "Workflows",
+    "loanWorkflows": "Loan workflows",
+    "manufacturerWorkflows": "Manufacturer workflows",
     "drivers": "Drivers",
     "companies": "Companies",
     "imports": "Imports",
@@ -135,6 +138,13 @@
       "emptyCheckIns": "No check-in protocols recorded.",
       "emptyManufacturer": "No manufacturer check-outs recorded.",
       "emptyMedia": "No media uploaded."
+    },
+    "historyIndex": {
+      "eyebrow": "History",
+      "title": "Vehicle history",
+      "description": "See all vehicles, including manufacturer-returned assets, and open full histories with PDF report actions.",
+      "openHistory": "Open full history",
+      "empty": "No vehicles found for the selected history filters."
     }
   },
   "status": {
@@ -232,6 +242,42 @@
       "hasDamage": "Damage occurred",
       "optionalHint": "No damage to report.",
       "requiredForDamagedStatus": "Damage details are required when target status is set to damaged."
+    }
+  },
+  "workflowMenus": {
+    "loan": {
+      "eyebrow": "Loan workflows",
+      "title": "Loan vehicle workflows",
+      "description": "Use dedicated loan workflows for handing vehicles out and returning them.",
+      "actions": {
+        "checkout": {
+          "title": "Loan checkout",
+          "description": "Issue an available vehicle to an employee or subcontractor.",
+          "open": "Start loan checkout"
+        },
+        "return": {
+          "title": "Loan return",
+          "description": "Return an active loan and update the vehicle condition.",
+          "open": "Start loan return"
+        }
+      }
+    },
+    "manufacturer": {
+      "eyebrow": "Manufacturer workflows",
+      "title": "Manufacturer workflows",
+      "description": "Keep manufacturer handovers separate from normal loan workflows.",
+      "actions": {
+        "checkout": {
+          "title": "Manufacturer check-out",
+          "description": "Record vehicle handover to a manufacturer or supplier.",
+          "open": "Start manufacturer check-out"
+        },
+        "checkIn": {
+          "title": "Manufacturer return check-in",
+          "description": "Check a returned manufacturer vehicle back into the operational fleet.",
+          "open": "Start manufacturer return check-in"
+        }
+      }
     }
   },
   "media": {

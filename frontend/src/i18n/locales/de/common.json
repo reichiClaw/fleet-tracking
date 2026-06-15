@@ -24,8 +24,11 @@
     "primaryLabel": "Hauptnavigation",
     "dashboard": "Dashboard",
     "vehiclePool": "Fahrzeugpool",
+    "history": "Historie",
     "qrAccess": "QR-Zugriff",
     "workflows": "Workflows",
+    "loanWorkflows": "Ausleihe-Workflows",
+    "manufacturerWorkflows": "Hersteller-Workflows",
     "drivers": "Fahrer",
     "companies": "Firmen",
     "imports": "Importe",
@@ -135,6 +138,13 @@
       "emptyCheckIns": "Keine Check-in-Protokolle erfasst.",
       "emptyManufacturer": "Keine Hersteller-Check-outs erfasst.",
       "emptyMedia": "Keine Medien hochgeladen."
+    },
+    "historyIndex": {
+      "eyebrow": "Historie",
+      "title": "Fahrzeughistorie",
+      "description": "Alle Fahrzeuge inklusive an Hersteller ausgecheckter Fahrzeuge anzeigen und die komplette Historie mit PDF-Reports öffnen.",
+      "openHistory": "Komplette Historie öffnen",
+      "empty": "Keine Fahrzeuge für die gewählten Historien-Filter gefunden."
     }
   },
   "status": {
@@ -232,6 +242,42 @@
       "hasDamage": "Schaden ist aufgetreten",
       "optionalHint": "Kein Schaden zu melden.",
       "requiredForDamagedStatus": "Schadensangaben sind erforderlich, wenn der Zielstatus auf \"Beschädigt\" gesetzt ist."
+    }
+  },
+  "workflowMenus": {
+    "loan": {
+      "eyebrow": "Ausleihe-Workflows",
+      "title": "Workflows für ausgeliehene Fahrzeuge",
+      "description": "Eigene Ausleihe-Workflows für Ausgabe und Rückgabe von Fahrzeugen.",
+      "actions": {
+        "checkout": {
+          "title": "Ausleihe ausgeben",
+          "description": "Ein verfügbares Fahrzeug an Mitarbeiter oder Subunternehmer ausgeben.",
+          "open": "Ausleihe starten"
+        },
+        "return": {
+          "title": "Ausleihe zurückgeben",
+          "description": "Eine aktive Ausleihe zurücknehmen und den Fahrzeugzustand aktualisieren.",
+          "open": "Rückgabe starten"
+        }
+      }
+    },
+    "manufacturer": {
+      "eyebrow": "Hersteller-Workflows",
+      "title": "Workflows für Hersteller",
+      "description": "Herstellerprozesse getrennt von normalen Ausleih-Workflows verwalten.",
+      "actions": {
+        "checkout": {
+          "title": "Hersteller-Check-out",
+          "description": "Fahrzeugübergabe an Hersteller oder Lieferant erfassen.",
+          "open": "Hersteller-Check-out starten"
+        },
+        "checkIn": {
+          "title": "Hersteller-Rücklauf Check-in",
+          "description": "Ein vom Hersteller zurückgegebenes Fahrzeug wieder in den operativen Fuhrpark einchecken.",
+          "open": "Hersteller-Rücklauf einchecken"
+        }
+      }
     }
   },
   "media": {

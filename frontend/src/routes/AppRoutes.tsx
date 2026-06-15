@@ -13,7 +13,9 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { QRAccessPage, QRResolvePage } from '../pages/QRAccessPage';
 import { UserManagementPage } from '../pages/UserManagementPage';
 import { VehicleDetailPage } from '../pages/VehicleDetailPage';
+import { VehicleHistoryPage } from '../pages/VehicleHistoryPage';
 import { VehiclePoolPage } from '../pages/VehiclePoolPage';
+import { WorkflowMenuPage } from '../pages/WorkflowMenuPage';
 import { WorkflowPage } from '../pages/WorkflowPage';
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -61,8 +63,11 @@ export function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="vehicles" element={<VehiclePoolPage />} />
         <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
+        <Route path="history" element={<VehicleHistoryPage />} />
         <Route path="qr" element={<QRAccessPage />} />
         <Route path="qr/v/:qrCode" element={<QRResolvePage />} />
+        <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
+        <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />
         <Route path="workflows/check-in" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="check-in" /></RequireRole>} />
         <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole>} />
         <Route path="workflows/loan-return" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole>} />
