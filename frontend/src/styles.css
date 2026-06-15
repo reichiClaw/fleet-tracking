@@ -163,6 +163,45 @@ small {
   backdrop-filter: blur(0.5rem);
 }
 
+.top-bar__actions {
+  position: relative;
+}
+
+.top-bar__actions-desktop {
+  display: none;
+}
+
+.top-bar__menu-trigger {
+  width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.top-bar__menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 3;
+  display: none;
+  width: min(16rem, 85vw);
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid #d7e2ec;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1rem 2rem rgba(24, 33, 47, 0.12);
+}
+
+.top-bar__menu.is-open {
+  display: grid;
+}
+
+.top-bar__menu .secondary-button {
+  width: 100%;
+}
+
 .top-bar h1,
 .page-header h2,
 .login-card h1,
@@ -182,7 +221,12 @@ small {
   gap: 1rem;
 }
 
-.side-nav nav,
+.side-nav nav {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .filter-row {
   display: flex;
   gap: 0.6rem;
@@ -192,13 +236,18 @@ small {
 
 .side-nav a,
 .chip {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
   border-radius: 999px;
   padding: 0.75rem 1rem;
   color: #2f4054;
   background: #ffffff;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
 }
 
 .side-nav a.active,
@@ -447,6 +496,17 @@ td {
     align-items: start;
   }
 
+  .top-bar__actions-desktop {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .top-bar__menu-trigger,
+  .top-bar__menu {
+    display: none;
+  }
+
   .side-nav {
     position: sticky;
     top: 6rem;
@@ -454,6 +514,7 @@ td {
 
   .side-nav nav {
     display: grid;
+    grid-template-columns: 1fr;
     overflow: visible;
   }
 
@@ -474,7 +535,6 @@ td {
 @media (max-width: 620px) {
   .login-card__header,
   .top-bar,
-  .top-bar__actions,
   .page-header--with-actions,
   .card-title-row,
   .action-row,
@@ -486,6 +546,10 @@ td {
   button,
   .button-link {
     width: 100%;
+  }
+
+  .top-bar__menu-trigger {
+    width: 2.5rem;
   }
 }
 

@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
@@ -25,8 +26,14 @@ const navigationItems: NavigationItem[] = [
 export function AppLayout() {
   const { logout, user } = useAuth();
   const { t } = useTranslation();
+  const location = useLocation();
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
   const roleLabel = user ? t(`roles.${user.role}`) : '';
+
+  useEffect(() => {
+    setIsQuickActionsOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="app-shell">
@@ -36,10 +43,27 @@ export function AppLayout() {
           <h1>{t('app.name')}</h1>
         </div>
         <div className="top-bar__actions">
-          <LanguageSelector />
-          <button className="secondary-button" type="button" onClick={() => void logout()}>
-            {t('navigation.logout')}
+          <div className="top-bar__actions-desktop">
+            <LanguageSelector />
+            <button className="secondary-button" type="button" onClick={() => void logout()}>
+              {t('navigation.logout')}
+            </button>
+          </div>
+          <button
+            className="secondary-button top-bar__menu-trigger"
+            type="button"
+            aria-label={t('layout.quickActions')}
+            aria-expanded={isQuickActionsOpen}
+            onClick={() => setIsQuickActionsOpen((current) => !current)}
+          >
+            ⋮
           </button>
+          <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
+            <LanguageSelector />
+            <button className="secondary-button" type="button" onClick={() => void logout()}>
+              {t('navigation.logout')}
+            </button>
+          </div>
         </div>
       </header>
 
