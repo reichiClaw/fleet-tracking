@@ -137,7 +137,11 @@ def _pdf_language(request) -> str | None:
 
 
 def _request_meta(request) -> dict[str, str]:
+    # Prefer the client IP forwarded by the reverse proxy (Nginx/Caddy set
+    # X-Forwarded-For); fall back to the direct peer address.
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    ip_address = forwarded_for.split(",", 1)[0].strip() or request.META.get("REMOTE_ADDR", "")
     return {
-        "ip_address": request.META.get("REMOTE_ADDR", ""),
+        "ip_address": ip_address,
         "user_agent": request.META.get("HTTP_USER_AGENT", ""),
     }

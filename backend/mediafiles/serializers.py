@@ -12,6 +12,9 @@ class MediaFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MediaFile
+        # Note: the internal ``storage_key`` is intentionally not exposed by the
+        # API. Clients use ``download_url`` to fetch content; leaking the raw
+        # storage path is unnecessary and reveals internal layout.
         fields = [
             "id",
             "vehicle",
@@ -21,7 +24,6 @@ class MediaFileSerializer(serializers.ModelSerializer):
             "related_id",
             "media_type",
             "original_filename",
-            "storage_key",
             "content_type",
             "size_bytes",
             "language",
@@ -33,7 +35,6 @@ class MediaFileSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "original_filename",
-            "storage_key",
             "content_type",
             "size_bytes",
             "language",

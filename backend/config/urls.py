@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import CsrfView, LoginView, LogoutView, MeView, UserViewSet
 from audit.views import AuditLogViewSet
-from config.views import health
+from config.views import health, readiness
 from damages.views import DamageReportViewSet
 from drivers.views import DriverViewSet
 from imports.views import ImportJobViewSet
@@ -38,6 +38,7 @@ router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
+    path("api/health/ready/", readiness, name="readiness"),
     path("api/v1/auth/csrf/", CsrfView.as_view(), name="auth-csrf"),
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),

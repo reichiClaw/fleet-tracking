@@ -157,6 +157,14 @@ SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=ENVIRONMENT ==
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=ENVIRONMENT == "production")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Sensible cookie + clickjacking defaults. The session cookie stays HttpOnly so
+# JavaScript cannot read it; the CSRF cookie is intentionally readable so the SPA
+# can echo it back in the X-CSRFToken header.
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = env("SESSION_COOKIE_SAMESITE", "Lax")
+CSRF_COOKIE_SAMESITE = env("CSRF_COOKIE_SAMESITE", "Lax")
+X_FRAME_OPTIONS = "DENY"
+
 # HTTPS hardening. Defaults are conservative because TLS may terminate on an
 # upstream reverse proxy. Enable these once HTTPS reaches this stack so that
 # `manage.py check --deploy` passes cleanly in production.
@@ -169,6 +177,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = env_bool("SECURE_CONTENT_TYPE_NOSNIFF", default=Tr
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
+# The browsable API is convenient in development but exposes an HTML write UI
+# that should not be served in production. Keep it only when DEBUG is on.
+_API_RENDERERS = ["rest_framework.renderers.JSONRenderer"]
+if DEBUG:
+    _API_RENDERERS.append("rest_framework.renderers.BrowsableAPIRenderer")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -176,10 +190,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
-    ],
+    "DEFAULT_RENDERER_CLASSES": _API_RENDERERS,
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.FormParser",
@@ -187,6 +198,37 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    # Scoped throttling protects the login endpoint from credential stuffing.
+    # Only the login view opts in (see accounts.views.LoginView).
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("LOGIN_RATE_LIMIT", "10/min"),
+    },
+}
+
+# Structured logging to stdout so `docker compose logs` and any log shipper can
+# capture application output. Level is configurable without code changes.
+LOG_LEVEL = env("DJANGO_LOG_LEVEL", "INFO").upper()
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "fleet": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
 }
 
 PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "http://localhost")

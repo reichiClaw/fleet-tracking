@@ -83,8 +83,14 @@ the Django admin at `/admin/`.
 ```bash
 docker compose ps                 # all services should be "running"/"healthy"
 docker compose logs -f backend    # watch migrations and Gunicorn start
-curl -fsS http://localhost:${NGINX_HTTP_PORT:-80}/api/health/   # -> {"status": "ok"}
+curl -fsS http://localhost:${NGINX_HTTP_PORT:-80}/api/health/        # liveness -> {"status": "ok"}
+curl -fsS http://localhost:${NGINX_HTTP_PORT:-80}/api/health/ready/  # readiness (checks the database) -> {"status": "ok", "database": "ok"}
 ```
+
+`/api/health/` is a lightweight liveness probe (used by the Compose
+healthcheck). `/api/health/ready/` additionally verifies database connectivity
+and returns `503` when the database is unreachable — useful for deploy smoke
+tests and orchestrators.
 
 Open `http://<host>:${NGINX_HTTP_PORT}` and sign in. If the backend container is
 unhealthy, check that `DATABASE_URL` matches the `POSTGRES_*` values and that
@@ -146,6 +152,12 @@ Important production values:
   Leave both off while serving plain HTTP. If TLS terminates on an upstream
   proxy that already redirects to HTTPS, keep `SECURE_SSL_REDIRECT=False` to
   avoid redirect loops and rely on the proxy plus `SECURE_PROXY_SSL_HEADER`.
+- `SESSION_COOKIE_SAMESITE` / `CSRF_COOKIE_SAMESITE` (`Lax` by default; suitable
+  for the same-origin Nginx deployment)
+- `DJANGO_LOG_LEVEL` (`INFO` by default) controls application log verbosity sent
+  to stdout, captured by `docker compose logs`
+- `LOGIN_RATE_LIMIT` (`10/min` by default) throttles anonymous login attempts per
+  client IP to slow credential stuffing
 - `VITE_API_BASE_URL=/api/v1` for the Docker/Nginx deployment, or a full URL
   only when running the Vite dev server against a separately exposed API
 
