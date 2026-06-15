@@ -11,10 +11,11 @@ import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
 import { LoginPage } from '../pages/LoginPage';
 import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { QRAccessPage, QRResolvePage } from '../pages/QRAccessPage';
+import { QRAccessPage } from '../pages/QRAccessPage';
 import { UserManagementPage } from '../pages/UserManagementPage';
 import { VehicleDetailPage } from '../pages/VehicleDetailPage';
 import { VehicleHistoryPage } from '../pages/VehicleHistoryPage';
+import { VehicleStatusPage } from '../pages/VehicleStatusPage';
 import { VehiclePoolPage } from '../pages/VehiclePoolPage';
 import { WorkflowMenuPage } from '../pages/WorkflowMenuPage';
 import { WorkflowPage } from '../pages/WorkflowPage';
@@ -53,6 +54,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      {/* Public, no-login-required vehicle status page reached by scanning the QR code. */}
+      <Route path="/v/:qrCode" element={<VehicleStatusPage />} />
       <Route
         path="/app"
         element={
@@ -66,7 +69,6 @@ export function AppRoutes() {
         <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
         <Route path="history" element={<VehicleHistoryPage />} />
         <Route path="qr" element={<QRAccessPage />} />
-        <Route path="qr/v/:qrCode" element={<QRResolvePage />} />
         <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
         <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />
         <Route path="workflows/add-vehicle" element={<RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole>} />

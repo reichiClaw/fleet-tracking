@@ -1,45 +1,30 @@
 import { describe, expect, it } from 'vitest';
 
-import { vehicleQrTargets } from './QRAccessPage';
-import type { Loan, Vehicle } from '../api/fleet';
+import { parseQrTarget, publicVehiclePath } from './QRAccessPage';
 
-const vehicle: Vehicle = {
-  id: 'vehicle-uuid',
-  qr_code: 'VH-ABC234XYZ9',
-  internal_number: 'VH-001',
-  category: null,
-  manufacturer: 'Acme',
-  model: 'Lift',
-  status: 'available',
-};
+describe('publicVehiclePath', () => {
+  it('builds the single public status path for a vehicle QR code', () => {
+    expect(publicVehiclePath('VH-ABC234XYZ9')).toBe('/v/VH-ABC234XYZ9');
+  });
+});
 
-const t = (key: string) => key;
-
-describe('vehicleQrTargets', () => {
-  it('uses generated QR codes in URLs instead of database IDs', () => {
-    const targets = vehicleQrTargets(vehicle, undefined, t);
-
-    expect(targets.map((target) => target.path)).toEqual([
-      '/app/qr/v/VH-ABC234XYZ9?action=details',
-      '/app/qr/v/VH-ABC234XYZ9?action=loan-checkout',
-    ]);
-    expect(targets.some((target) => target.path.includes(vehicle.id))).toBe(false);
+describe('parseQrTarget', () => {
+  it('resolves a full status URL on the same origin to its in-app path', () => {
+    const url = `${window.location.origin}/v/VH-ABC234XYZ9`;
+    expect(parseQrTarget(url)).toBe('/v/VH-ABC234XYZ9');
   });
 
-  it('uses generated QR code URLs for active loan returns instead of loan IDs', () => {
-    const loan: Loan = {
-      id: 'loan-uuid',
-      vehicle: vehicle.id,
-      expected_return_at: new Date().toISOString(),
-      status: 'active',
-    };
+  it('accepts a bare public status path', () => {
+    expect(parseQrTarget('/v/VH-ABC234XYZ9')).toBe('/v/VH-ABC234XYZ9');
+  });
 
-    const targets = vehicleQrTargets({ ...vehicle, status: 'loaned' }, loan, t);
+  it('accepts a bare vehicle code and maps it to the status path', () => {
+    expect(parseQrTarget('VH-ABC234XYZ9')).toBe('/v/VH-ABC234XYZ9');
+  });
 
-    expect(targets.map((target) => target.path)).toEqual([
-      '/app/qr/v/VH-ABC234XYZ9?action=details',
-      '/app/qr/v/VH-ABC234XYZ9?action=loan-return',
-    ]);
-    expect(targets.some((target) => target.path.includes(loan.id))).toBe(false);
+  it('rejects unrelated or off-origin values', () => {
+    expect(parseQrTarget('https://evil.example.com/v/VH-ABC234XYZ9')).toBeNull();
+    expect(parseQrTarget('not-a-code')).toBeNull();
+    expect(parseQrTarget('')).toBeNull();
   });
 });

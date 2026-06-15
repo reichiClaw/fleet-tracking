@@ -6,7 +6,9 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.permissions import AuthenticatedReadAdminWrite, IsAdminRole, VehiclePermission
 from damages.serializers import DamageReportSerializer
@@ -94,5 +96,37 @@ class VehicleViewSet(viewsets.ModelViewSet):
             {
                 "vehicle": VehicleSerializer(vehicle, context={"request": request}).data,
                 "active_loan": LoanSerializer(active_loan, context={"request": request}).data if active_loan else None,
+            }
+        )
+
+
+class PublicVehicleStatusView(APIView):
+    """Unauthenticated, privacy-safe vehicle status lookup by QR code.
+
+    Scanning a vehicle's single QR code opens a status page that works without
+    logging in. This endpoint returns only non-sensitive identity + status data
+    (no borrower / loan details).
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, qr_code=None):
+        vehicle = (
+            Vehicle.objects.select_related("category").filter(qr_code__iexact=qr_code).first()
+        )
+        if vehicle is None:
+            raise NotFound("Vehicle QR code was not found.")
+        return Response(
+            {
+                "qr_code": vehicle.qr_code,
+                "internal_number": vehicle.internal_number,
+                "manufacturer": vehicle.manufacturer,
+                "model": vehicle.model,
+                "category": vehicle.category.name if vehicle.category else None,
+                "status": vehicle.status,
+                "license_plate": vehicle.license_plate,
+                "serial_number": vehicle.serial_number,
+                "current_location": vehicle.current_location,
             }
         )

@@ -492,56 +492,52 @@
     }
   },
   "qr": {
-    "eyebrow": "QR shortcuts",
+    "eyebrow": "QR access",
     "title": "QR access",
-    "description": "Scan vehicle QR codes to open details or jump straight into the next workflow.",
+    "description": "Every vehicle has one QR code. Scanning it opens a live status page that works without signing in.",
     "loadError": "QR data could not be loaded.",
     "print": "Print QR codes",
     "scan": {
       "title": "Scan QR code",
-      "description": "Use a tablet or phone camera to open a vehicle detail, loan return, loan checkout, check-in, or manufacturer check-out link.",
+      "description": "Use a tablet or phone camera to open a vehicle's status page.",
       "start": "Start scanner",
       "stop": "Stop scanner",
       "scanning": "Scanning...",
       "unsupported": "This browser does not support camera QR scanning. Use the manual field or your device camera app.",
       "cameraError": "The camera could not be started.",
-      "invalid": "This QR code is not a Fleet Tracking app link.",
-      "empty": "Please enter a QR link or app path.",
-      "manualLabel": "QR link or app path",
-      "open": "Open link"
-    },
-    "resolve": {
-      "missing": "The QR code is missing.",
-      "error": "The QR code could not be resolved."
+      "invalid": "This QR code is not a Fleet Tracking vehicle link.",
+      "empty": "Please enter a QR link or vehicle code.",
+      "manualLabel": "QR link or vehicle code",
+      "open": "Open status"
     },
     "labels": {
       "title": "Printable vehicle QR labels",
-      "description": "Print these labels and attach them to vehicles. Each vehicle gets a detail code and a status-aware next-action code."
+      "description": "Print one label per vehicle and attach it. Scanning opens that vehicle's status page."
     },
     "shortcuts": {
-      "title": "QR shortcuts",
-      "description": "Print or share these codes for fast access to this vehicle and its current workflow action."
+      "title": "QR code",
+      "description": "Scan to open this vehicle's status page.",
+      "cardTitle": "Status page"
     },
-    "targets": {
-      "details": {
-        "title": "Vehicle details",
-        "description": "Open status, history, media, and PDF actions."
+    "status": {
+      "eyebrow": "Vehicle status",
+      "missing": "The QR code is missing.",
+      "loadError": "The vehicle status could not be loaded.",
+      "signedOutHint": "Sign in to record a loan, return, or other action for this vehicle.",
+      "signIn": "Sign in",
+      "actionsTitle": "Available actions",
+      "noActions": "No action is available for this status.",
+      "fields": {
+        "category": "Category",
+        "location": "Location",
+        "identifier": "Plate / serial number"
       },
-      "checkIn": {
-        "title": "Add new vehicle to pool",
-        "description": "Add this vehicle to the operational pool."
-      },
-      "loanCheckout": {
-        "title": "Loan checkout",
-        "description": "Start a loan for this available vehicle."
-      },
-      "loanReturn": {
-        "title": "Loan return",
-        "description": "Open the active loan return workflow."
-      },
-      "manufacturerCheckout": {
-        "title": "Remove vehicle from pool",
-        "description": "Remove this vehicle from the operational pool."
+      "actions": {
+        "details": "Open details",
+        "loanCheckout": "Loan vehicle",
+        "loanReturn": "Return vehicle",
+        "checkIn": "Check in",
+        "manufacturerCheckout": "Remove from pool"
       }
     }
   },

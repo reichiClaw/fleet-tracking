@@ -1,18 +1,12 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-import {
-  displayVehicleName,
-  listLoans,
-  listVehicles,
-  resolveVehicleQrCode,
-  type Loan,
-  type Vehicle,
-} from '../api/fleet';
+import { displayVehicleName, listVehicles, type Vehicle } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { PageHeader } from '../components/PageHeader';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -26,14 +20,10 @@ type BarcodeDetectorLike = {
 
 type BarcodeDetectorConstructor = new (options: { formats: string[] }) => BarcodeDetectorLike;
 
-type QRTarget = {
-  key: string;
-  title: string;
-  description: string;
-  path: string;
-};
-
-type QRAction = 'details' | 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
+/** The single public status path for a vehicle's QR code. */
+export function publicVehiclePath(qrCode: string) {
+  return `/v/${encodeURIComponent(qrCode)}`;
+}
 
 export function QRAccessPage() {
   const { t } = useTranslation();
@@ -41,7 +31,6 @@ export function QRAccessPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stopScannerRef = useRef<(() => void) | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [manualValue, setManualValue] = useState('');
@@ -53,14 +42,13 @@ export function QRAccessPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextLoans] = await Promise.all([listVehicles(), listLoans()]);
+        const nextVehicles = await listVehicles();
         if (isMounted) {
           setVehicles(nextVehicles);
-          setLoans(nextLoans);
         }
-      } catch (error) {
+      } catch (loadError) {
         if (isMounted) {
-          setError(getApiErrorMessage(error, t, t('qr.loadError')));
+          setError(getApiErrorMessage(loadError, t, t('qr.loadError')));
         }
       } finally {
         if (isMounted) {
@@ -75,11 +63,6 @@ export function QRAccessPage() {
       stopScanner();
     };
   }, [t]);
-
-  const activeLoansByVehicle = useMemo(
-    () => new Map(loans.filter((loan) => loan.status === 'active').map((loan) => [loan.vehicle, loan])),
-    [loans],
-  );
 
   function appUrl(path: string) {
     if (typeof window === 'undefined') {
@@ -167,16 +150,16 @@ export function QRAccessPage() {
 
   return (
     <section className="page-stack">
-      <div className="page-header page-header--with-actions">
-        <div>
-          <p className="eyebrow">{t('qr.eyebrow')}</p>
-          <h2>{t('qr.title')}</h2>
-          <p>{t('qr.description')}</p>
-        </div>
-        <button type="button" onClick={() => window.print()}>
-          {t('qr.print')}
-        </button>
-      </div>
+      <PageHeader
+        eyebrow={t('qr.eyebrow')}
+        title={t('qr.title')}
+        description={t('qr.description')}
+        actions={
+          <button type="button" onClick={() => window.print()}>
+            {t('qr.print')}
+          </button>
+        }
+      />
 
       {error ? <ErrorState message={error} /> : null}
 
@@ -203,172 +186,65 @@ export function QRAccessPage() {
         </form>
       </section>
 
-      {isLoading ? <LoadingState /> : null}
+      {isLoading ? <LoadingState variant="skeleton" rows={3} /> : null}
 
       <section className="content-card">
         <h3>{t('qr.labels.title')}</h3>
         <p className="hint-text">{t('qr.labels.description')}</p>
         <div className="qr-label-grid">
-          {vehicles.map((vehicle) => {
-            const targets = vehicleQrTargets(vehicle, activeLoansByVehicle.get(vehicle.id), t);
-            return (
-              <article className="qr-label" key={vehicle.id}>
-                <div className="card-title-row">
-                  <div>
-                    <h3>{displayVehicleName(vehicle)}</h3>
-                    <p className="hint-text">{vehicle.license_plate || vehicle.serial_number || t('vehicles.noIdentifier')}</p>
-                  </div>
-                  <StatusBadge status={vehicle.status} />
+          {vehicles.map((vehicle) => (
+            <article className="qr-label" key={vehicle.id}>
+              <div className="card-title-row">
+                <div>
+                  <h3>{displayVehicleName(vehicle)}</h3>
+                  <p className="hint-text">{vehicle.license_plate || vehicle.serial_number || t('vehicles.noIdentifier')}</p>
                 </div>
-                <div className="qr-card-grid">
-                  {targets.map((target) => (
-                    <QRCodeCard
-                      key={target.key}
-                      title={target.title}
-                      description={target.description}
-                      value={appUrl(target.path)}
-                    />
-                  ))}
-                </div>
-                <Link className="button-link secondary-button" to={`/app/vehicles/${vehicle.id}`}>
-                  {t('vehicles.actions.details')}
-                </Link>
-              </article>
-            );
-          })}
+                <StatusBadge status={vehicle.status} />
+              </div>
+              <QRCodeCard
+                title={t('qr.shortcuts.cardTitle')}
+                description={t('qr.shortcuts.description')}
+                value={appUrl(publicVehiclePath(vehicle.qr_code))}
+              />
+              <Link className="button-link secondary-button" to={`/app/vehicles/${vehicle.id}`}>
+                {t('vehicles.actions.details')}
+              </Link>
+            </article>
+          ))}
         </div>
       </section>
     </section>
   );
 }
 
-export function QRResolvePage() {
-  const { qrCode } = useParams();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    async function resolve() {
-      if (!qrCode) {
-        setError(t('qr.resolve.missing'));
-        return;
-      }
-      try {
-        const resolution = await resolveVehicleQrCode(qrCode);
-        if (!isMounted) {
-          return;
-        }
-        const action = normalizeQrAction(searchParams.get('action'));
-        navigate(pathForQrAction(resolution.vehicle, resolution.active_loan ?? undefined, action), { replace: true });
-      } catch (error) {
-        if (isMounted) {
-          setError(getApiErrorMessage(error, t, t('qr.resolve.error')));
-        }
-      }
-    }
-    resolve();
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate, qrCode, searchParams, t]);
-
-  if (error) {
-    return <ErrorState message={error} />;
-  }
-
-  return <LoadingState />;
-}
-
-export function vehicleQrTargets(vehicle: Vehicle, activeLoan: Loan | undefined, t: (key: string) => string): QRTarget[] {
-  const qrCode = vehicle.qr_code;
-  const targets: QRTarget[] = [
-    {
-      key: 'details',
-      title: t('qr.targets.details.title'),
-      description: t('qr.targets.details.description'),
-      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=details`,
-    },
-  ];
-
-  if (activeLoan) {
-    targets.push({
-      key: 'loan-return',
-      title: t('qr.targets.loanReturn.title'),
-      description: t('qr.targets.loanReturn.description'),
-      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=loan-return`,
-    });
-    return targets;
-  }
-
-  if (vehicle.status === 'available') {
-    targets.push({
-      key: 'loan-checkout',
-      title: t('qr.targets.loanCheckout.title'),
-      description: t('qr.targets.loanCheckout.description'),
-      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=loan-checkout`,
-    });
-  } else if (vehicle.status === 'announced') {
-    targets.push({
-      key: 'check-in',
-      title: t('qr.targets.checkIn.title'),
-      description: t('qr.targets.checkIn.description'),
-      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=check-in`,
-    });
-  } else if (!['loaned', 'manufacturer_checkout', 'archived'].includes(vehicle.status)) {
-    targets.push({
-      key: 'manufacturer-checkout',
-      title: t('qr.targets.manufacturerCheckout.title'),
-      description: t('qr.targets.manufacturerCheckout.description'),
-      path: `/app/qr/v/${encodeURIComponent(qrCode)}?action=manufacturer-checkout`,
-    });
-  }
-
-  return targets;
-}
-
-function normalizeQrAction(action: string | null): QRAction {
-  if (
-    action === 'check-in' ||
-    action === 'loan-checkout' ||
-    action === 'loan-return' ||
-    action === 'manufacturer-checkout'
-  ) {
-    return action;
-  }
-  return 'details';
-}
-
-function pathForQrAction(vehicle: Vehicle, activeLoan: Loan | undefined, action: QRAction) {
-  if (action === 'check-in' && ['announced', 'checked_in', 'available', 'damaged', 'maintenance'].includes(vehicle.status)) {
-    return `/app/workflows/check-in?vehicle=${vehicle.id}`;
-  }
-  if (action === 'loan-checkout' && vehicle.status === 'available') {
-    return `/app/workflows/loan-checkout?vehicle=${vehicle.id}`;
-  }
-  if (action === 'loan-return' && activeLoan) {
-    return `/app/workflows/loan-return?loan=${activeLoan.id}`;
-  }
-  if (
-    action === 'manufacturer-checkout' &&
-    !['announced', 'loaned', 'manufacturer_checkout', 'archived'].includes(vehicle.status)
-  ) {
-    return `/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`;
-  }
-  return `/app/vehicles/${vehicle.id}`;
-}
-
-function parseQrTarget(value: string) {
+/**
+ * Resolve a scanned value (full URL, app path, public `/v/<code>` path, or a
+ * bare vehicle code) to an in-app path, or null when it is not a recognized
+ * Fleet Tracking vehicle link.
+ */
+export function parseQrTarget(value: string): string | null {
   const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  // A bare vehicle code (e.g. "VH-ABC234XYZ9") maps straight to its status page.
+  if (/^VH-[A-Z0-9-]+$/i.test(trimmed)) {
+    return publicVehiclePath(trimmed);
+  }
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
   try {
-    const url = new URL(trimmed, window.location.origin);
-    if (url.origin !== window.location.origin || !url.pathname.startsWith('/app/')) {
+    const url = new URL(trimmed, origin);
+    if (url.origin !== origin) {
       return null;
     }
-    return `${url.pathname}${url.search}`;
+    if (url.pathname.startsWith('/v/') || url.pathname.startsWith('/app/')) {
+      return `${url.pathname}${url.search}`;
+    }
+    return null;
   } catch {
-    return trimmed.startsWith('/app/') ? trimmed : null;
+    if (trimmed.startsWith('/v/') || trimmed.startsWith('/app/')) {
+      return trimmed;
+    }
+    return null;
   }
 }

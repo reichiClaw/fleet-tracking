@@ -279,6 +279,21 @@ class VehicleStatusValidationTests(DomainAPITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_public_qr_status_is_available_without_authentication(self):
+        response = APIClient().get(f"/api/v1/public/vehicles/qr/{self.vehicle.qr_code}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["qr_code"], self.vehicle.qr_code)
+        self.assertEqual(response.data["status"], VehicleStatus.ANNOUNCED)
+        # Privacy-safe: no loan/borrower or free-form notes are exposed publicly.
+        self.assertNotIn("notes", response.data)
+        self.assertNotIn("active_loan", response.data)
+
+    def test_public_qr_status_unknown_returns_not_found(self):
+        response = APIClient().get("/api/v1/public/vehicles/qr/VH-UNKNOWN999/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_admin_can_create_vehicle_directly_in_available_pool(self):
         response = self.client_for(self.admin_user).post(
             "/api/v1/vehicles/",

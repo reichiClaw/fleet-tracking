@@ -35,7 +35,7 @@ const requiredCoverageKeys = [
   'media.download',
   'pdf.generateReturn',
   'qr.scan.start',
-  'qr.targets.loanReturn.title',
+  'qr.status.actions.loanReturn',
   'navigation.loanWorkflows',
   'navigation.manufacturerWorkflows',
   'navigation.history',

@@ -492,56 +492,52 @@
     }
   },
   "qr": {
-    "eyebrow": "QR-Schnellzugriff",
+    "eyebrow": "QR-Zugriff",
     "title": "QR-Zugriff",
-    "description": "Fahrzeug-QR-Codes scannen, um Details zu öffnen oder direkt in den nächsten Workflow zu springen.",
+    "description": "Jedes Fahrzeug hat einen QR-Code. Beim Scannen öffnet sich eine Live-Statusseite, die auch ohne Anmeldung funktioniert.",
     "loadError": "QR-Daten konnten nicht geladen werden.",
     "print": "QR-Codes drucken",
     "scan": {
       "title": "QR-Code scannen",
-      "description": "Nutzen Sie die Kamera von Tablet oder Smartphone, um Fahrzeugdetails, Rückgabe, Ausleihe, Check-in oder Hersteller-Check-out zu öffnen.",
+      "description": "Nutzen Sie die Kamera von Tablet oder Smartphone, um die Statusseite eines Fahrzeugs zu öffnen.",
       "start": "Scanner starten",
       "stop": "Scanner stoppen",
       "scanning": "Scan läuft...",
       "unsupported": "Dieser Browser unterstützt keinen QR-Scan per Kamera. Nutzen Sie das manuelle Feld oder die Kamera-App des Geräts.",
       "cameraError": "Die Kamera konnte nicht gestartet werden.",
-      "invalid": "Dieser QR-Code ist kein Fleet-Tracking-App-Link.",
-      "empty": "Bitte geben Sie einen QR-Link oder App-Pfad ein.",
-      "manualLabel": "QR-Link oder App-Pfad",
-      "open": "Link öffnen"
-    },
-    "resolve": {
-      "missing": "Der QR-Code fehlt.",
-      "error": "Der QR-Code konnte nicht aufgelöst werden."
+      "invalid": "Dieser QR-Code ist kein Fleet-Tracking-Fahrzeuglink.",
+      "empty": "Bitte geben Sie einen QR-Link oder Fahrzeugcode ein.",
+      "manualLabel": "QR-Link oder Fahrzeugcode",
+      "open": "Status öffnen"
     },
     "labels": {
       "title": "Druckbare Fahrzeug-QR-Labels",
-      "description": "Drucken Sie diese Labels und bringen Sie sie an Fahrzeugen an. Jedes Fahrzeug erhält einen Detail-Code und einen statusabhängigen Nächste-Aktion-Code."
+      "description": "Drucken Sie pro Fahrzeug ein Label und bringen Sie es an. Beim Scannen öffnet sich die Statusseite des Fahrzeugs."
     },
     "shortcuts": {
-      "title": "QR-Schnellzugriffe",
-      "description": "Drucken oder teilen Sie diese Codes für schnellen Zugriff auf dieses Fahrzeug und seine aktuelle Workflow-Aktion."
+      "title": "QR-Code",
+      "description": "Scannen, um die Statusseite dieses Fahrzeugs zu öffnen.",
+      "cardTitle": "Statusseite"
     },
-    "targets": {
-      "details": {
-        "title": "Fahrzeugdetails",
-        "description": "Status, Historie, Medien und PDF-Aktionen öffnen."
+    "status": {
+      "eyebrow": "Fahrzeugstatus",
+      "missing": "Der QR-Code fehlt.",
+      "loadError": "Der Fahrzeugstatus konnte nicht geladen werden.",
+      "signedOutHint": "Melden Sie sich an, um eine Ausleihe, Rückgabe oder andere Aktion für dieses Fahrzeug zu erfassen.",
+      "signIn": "Anmelden",
+      "actionsTitle": "Verfügbare Aktionen",
+      "noActions": "Für diesen Status ist keine Aktion verfügbar.",
+      "fields": {
+        "category": "Kategorie",
+        "location": "Standort",
+        "identifier": "Kennzeichen / Seriennummer"
       },
-      "checkIn": {
-        "title": "Fahrzeug zum Pool hinzufügen",
-        "description": "Dieses Fahrzeug in den Einsatzpool aufnehmen."
-      },
-      "loanCheckout": {
-        "title": "Ausleihe ausgeben",
-        "description": "Ausleihe für dieses verfügbare Fahrzeug starten."
-      },
-      "loanReturn": {
-        "title": "Ausleihe zurückgeben",
-        "description": "Aktiven Rückgabe-Workflow öffnen."
-      },
-      "manufacturerCheckout": {
-        "title": "Fahrzeug aus Pool entfernen",
-        "description": "Dieses Fahrzeug aus dem Einsatzpool entfernen."
+      "actions": {
+        "details": "Details öffnen",
+        "loanCheckout": "Fahrzeug ausleihen",
+        "loanReturn": "Fahrzeug zurückgeben",
+        "checkIn": "Einchecken",
+        "manufacturerCheckout": "Aus Pool entfernen"
       }
     }
   },

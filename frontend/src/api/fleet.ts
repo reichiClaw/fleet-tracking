@@ -208,6 +208,18 @@ export type VehicleQrResolution = {
   active_loan: Loan | null;
 };
 
+export type PublicVehicleStatus = {
+  qr_code: string;
+  internal_number: string;
+  manufacturer: string;
+  model: string;
+  category: string | null;
+  status: VehicleStatus;
+  license_plate?: string;
+  serial_number?: string;
+  current_location?: string;
+};
+
 export type DashboardSummary = Record<string, number>;
 
 export type VehicleFilters = {
@@ -308,6 +320,10 @@ export async function createVehicle(payload: CreateVehiclePayload) {
 
 export async function resolveVehicleQrCode(qrCode: string) {
   return apiClient.get<VehicleQrResolution>(`/vehicles/qr/${encodeURIComponent(qrCode)}/`);
+}
+
+export async function getPublicVehicleStatus(qrCode: string) {
+  return apiClient.get<PublicVehicleStatus>(`/public/vehicles/qr/${encodeURIComponent(qrCode)}/`);
 }
 
 export async function getVehicleHistory(id: string) {

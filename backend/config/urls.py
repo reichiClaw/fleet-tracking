@@ -12,7 +12,7 @@ from drivers.views import DriverViewSet
 from imports.views import ImportJobViewSet
 from mediafiles.views import GeneratedDocumentViewSet, MediaFileViewSet
 from parties.views import CompanyViewSet
-from vehicles.views import VehicleCategoryViewSet, VehicleViewSet
+from vehicles.views import PublicVehicleStatusView, VehicleCategoryViewSet, VehicleViewSet
 from workflows.views import CheckInProtocolViewSet, LoanViewSet, ManufacturerCheckOutProtocolViewSet
 
 
@@ -43,5 +43,10 @@ urlpatterns = [
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),
+    path(
+        "api/v1/public/vehicles/qr/<str:qr_code>/",
+        PublicVehicleStatusView.as_view(),
+        name="public-vehicle-status",
+    ),
     path("api/v1/", include(router.urls)),
 ]

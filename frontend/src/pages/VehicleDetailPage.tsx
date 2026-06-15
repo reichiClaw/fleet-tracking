@@ -21,7 +21,7 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { vehicleQrTargets } from './QRAccessPage';
+import { publicVehiclePath } from './QRAccessPage';
 
 export function VehicleDetailPage() {
   const { vehicleId } = useParams();
@@ -64,7 +64,6 @@ export function VehicleDetailPage() {
   }, [t, vehicleId]);
 
   const activeLoan = useMemo(() => history?.loans.find((loan) => loan.status === 'active'), [history]);
-  const qrTargets = useMemo(() => (vehicle ? vehicleQrTargets(vehicle, activeLoan, t) : []), [activeLoan, t, vehicle]);
 
   function appUrl(path: string) {
     if (typeof window === 'undefined') {
@@ -146,14 +145,11 @@ export function VehicleDetailPage() {
           </button>
         </div>
         <div className="qr-card-grid">
-          {qrTargets.map((target) => (
-            <QRCodeCard
-              key={target.key}
-              title={target.title}
-              description={target.description}
-              value={appUrl(target.path)}
-            />
-          ))}
+          <QRCodeCard
+            title={t('qr.shortcuts.cardTitle')}
+            description={t('qr.shortcuts.description')}
+            value={appUrl(publicVehiclePath(vehicle.qr_code))}
+          />
         </div>
       </section>
 
