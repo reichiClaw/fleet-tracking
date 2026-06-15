@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { getApiErrorMessage } from '../api/errors';
 import { DEMO_AUTH_ENABLED, type UserRole, useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LanguageSelector } from '../components/LanguageSelector';
@@ -45,8 +46,8 @@ export function LoginPage() {
         fallbackUser: { name: username.trim(), username: username.trim(), role, isBackendSession: false },
       });
       navigate(from, { replace: true });
-    } catch {
-      setError(t('auth.login.error'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('auth.login.error')));
     } finally {
       setIsSubmitting(false);
     }

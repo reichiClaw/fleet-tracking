@@ -1,6 +1,7 @@
 import { type ChangeEvent, type PointerEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getApiErrorMessage } from '../api/errors';
 import { uploadMedia, type MediaFile, type MediaType } from '../api/fleet';
 import { ErrorState } from './ErrorState';
 
@@ -50,8 +51,8 @@ export function MediaUploadField({
       });
       setUploadedName(media.original_filename || file.name);
       onUploaded(media);
-    } catch {
-      setError(t('media.uploadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('media.uploadError')));
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -164,8 +165,8 @@ export function SignatureInput(props: SignatureInputProps) {
       });
       setUploadedName(media.original_filename || file.name);
       props.onUploaded(media);
-    } catch {
-      setError(t('media.uploadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('media.uploadError')));
     } finally {
       setIsUploading(false);
     }

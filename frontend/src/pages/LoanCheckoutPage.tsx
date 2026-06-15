@@ -18,6 +18,7 @@ import {
   type MediaFile,
   type Vehicle,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
@@ -79,9 +80,9 @@ export function LoanCheckoutPage() {
           setDrivers(nextDrivers.filter((item) => item.is_active));
           setCompanies(nextCompanies.filter((item) => item.is_active));
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('workflows.loadError'));
+          setError(getApiErrorMessage(error, t, t('workflows.loadError')));
         }
       } finally {
         if (isMounted) {
@@ -176,8 +177,8 @@ export function LoanCheckoutPage() {
       }
       const loan = await createLoanCheckout(payload);
       setResult({ id: loan.id, detail: loan.borrower_name || borrower.name || t('common.unknown') });
-    } catch {
-      setError(t('workflows.submitError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('workflows.submitError')));
     } finally {
       setIsSubmitting(false);
     }
@@ -190,8 +191,8 @@ export function LoanCheckoutPage() {
     setPdfError(null);
     try {
       setGeneratedPdf(await generateLoanCheckoutPdf(result.id, language));
-    } catch {
-      setPdfError(t('pdf.error'));
+    } catch (error) {
+      setPdfError(getApiErrorMessage(error, t, t('pdf.error')));
     }
   }
 

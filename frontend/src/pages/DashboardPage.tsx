@@ -10,6 +10,7 @@ import {
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
@@ -54,9 +55,9 @@ export function DashboardPage() {
           setLoans(nextLoans);
           setCategories(nextCategories);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('dashboard.apiFallback'));
+          setError(getApiErrorMessage(error, t, t('dashboard.apiFallback')));
         }
       } finally {
         if (isMounted) {

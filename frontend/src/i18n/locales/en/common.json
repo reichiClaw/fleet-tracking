@@ -47,6 +47,15 @@
       "retry": "Try again"
     }
   },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "connection": "Could not reach the server. Check your internet connection and try again.",
+    "permission": "You do not have permission to do this. Please sign in again or contact an administrator.",
+    "notFound": "The requested item could not be found. It may have been changed or removed.",
+    "tooLarge": "The upload is too large. Please use a smaller file.",
+    "throttled": "Too many attempts. Please wait a moment and try again.",
+    "server": "The server ran into a problem. Please try again in a moment."
+  },
   "auth": {
     "login": {
       "title": "Sign in",

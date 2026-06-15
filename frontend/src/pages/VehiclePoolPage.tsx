@@ -14,6 +14,7 @@ import {
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
@@ -60,9 +61,9 @@ export function VehiclePoolPage() {
           setLoans(nextLoans);
           setDrivers(nextDrivers);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('vehicles.loadError'));
+          setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
         }
       }
     }
@@ -83,9 +84,9 @@ export function VehiclePoolPage() {
         if (isMounted) {
           setVehicles(nextVehicles);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('vehicles.loadError'));
+          setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
           setVehicles([]);
         }
       } finally {

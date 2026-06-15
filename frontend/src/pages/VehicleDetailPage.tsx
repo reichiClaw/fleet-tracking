@@ -16,6 +16,7 @@ import {
   type Vehicle,
   type VehicleHistory,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
@@ -46,9 +47,9 @@ export function VehicleDetailPage() {
           setVehicle(nextVehicle);
           setHistory(nextHistory);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('vehicles.detail.loadError'));
+          setError(getApiErrorMessage(error, t, t('vehicles.detail.loadError')));
         }
       } finally {
         if (isMounted) {
@@ -85,8 +86,8 @@ export function VehicleDetailPage() {
             ? generateLoanReturnPdf(id, language)
             : generateManufacturerCheckoutPdf(id, language));
       setGeneratedMedia(media);
-    } catch {
-      setPdfError(t('pdf.error'));
+    } catch (error) {
+      setPdfError(getApiErrorMessage(error, t, t('pdf.error')));
     }
   }
 

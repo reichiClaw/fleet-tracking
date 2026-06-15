@@ -26,6 +26,7 @@ import {
   type MediaFile,
   type Vehicle,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
@@ -97,9 +98,9 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           setDrivers(nextDrivers);
           setLoans(nextLoans);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('workflows.loadError'));
+          setError(getApiErrorMessage(error, t, t('workflows.loadError')));
         }
       } finally {
         if (isMounted) {
@@ -202,8 +203,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           pdfAction: () => generateManufacturerCheckoutPdf(protocol.id, language),
         });
       }
-    } catch {
-      setError(t('workflows.submitError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('workflows.submitError')));
     } finally {
       setIsSubmitting(false);
     }
@@ -264,8 +265,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     setPdfError(null);
     try {
       setGeneratedPdf(await result.pdfAction());
-    } catch {
-      setPdfError(t('pdf.error'));
+    } catch (error) {
+      setPdfError(getApiErrorMessage(error, t, t('pdf.error')));
     }
   }
 
