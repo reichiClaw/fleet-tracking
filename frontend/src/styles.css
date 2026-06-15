@@ -994,6 +994,25 @@ tbody tr:hover td {
   gap: 1rem;
 }
 
+/* Denser label tiling for bulk printing on label sheets/printers. */
+.qr-label-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.6rem;
+}
+
+.qr-label-grid--compact .qr-label {
+  gap: 0.5rem;
+  padding: 0.6rem;
+}
+
+.qr-label-grid--compact .qr-card {
+  padding: 0.5rem;
+}
+
+.qr-label-grid--compact .qr-card img {
+  width: min(100%, 8rem);
+}
+
 .qr-label {
   display: grid;
   gap: 1rem;
@@ -1038,6 +1057,8 @@ tbody tr:hover td {
   .side-nav,
   .qr-scanner,
   .content-card > .action-row,
+  .card-title-row .checkbox-inline,
+  .checkbox-inline,
   .button-link,
   button,
   form {
@@ -1048,19 +1069,31 @@ tbody tr:hover td {
     background: #ffffff;
   }
 
-  .shell-body,
-  .qr-label-grid {
+  .shell-body {
     display: block;
   }
 
+  /* Tile labels densely across the page so a print run yields many labels. */
+  .qr-label-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(45mm, 1fr));
+    gap: 5mm;
+  }
+
+  .qr-label-grid--compact {
+    grid-template-columns: repeat(auto-fill, minmax(32mm, 1fr));
+    gap: 3mm;
+  }
+
   .content-panel,
+  .content-card,
   .qr-label,
   .qr-card {
     box-shadow: none;
+    border: none;
   }
 
   .qr-label {
-    margin-bottom: 1rem;
     page-break-inside: avoid;
   }
 }

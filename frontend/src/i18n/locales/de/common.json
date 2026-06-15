@@ -497,6 +497,8 @@
     "description": "Jedes Fahrzeug hat einen QR-Code. Beim Scannen öffnet sich eine Live-Statusseite, die auch ohne Anmeldung funktioniert.",
     "loadError": "QR-Daten konnten nicht geladen werden.",
     "print": "QR-Codes drucken",
+    "export": "URLs exportieren (CSV)",
+    "compact": "Kompakte Labels für Etikettendrucker",
     "scan": {
       "title": "QR-Code scannen",
       "description": "Nutzen Sie die Kamera von Tablet oder Smartphone, um die Statusseite eines Fahrzeugs zu öffnen.",

@@ -497,6 +497,8 @@
     "description": "Every vehicle has one QR code. Scanning it opens a live status page that works without signing in.",
     "loadError": "QR data could not be loaded.",
     "print": "Print QR codes",
+    "export": "Export URLs (CSV)",
+    "compact": "Compact labels for label printers",
     "scan": {
       "title": "Scan QR code",
       "description": "Use a tablet or phone camera to open a vehicle's status page.",

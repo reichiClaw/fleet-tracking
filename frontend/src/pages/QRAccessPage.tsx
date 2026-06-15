@@ -25,6 +25,44 @@ export function publicVehiclePath(qrCode: string) {
   return `/v/${encodeURIComponent(qrCode)}`;
 }
 
+function csvCell(value: string | number | null | undefined) {
+  const text = value == null ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Build a CSV (one row per vehicle) mapping each vehicle to its single QR
+ * status URL, for import into label-printer software. Uses CRLF line endings
+ * and quoted cells for broad spreadsheet/label-tool compatibility.
+ */
+export function buildVehicleQrCsv(vehicles: Vehicle[], origin: string) {
+  const headers = [
+    'internal_number',
+    'manufacturer',
+    'model',
+    'serial_number',
+    'license_plate',
+    'status',
+    'qr_code',
+    'status_url',
+  ];
+  const rows = vehicles.map((vehicle) =>
+    [
+      vehicle.internal_number,
+      vehicle.manufacturer,
+      vehicle.model,
+      vehicle.serial_number ?? '',
+      vehicle.license_plate ?? '',
+      vehicle.status,
+      vehicle.qr_code,
+      `${origin}${publicVehiclePath(vehicle.qr_code)}`,
+    ]
+      .map(csvCell)
+      .join(','),
+  );
+  return [headers.map(csvCell).join(','), ...rows].join('\r\n');
+}
+
 export function QRAccessPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -34,6 +72,7 @@ export function QRAccessPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [manualValue, setManualValue] = useState('');
+  const [compact, setCompact] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,6 +108,23 @@ export function QRAccessPage() {
       return path;
     }
     return `${window.location.origin}${path}`;
+  }
+
+  function exportCsv() {
+    if (!vehicles.length) {
+      return;
+    }
+    const csv = buildVehicleQrCsv(vehicles, window.location.origin);
+    // Prepend a UTF-8 BOM so spreadsheet/label tools detect encoding correctly.
+    const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'vehicle-qr-codes.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   function handleScannedValue(value: string) {
@@ -155,9 +211,14 @@ export function QRAccessPage() {
         title={t('qr.title')}
         description={t('qr.description')}
         actions={
-          <button type="button" onClick={() => window.print()}>
-            {t('qr.print')}
-          </button>
+          <div className="action-row action-row--wrap">
+            <button type="button" onClick={() => window.print()}>
+              {t('qr.print')}
+            </button>
+            <button type="button" className="secondary-button" disabled={!vehicles.length} onClick={exportCsv}>
+              {t('qr.export')}
+            </button>
+          </div>
         }
       />
 
@@ -189,9 +250,17 @@ export function QRAccessPage() {
       {isLoading ? <LoadingState variant="skeleton" rows={3} /> : null}
 
       <section className="content-card">
-        <h3>{t('qr.labels.title')}</h3>
-        <p className="hint-text">{t('qr.labels.description')}</p>
-        <div className="qr-label-grid">
+        <div className="card-title-row">
+          <div>
+            <h3>{t('qr.labels.title')}</h3>
+            <p className="hint-text">{t('qr.labels.description')}</p>
+          </div>
+          <label className="checkbox-inline">
+            <input type="checkbox" checked={compact} onChange={(event) => setCompact(event.target.checked)} />
+            <span>{t('qr.compact')}</span>
+          </label>
+        </div>
+        <div className={`qr-label-grid${compact ? ' qr-label-grid--compact' : ''}`}>
           {vehicles.map((vehicle) => (
             <article className="qr-label" key={vehicle.id}>
               <div className="card-title-row">
