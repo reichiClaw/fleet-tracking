@@ -28,7 +28,7 @@
     "qrAccess": "QR-Zugriff",
     "workflows": "Workflows",
     "loanWorkflows": "Ausleihe-Workflows",
-    "manufacturerWorkflows": "Hersteller-Workflows",
+    "manufacturerWorkflows": "Fahrzeuge hinzufügen/entfernen",
     "drivers": "Fahrer",
     "companies": "Firmen",
     "imports": "Importe",
@@ -191,9 +191,9 @@
     "submit": "Workflow abschließen",
     "submitting": "Wird gesendet...",
     "checkIn": {
-      "title": "Check-in",
-      "description": "Ankunftszustand erfassen und das Fahrzeug verfügbar, beschädigt oder in Wartung setzen.",
-      "completed": "Check-in abgeschlossen"
+      "title": "Fahrzeug zum Pool hinzufügen",
+      "description": "Fahrzeug in den Einsatzpool aufnehmen: Ankunftszustand erfassen und verfügbar, beschädigt oder in Wartung setzen.",
+      "completed": "Fahrzeug zum Pool hinzugefügt"
     },
     "loanCheckout": {
       "title": "Ausleihe ausgeben",
@@ -207,9 +207,9 @@
       "completed": "Ausleihe zurückgegeben"
     },
     "manufacturerCheckout": {
-      "title": "Hersteller-Check-out",
-      "description": "Übergabe an Hersteller oder Lieferant erfassen.",
-      "completed": "Hersteller-Check-out abgeschlossen"
+      "title": "Fahrzeug aus Pool entfernen",
+      "description": "Fahrzeug aus dem Einsatzpool entfernen (z. B. Übergabe an Hersteller oder Lieferant).",
+      "completed": "Fahrzeug aus Pool entfernt"
     },
     "fields": {
       "vehicle": "Fahrzeug",
@@ -273,19 +273,19 @@
       }
     },
     "manufacturer": {
-      "eyebrow": "Hersteller-Workflows",
-      "title": "Workflows für Hersteller",
-      "description": "Herstellerprozesse getrennt von normalen Ausleih-Workflows verwalten.",
+      "eyebrow": "Fahrzeugpool",
+      "title": "Fahrzeuge hinzufügen oder entfernen",
+      "description": "Fahrzeuge in den Einsatzpool aufnehmen oder daraus entfernen, wenn sie den Fuhrpark verlassen.",
       "actions": {
         "checkout": {
-          "title": "Hersteller-Check-out",
-          "description": "Fahrzeugübergabe an Hersteller oder Lieferant erfassen.",
-          "open": "Hersteller-Check-out starten"
+          "title": "Fahrzeug aus Pool entfernen",
+          "description": "Erfassen, dass ein Fahrzeug den Einsatzpool verlässt (z. B. Übergabe an Hersteller oder Lieferant).",
+          "open": "Fahrzeug entfernen"
         },
         "checkIn": {
-          "title": "Hersteller-Rücklauf Check-in",
-          "description": "Ein vom Hersteller zurückgegebenes Fahrzeug wieder in den operativen Fuhrpark einchecken.",
-          "open": "Hersteller-Rücklauf einchecken"
+          "title": "Fahrzeug zum Pool hinzufügen",
+          "description": "Ein Fahrzeug in den Einsatzpool aufnehmen (Neulieferung oder zurückgegebenes Fahrzeug).",
+          "open": "Fahrzeug hinzufügen"
         }
       }
     }
@@ -497,8 +497,8 @@
         "description": "Status, Historie, Medien und PDF-Aktionen öffnen."
       },
       "checkIn": {
-        "title": "Check-in",
-        "description": "Liefer-Check-in für dieses Fahrzeug starten."
+        "title": "Fahrzeug zum Pool hinzufügen",
+        "description": "Dieses Fahrzeug in den Einsatzpool aufnehmen."
       },
       "loanCheckout": {
         "title": "Ausleihe ausgeben",
@@ -509,8 +509,8 @@
         "description": "Aktiven Rückgabe-Workflow öffnen."
       },
       "manufacturerCheckout": {
-        "title": "Hersteller-Check-out",
-        "description": "Check-out an Hersteller oder Lieferant starten."
+        "title": "Fahrzeug aus Pool entfernen",
+        "description": "Dieses Fahrzeug aus dem Einsatzpool entfernen."
       }
     }
   },
