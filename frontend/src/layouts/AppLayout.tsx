@@ -56,7 +56,9 @@ export function AppLayout() {
             aria-expanded={isQuickActionsOpen}
             onClick={() => setIsQuickActionsOpen((current) => !current)}
           >
-            ⋮
+            <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
           </button>
           <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
             <LanguageSelector />

@@ -165,6 +165,8 @@ small {
 
 .top-bar__actions {
   position: relative;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .top-bar__actions-desktop {
@@ -172,11 +174,19 @@ small {
 }
 
 .top-bar__menu-trigger {
-  width: 2.5rem;
-  min-height: 2.5rem;
+  width: 2.25rem;
+  min-height: 2.25rem;
   padding: 0;
-  font-size: 1.35rem;
-  line-height: 1;
+}
+
+.top-bar__menu-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
 
 .top-bar__menu {
@@ -534,7 +544,6 @@ td {
 
 @media (max-width: 620px) {
   .login-card__header,
-  .top-bar,
   .page-header--with-actions,
   .card-title-row,
   .action-row,
@@ -549,7 +558,7 @@ td {
   }
 
   .top-bar__menu-trigger {
-    width: 2.5rem;
+    width: 2.25rem;
   }
 }
 
