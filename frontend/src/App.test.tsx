@@ -66,12 +66,10 @@ describe('App smoke flow', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Ausleihe ausgeben' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ausleihe abschließen' }));
 
     expect(await screen.findByText('Bitte wählen Sie ein Fahrzeug aus.')).toBeInTheDocument();
-    expect(screen.getByText('Wählen Sie einen Fahrer aus oder geben Sie einen Entleiher ein.')).toBeInTheDocument();
-    expect(screen.getByText('Bitte geben Sie eine Telefonnummer des Entleihers ein.')).toBeInTheDocument();
-    expect(screen.getByText('Bitte wählen Sie eine erwartete Rückgabe.')).toBeInTheDocument();
+    expect(screen.getByText('Bitte einen Mitarbeiter/Fahrer auswählen.')).toBeInTheDocument();
   });
 
   it('redirects read-only users away from mutation workflow routes', async () => {

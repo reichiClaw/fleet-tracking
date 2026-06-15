@@ -24,7 +24,7 @@ class Loan(TimeStampedUUIDModel):
     company = models.ForeignKey("parties.Company", on_delete=models.SET_NULL, null=True, blank=True, related_name="loans")
     driver = models.ForeignKey("drivers.Driver", on_delete=models.SET_NULL, null=True, blank=True, related_name="loans")
     borrower_name = models.CharField(max_length=255, blank=True)
-    borrower_phone = models.CharField(max_length=80)
+    borrower_phone = models.CharField(max_length=80, blank=True)
     expected_return_at = models.DateTimeField()
     actual_return_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=LoanStatus.choices, default=LoanStatus.ACTIVE)

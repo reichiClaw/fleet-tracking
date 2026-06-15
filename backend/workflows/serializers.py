@@ -110,7 +110,7 @@ class LoanCheckoutWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer)
     company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all(), required=False, allow_null=True)
     driver = serializers.PrimaryKeyRelatedField(queryset=Driver.objects.all(), required=False, allow_null=True)
     borrower_name = serializers.CharField(required=False, allow_blank=True)
-    borrower_phone = serializers.CharField(max_length=80)
+    borrower_phone = serializers.CharField(max_length=80, required=False, allow_blank=True)
     expected_return_at = serializers.DateTimeField()
     checkout_odometer_km = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     checkout_operating_hours = serializers.DecimalField(

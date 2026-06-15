@@ -146,6 +146,26 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         vehicle.refresh_from_db()
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
 
+    def test_loan_checkout_succeeds_without_borrower_phone(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+
+        response = self.api_client().post(
+            "/api/v1/loans/",
+            {
+                "vehicle": str(vehicle.id),
+                "borrower_name": "Walk-in borrower",
+                "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        loan = Loan.objects.get()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+        self.assertEqual(loan.borrower_phone, "")
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
     def test_loan_return_closes_active_loan_and_marks_damaged_when_damage_reported(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED, odometer=120, hours="11.5")
         loan = Loan.objects.create(

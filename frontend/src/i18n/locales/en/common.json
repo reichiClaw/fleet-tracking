@@ -370,6 +370,29 @@
       "deactivate": "Deactivate"
     }
   },
+  "loanCheckout": {
+    "intro": "Loan a vehicle to an employee or subcontractor in a few steps.",
+    "submit": "Complete loan",
+    "moreDetails": "More details (optional)",
+    "documentHandover": "Document handover (optional)",
+    "noVehicles": "No available vehicles. Check in a vehicle first.",
+    "selectDriver": "Select an employee/driver",
+    "selectCompany": "Select a subcontractor",
+    "noDrivers": "No drivers yet. Add one under",
+    "noCompanies": "No companies yet. Add one under",
+    "contactPersonOptional": "Contact person (optional)",
+    "phoneOptional": "Phone (optional)",
+    "borrowerType": {
+      "label": "Who is borrowing?",
+      "driver": "Employee / driver",
+      "company": "Subcontractor",
+      "other": "Other person"
+    },
+    "validation": {
+      "driverRequired": "Please select an employee/driver.",
+      "companyRequired": "Please select a subcontractor."
+    }
+  },
   "qr": {
     "eyebrow": "QR shortcuts",
     "title": "QR access",

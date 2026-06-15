@@ -6,6 +6,7 @@ import { LoadingState } from '../components/LoadingState';
 import { AppLayout } from '../layouts/AppLayout';
 import { AdminImportPage } from '../pages/AdminImportPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
 import { LoginPage } from '../pages/LoginPage';
 import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -63,7 +64,7 @@ export function AppRoutes() {
         <Route path="qr" element={<QRAccessPage />} />
         <Route path="qr/v/:qrCode" element={<QRResolvePage />} />
         <Route path="workflows/check-in" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="check-in" /></RequireRole>} />
-        <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-checkout" /></RequireRole>} />
+        <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole>} />
         <Route path="workflows/loan-return" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole>} />
         <Route path="workflows/manufacturer-checkout" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="manufacturer-checkout" /></RequireRole>} />
         <Route path="drivers" element={<DriverManagementPage />} />

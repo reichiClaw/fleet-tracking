@@ -370,6 +370,29 @@
       "deactivate": "Deaktivieren"
     }
   },
+  "loanCheckout": {
+    "intro": "Verleihen Sie ein Fahrzeug in wenigen Schritten an einen Mitarbeiter oder Subunternehmer.",
+    "submit": "Ausleihe abschließen",
+    "moreDetails": "Weitere Angaben (optional)",
+    "documentHandover": "Übergabe dokumentieren (optional)",
+    "noVehicles": "Keine verfügbaren Fahrzeuge. Bitte zuerst ein Fahrzeug einchecken.",
+    "selectDriver": "Mitarbeiter/Fahrer auswählen",
+    "selectCompany": "Subunternehmer auswählen",
+    "noDrivers": "Noch keine Fahrer. Anlegen unter",
+    "noCompanies": "Noch keine Firmen. Anlegen unter",
+    "contactPersonOptional": "Ansprechpartner (optional)",
+    "phoneOptional": "Telefon (optional)",
+    "borrowerType": {
+      "label": "Wer leiht aus?",
+      "driver": "Mitarbeiter / Fahrer",
+      "company": "Subunternehmer",
+      "other": "Andere Person"
+    },
+    "validation": {
+      "driverRequired": "Bitte einen Mitarbeiter/Fahrer auswählen.",
+      "companyRequired": "Bitte einen Subunternehmer auswählen."
+    }
+  },
   "qr": {
     "eyebrow": "QR-Schnellzugriff",
     "title": "QR-Zugriff",
