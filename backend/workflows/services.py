@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
-from uuid import uuid4
 
 from django.db import transaction
 from django.utils import timezone
@@ -60,10 +59,8 @@ def complete_check_in(*, data: dict[str, Any], actor, request_meta: dict[str, st
         )
         _attach_media(
             vehicle=vehicle,
-            actor=actor,
             related_type="check_in_protocol",
             related_id=protocol.id,
-            media_payloads=data.get("media_files", []),
             existing_media=data.get("media_file_ids", []),
         )
         _transition_vehicle(
@@ -129,11 +126,9 @@ def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[st
         )
         _attach_media(
             vehicle=vehicle,
-            actor=actor,
             loan=loan,
             related_type="loan_checkout",
             related_id=loan.id,
-            media_payloads=data.get("media_files", []),
             existing_media=data.get("media_file_ids", []),
         )
         _transition_vehicle(
@@ -198,11 +193,9 @@ def complete_loan_return(
         )
         _attach_media(
             vehicle=vehicle,
-            actor=actor,
             loan=locked_loan,
             related_type="loan_return",
             related_id=locked_loan.id,
-            media_payloads=data.get("media_files", []),
             existing_media=data.get("media_file_ids", []),
         )
         _transition_vehicle(
@@ -269,10 +262,8 @@ def complete_manufacturer_checkout(
         )
         _attach_media(
             vehicle=vehicle,
-            actor=actor,
             related_type="manufacturer_checkout_protocol",
             related_id=protocol.id,
-            media_payloads=data.get("media_files", []),
             existing_media=data.get("media_file_ids", []),
         )
         _transition_vehicle(
@@ -416,7 +407,6 @@ def _create_damage_reports(
 ) -> list[DamageReport]:
     damages: list[DamageReport] = []
     for payload in damage_payloads:
-        media_payloads = payload.pop("media_files", [])
         existing_media = payload.pop("media_file_ids", [])
         damage = DamageReport.objects.create(
             vehicle=vehicle,
@@ -431,12 +421,10 @@ def _create_damage_reports(
         )
         _attach_media(
             vehicle=vehicle,
-            actor=actor,
             loan=loan,
             damage_report=damage,
             related_type="damage_report",
             related_id=damage.id,
-            media_payloads=media_payloads,
             existing_media=existing_media,
         )
         damages.append(damage)
@@ -446,14 +434,13 @@ def _create_damage_reports(
 def _attach_media(
     *,
     vehicle: Vehicle,
-    actor,
-    media_payloads: Iterable[dict[str, Any]],
     existing_media: Iterable[MediaFile],
     related_type: str,
     related_id,
     loan: Loan | None = None,
     damage_report: DamageReport | None = None,
 ) -> None:
+    # Attach already-uploaded media (real stored files) to the workflow record.
     for media in existing_media:
         media.vehicle = vehicle
         media.loan = loan
@@ -461,21 +448,6 @@ def _attach_media(
         media.related_type = related_type
         media.related_id = related_id
         media.save(update_fields=["vehicle", "loan", "damage_report", "related_type", "related_id", "updated_at"])
-
-    for payload in media_payloads:
-        MediaFile.objects.create(
-            vehicle=vehicle,
-            loan=loan,
-            damage_report=damage_report,
-            related_type=related_type,
-            related_id=related_id,
-            media_type=payload["media_type"],
-            original_filename=payload["original_filename"],
-            storage_key=f"metadata/{related_type}/{uuid4()}",
-            content_type=payload["content_type"],
-            size_bytes=payload["size_bytes"],
-            uploaded_by=actor,
-        )
 
 
 def _vehicle_snapshot(vehicle: Vehicle) -> dict[str, Any]:

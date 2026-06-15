@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from damages.models import DamageSeverity
 from drivers.models import Driver
-from mediafiles.models import MediaFile, MediaType
+from mediafiles.models import MediaFile
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
@@ -71,23 +71,16 @@ class LoanSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class MediaMetadataInputSerializer(serializers.Serializer):
-    media_type = serializers.ChoiceField(choices=MediaType.choices)
-    original_filename = serializers.CharField(max_length=255)
-    content_type = serializers.CharField(max_length=120)
-    size_bytes = serializers.IntegerField(min_value=1)
-
-
 class DamageReportInputSerializer(serializers.Serializer):
     description = serializers.CharField()
     severity = serializers.ChoiceField(choices=DamageSeverity.choices, required=False)
     discovered_at = serializers.DateTimeField(required=False)
-    media_files = MediaMetadataInputSerializer(many=True, required=False)
+    # Media is uploaded first via the media endpoint, then attached here by id so
+    # every attached file has real stored bytes and a working download URL.
     media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
 
 
 class WorkflowMediaMixin(serializers.Serializer):
-    media_files = MediaMetadataInputSerializer(many=True, required=False)
     media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
 
 

@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from vehicles.models import Vehicle, VehicleCategory, is_valid_status_transition
+from vehicles.models import Vehicle, VehicleCategory, VehicleStatus, is_valid_status_transition
+
+# Statuses that are owned by an operational workflow and the records it creates
+# (a Loan, a manufacturer checkout protocol). They must not be set by editing the
+# vehicle directly, otherwise the vehicle status and its related records drift
+# apart (e.g. a vehicle flagged "loaned" with no Loan row).
+WORKFLOW_MANAGED_STATUSES = {VehicleStatus.LOANED, VehicleStatus.MANUFACTURER_CHECKOUT}
 
 
 class VehicleCategorySerializer(serializers.ModelSerializer):
@@ -39,10 +46,31 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if self.instance is not None:
-            new_status = attrs.get("status", self.instance.status)
-            if not is_valid_status_transition(self.instance.status, new_status):
+            current_status = self.instance.status
+            new_status = attrs.get("status", current_status)
+            if new_status != current_status:
+                # Entering a workflow-managed status directly would bypass the
+                # record (loan / manufacturer checkout) the status depends on.
+                if new_status in WORKFLOW_MANAGED_STATUSES:
+                    raise serializers.ValidationError(
+                        {
+                            "status": _(
+                                "This status is set through its workflow (loan checkout or manufacturer "
+                                "check-out), not by editing the vehicle directly."
+                            )
+                        }
+                    )
+                # Leaving "loaned" while a loan is still open would orphan that loan.
+                if current_status == VehicleStatus.LOANED:
+                    from workflows.models import Loan, LoanStatus
+
+                    if Loan.objects.filter(vehicle=self.instance, status=LoanStatus.ACTIVE).exists():
+                        raise serializers.ValidationError(
+                            {"status": _("Return the active loan before changing this vehicle's status.")}
+                        )
+            if not is_valid_status_transition(current_status, new_status):
                 raise serializers.ValidationError(
-                    {"status": f"Invalid vehicle status transition from {self.instance.status} to {new_status}."}
+                    {"status": f"Invalid vehicle status transition from {current_status} to {new_status}."}
                 )
             new_odometer = attrs.get("current_odometer_km", self.instance.current_odometer_km)
             if (

@@ -176,6 +176,64 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         self.vehicle.refresh_from_db()
         self.assertEqual(self.vehicle.current_odometer_km, 100)
 
+    def test_admin_cannot_set_loaned_status_by_editing_vehicle(self):
+        vehicle = Vehicle.objects.create(
+            internal_number="VH-AVAIL",
+            category=self.category,
+            manufacturer="Acme",
+            model="TH100",
+            status=VehicleStatus.AVAILABLE,
+        )
+
+        response = self.client_for(self.admin_user).patch(
+            f"/api/v1/vehicles/{vehicle.id}/", {"status": VehicleStatus.LOANED}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+
+    def test_admin_cannot_clear_loaned_status_while_loan_is_active(self):
+        vehicle = Vehicle.objects.create(
+            internal_number="VH-LOANED",
+            category=self.category,
+            manufacturer="Acme",
+            model="TH100",
+            status=VehicleStatus.LOANED,
+        )
+        Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.client_for(self.admin_user).patch(
+            f"/api/v1/vehicles/{vehicle.id}/", {"status": VehicleStatus.AVAILABLE}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
+    def test_admin_can_move_available_vehicle_to_maintenance(self):
+        vehicle = Vehicle.objects.create(
+            internal_number="VH-MAINT",
+            category=self.category,
+            manufacturer="Acme",
+            model="TH100",
+            status=VehicleStatus.AVAILABLE,
+        )
+
+        response = self.client_for(self.admin_user).patch(
+            f"/api/v1/vehicles/{vehicle.id}/", {"status": VehicleStatus.MAINTENANCE}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.MAINTENANCE)
+
     def test_vehicle_history_returns_related_records(self):
         company = Company.objects.create(name="Borrower Ltd", company_type="subcontractor")
         Loan.objects.create(

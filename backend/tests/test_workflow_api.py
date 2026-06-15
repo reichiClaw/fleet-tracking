@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import shutil
+import tempfile
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -14,6 +17,14 @@ from mediafiles.models import MediaFile, MediaType
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+JPEG_BYTES = b"\xff\xd8\xff" + b"\x00" * 32
+WORKFLOW_MEDIA_ROOT = tempfile.mkdtemp(prefix="fleet-workflow-media-tests-")
+
+
+def tearDownModule():
+    shutil.rmtree(WORKFLOW_MEDIA_ROOT, ignore_errors=True)
 
 
 class WorkflowAPITestCase(TestCase):
@@ -30,6 +41,19 @@ class WorkflowAPITestCase(TestCase):
         client = APIClient()
         client.force_authenticate(user=self.operations_user)
         return client
+
+    def upload_media(self, client, *, media_type, filename, content_type, content):
+        """Upload a real media file and return its id (the supported attach path)."""
+        response = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile(filename, content, content_type=content_type),
+                "media_type": media_type,
+            },
+            format="multipart",
+        )
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        return response.data["id"]
 
     def vehicle(self, *, status_value=VehicleStatus.AVAILABLE, odometer=100, hours="10.0"):
         return Vehicle.objects.create(
@@ -64,10 +88,15 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(CheckInProtocol.objects.count(), 1)
         self.assertEqual(DamageReport.objects.count(), 0)
 
+    @override_settings(MEDIA_ROOT=WORKFLOW_MEDIA_ROOT)
     def test_check_in_creates_protocol_damage_media_audit_and_updates_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=10, hours="1.0")
+        client = self.api_client()
+        media_id = self.upload_media(
+            client, media_type=MediaType.PHOTO, filename="scratch.jpg", content_type="image/jpeg", content=JPEG_BYTES
+        )
 
-        response = self.api_client().post(
+        response = client.post(
             "/api/v1/workflows/check-ins/",
             {
                 "vehicle": str(vehicle.id),
@@ -75,19 +104,12 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "operating_hours": "2.5",
                 "condition_notes": "Visible scratch",
                 "damage_reports": [{"description": "Scratch on door", "severity": "minor"}],
-                "media_files": [
-                    {
-                        "media_type": MediaType.PHOTO,
-                        "original_filename": "scratch.jpg",
-                        "content_type": "image/jpeg",
-                        "size_bytes": 1234,
-                    }
-                ],
+                "media_file_ids": [media_id],
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         vehicle.refresh_from_db()
         self.assertEqual(vehicle.status, VehicleStatus.DAMAGED)
         self.assertEqual(vehicle.current_odometer_km, 20)
@@ -95,6 +117,9 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(CheckInProtocol.objects.count(), 1)
         self.assertEqual(DamageReport.objects.count(), 1)
         self.assertEqual(MediaFile.objects.count(), 1)
+        attached = MediaFile.objects.get()
+        self.assertEqual(attached.vehicle, vehicle)
+        self.assertEqual(attached.related_type, "check_in_protocol")
         self.assertTrue(AuditLog.objects.filter(action="workflow.check_in.completed").exists())
 
     def test_check_in_rejects_decreasing_odometer_atomically(self):
@@ -113,10 +138,15 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
 
 
 class LoanWorkflowTests(WorkflowAPITestCase):
+    @override_settings(MEDIA_ROOT=WORKFLOW_MEDIA_ROOT)
     def test_loan_checkout_creates_active_loan_and_marks_vehicle_loaned(self):
         vehicle = self.vehicle(status_value=VehicleStatus.CHECKED_IN, odometer=100, hours="10.0")
+        client = self.api_client()
+        media_id = self.upload_media(
+            client, media_type=MediaType.SIGNATURE, filename="signature.png", content_type="image/png", content=PNG_BYTES
+        )
 
-        response = self.api_client().post(
+        response = client.post(
             "/api/v1/loans/",
             {
                 "vehicle": str(vehicle.id),
@@ -126,19 +156,12 @@ class LoanWorkflowTests(WorkflowAPITestCase):
                 "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
                 "checkout_odometer_km": 120,
                 "checkout_operating_hours": "11.5",
-                "media_files": [
-                    {
-                        "media_type": MediaType.SIGNATURE,
-                        "original_filename": "signature.png",
-                        "content_type": "image/png",
-                        "size_bytes": 500,
-                    }
-                ],
+                "media_file_ids": [media_id],
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         vehicle.refresh_from_db()
         loan = Loan.objects.get()
         self.assertEqual(loan.status, LoanStatus.ACTIVE)
