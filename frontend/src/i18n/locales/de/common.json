@@ -43,7 +43,8 @@
     "loading": "Wird geladen...",
     "error": {
       "title": "Etwas ist schiefgelaufen",
-      "defaultMessage": "Bitte versuchen Sie es erneut."
+      "defaultMessage": "Bitte versuchen Sie es erneut.",
+      "retry": "Erneut versuchen"
     }
   },
   "auth": {

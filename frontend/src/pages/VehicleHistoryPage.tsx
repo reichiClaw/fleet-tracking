@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { displayVehicleName, listVehicleCategories, listVehicles, type Vehicle, type VehicleCategory } from '../api/fleet';
+import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 
 const statuses = [
@@ -85,11 +87,11 @@ export function VehicleHistoryPage() {
 
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t('vehicles.historyIndex.eyebrow')}</p>
-        <h2>{t('vehicles.historyIndex.title')}</h2>
-        <p>{t('vehicles.historyIndex.description')}</p>
-      </div>
+      <PageHeader
+        eyebrow={t('vehicles.historyIndex.eyebrow')}
+        title={t('vehicles.historyIndex.title')}
+        description={t('vehicles.historyIndex.description')}
+      />
 
       <form className="filter-panel" onSubmit={handleSearch}>
         <label>
@@ -120,7 +122,7 @@ export function VehicleHistoryPage() {
         <button type="submit">{t('vehicles.filters.apply')}</button>
       </form>
 
-      {isLoading ? <LoadingState /> : null}
+      {isLoading ? <LoadingState variant="skeleton" rows={4} /> : null}
       {error ? <ErrorState message={error} /> : null}
 
       <div className="card-grid card-grid--two">
@@ -143,10 +145,7 @@ export function VehicleHistoryPage() {
       </div>
 
       {!isLoading && !vehicles.length ? (
-        <section className="placeholder-card">
-          <h3>{t('vehicles.empty.title')}</h3>
-          <p>{t('vehicles.historyIndex.empty')}</p>
-        </section>
+        <EmptyState title={t('vehicles.empty.title')} description={t('vehicles.historyIndex.empty')} />
       ) : null}
     </section>
   );

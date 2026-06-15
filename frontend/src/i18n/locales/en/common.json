@@ -43,7 +43,8 @@
     "loading": "Loading...",
     "error": {
       "title": "Something went wrong",
-      "defaultMessage": "Please try again."
+      "defaultMessage": "Please try again.",
+      "retry": "Try again"
     }
   },
   "auth": {

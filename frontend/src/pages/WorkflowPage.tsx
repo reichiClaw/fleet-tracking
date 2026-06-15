@@ -1,6 +1,8 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
+
+import { Field } from '../components/Field';
 
 import {
   createCheckIn,
@@ -466,16 +468,6 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         </button>
       </form>
     </section>
-  );
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
-  return (
-    <label>
-      <span>{label}</span>
-      {children}
-      {error ? <small className="field-error">{error}</small> : null}
-    </label>
   );
 }
 

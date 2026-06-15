@@ -14,6 +14,7 @@ import {
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
+import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { StatusBadge } from '../components/StatusBadge';
@@ -164,7 +165,7 @@ export function VehiclePoolPage() {
         <button type="submit">{t('vehicles.filters.apply')}</button>
       </form>
 
-      {isLoading ? <LoadingState /> : null}
+      {isLoading ? <LoadingState variant="skeleton" rows={6} /> : null}
       {error ? <ErrorState message={error} /> : null}
 
       <div className="vehicle-grid">
@@ -220,10 +221,7 @@ export function VehiclePoolPage() {
       </div>
 
       {!isLoading && !visibleVehicles.length ? (
-        <section className="placeholder-card">
-          <h3>{t('vehicles.empty.title')}</h3>
-          <p>{t('vehicles.empty.body')}</p>
-        </section>
+        <EmptyState title={t('vehicles.empty.title')} description={t('vehicles.empty.body')} />
       ) : null}
     </section>
   );

@@ -12,6 +12,7 @@ import {
 } from '../api/fleet';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 
 const summaryStatuses = ['available', 'loaned', 'maintenance', 'damaged'] as const;
@@ -107,13 +108,9 @@ export function DashboardPage() {
 
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t('dashboard.eyebrow')}</p>
-        <h2>{t('dashboard.title')}</h2>
-        <p>{t('dashboard.description')}</p>
-      </div>
+      <PageHeader eyebrow={t('dashboard.eyebrow')} title={t('dashboard.title')} description={t('dashboard.description')} />
 
-      {isLoading ? <LoadingState /> : null}
+      {isLoading ? <LoadingState variant="skeleton" rows={4} /> : null}
       {error ? <ErrorState message={error} /> : null}
 
       <div className="summary-grid">

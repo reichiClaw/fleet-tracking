@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+import { PageHeader } from '../components/PageHeader';
+
 type WorkflowMenuType = 'loan' | 'manufacturer';
 
 export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
@@ -31,11 +33,7 @@ export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
 
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t(`${prefix}.eyebrow`)}</p>
-        <h2>{t(`${prefix}.title`)}</h2>
-        <p>{t(`${prefix}.description`)}</p>
-      </div>
+      <PageHeader eyebrow={t(`${prefix}.eyebrow`)} title={t(`${prefix}.title`)} description={t(`${prefix}.description`)} />
       <div className="card-grid card-grid--two">
         {actions.map((action) => (
           <article className="content-card" key={action.key}>
