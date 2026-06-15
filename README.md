@@ -24,36 +24,33 @@ manufacturer check-out, Excel imports, and role-based administration.
 ```text
 .
 ├── AGENTS.md                  # Guidance for future coding agents
-├── agent-tasks/               # Direct prompts for implementation agents
 ├── backend/                   # Django REST backend
 ├── deploy/                    # Nginx and Caddy (HTTPS) reverse-proxy assets
-├── docs/                      # Product, architecture, API, backlog, deployment docs
+├── docs/                      # Product, architecture, API, deployment docs
 ├── frontend/                  # React + TypeScript + Vite frontend
-├── scripts/                   # Backup/restore operational scripts
+├── scripts/                   # Setup, backup, and restore scripts
 ├── .env.example               # Environment template
 ├── Makefile                   # Helper targets (up, up-tls, backup, restore, ...)
 ├── docker-compose.yml         # Production/local service topology
 └── docker-compose.tls.yml     # Optional automatic-HTTPS (Caddy) overlay
 ```
 
-## Current repository state
+## Current state
 
-This repository contains the planning and documentation set plus a working
-backend and frontend implementation: authentication and roles, vehicle and
-master-data management, the check-in/loan/return/manufacturer-checkout
-workflows, media uploads and PDF protocols, Excel import, German/English
-localization, and a Docker Compose deployment with backup/restore tooling.
+A working backend and frontend implementation: authentication and roles,
+vehicle and master-data management, the check-in/loan/return/manufacturer-checkout
+workflows, QR quick access, media uploads and PDF protocols, Excel import,
+German/English localization, and a Docker Compose deployment with backup/restore
+tooling.
 
-## Start here
+## Documentation
 
-1. Read `docs/requirements.md`.
-2. Review `docs/architecture.md` and `docs/api-design.md`.
-3. Review `docs/i18n.md` for German/English translation requirements.
-4. Use `docs/backlog.md` to sequence implementation.
-5. Assign agents using `docs/agent-prompts.md` or the focused prompts in
-   `agent-tasks/`.
-6. Use `docs/deployment.md` when turning the implementation into a running
-   Docker Compose deployment.
+- `docs/requirements.md` - product scope, roles, statuses, and workflows.
+- `docs/architecture.md` - architecture, modules, and data-consistency rules.
+- `docs/api-design.md` and `docs/data-model.md` - API and data model reference.
+- `docs/i18n.md` - German/English translation strategy.
+- `docs/vehicle-import.md` - Excel import format.
+- `docs/deployment.md` - full deployment, HTTPS, media storage, backup/restore.
 
 ## Deployment
 
