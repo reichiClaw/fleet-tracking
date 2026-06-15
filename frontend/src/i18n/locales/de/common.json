@@ -227,7 +227,10 @@
     "damage": {
       "title": "Schadensmeldung",
       "description": "Schadensbeschreibung",
-      "severity": "Schweregrad"
+      "severity": "Schweregrad",
+      "hasDamage": "Schaden ist aufgetreten",
+      "optionalHint": "Kein Schaden zu melden.",
+      "requiredForDamagedStatus": "Schadensangaben sind erforderlich, wenn der Zielstatus auf \"Beschädigt\" gesetzt ist."
     }
   },
   "media": {

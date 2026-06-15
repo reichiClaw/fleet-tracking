@@ -227,7 +227,10 @@
     "damage": {
       "title": "Damage report",
       "description": "Damage description",
-      "severity": "Severity"
+      "severity": "Severity",
+      "hasDamage": "Damage occurred",
+      "optionalHint": "No damage to report.",
+      "requiredForDamagedStatus": "Damage details are required when target status is set to damaged."
     }
   },
   "media": {

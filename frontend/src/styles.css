@@ -703,3 +703,15 @@ td {
   font-weight: 600;
   color: #1f6feb;
 }
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.checkbox-inline input {
+  width: 1rem;
+  height: 1rem;
+}

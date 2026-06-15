@@ -44,6 +44,26 @@ class WorkflowAPITestCase(TestCase):
 
 
 class CheckInWorkflowTests(WorkflowAPITestCase):
+    def test_check_in_without_damage_reports_is_allowed(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=10, hours="1.0")
+
+        response = self.api_client().post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(vehicle.id),
+                "odometer_km": 20,
+                "operating_hours": "2.5",
+                "target_status": VehicleStatus.AVAILABLE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+        self.assertEqual(CheckInProtocol.objects.count(), 1)
+        self.assertEqual(DamageReport.objects.count(), 0)
+
     def test_check_in_creates_protocol_damage_media_audit_and_updates_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=10, hours="1.0")
 

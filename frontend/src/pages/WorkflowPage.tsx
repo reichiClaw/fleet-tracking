@@ -73,6 +73,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
   const [targetStatus, setTargetStatus] = useState('available');
+  const [hasDamage, setHasDamage] = useState(false);
   const [damageDescription, setDamageDescription] = useState('');
   const [damageSeverity, setDamageSeverity] = useState('minor');
 
@@ -113,6 +114,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const activeLoans = useMemo(() => loans.filter((item) => item.status === 'active'), [loans]);
   const selectedLoan = useMemo(() => loans.find((item) => item.id === loan), [loan, loans]);
   const selectedVehicleId = kind === 'loan-return' ? selectedLoan?.vehicle : vehicle;
+  const damageRequiredByStatus = (kind === 'check-in' || kind === 'loan-return') && targetStatus === 'damaged';
+  const damageActive = hasDamage || damageRequiredByStatus;
   const currentTitleKey = `workflows.${translationPrefix(kind)}.title`;
   const language = i18n.language.startsWith('de') ? 'de' : 'en';
 
@@ -142,7 +145,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       }
     }
 
-    if (damageSeverity !== 'unknown' && !damageDescription.trim() && targetStatus === 'damaged') {
+    if (damageActive && !damageDescription.trim()) {
       nextErrors.damageDescription = t('workflows.validation.damageDescriptionRequired');
     }
 
@@ -245,7 +248,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       assignIfPresent(payload, 'condition_notes', notes.trim());
     }
 
-    if (damageDescription.trim()) {
+    if (damageActive && damageDescription.trim()) {
       payload.damage_reports = [{ description: damageDescription.trim(), severity: damageSeverity }];
     }
 
@@ -397,18 +400,43 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
         <fieldset className="fieldset-card">
           <legend>{t('workflows.damage.title')}</legend>
-          <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription}>
-            <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
-          </Field>
-          <Field label={t('workflows.damage.severity')}>
-            <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
-              {severityOptions.map((severity) => (
-                <option key={severity} value={severity}>
-                  {t(`severity.${severity}`)}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <label className="checkbox-inline">
+            <input
+              type="checkbox"
+              checked={damageActive}
+              disabled={damageRequiredByStatus}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setHasDamage(next);
+                if (!next) {
+                  setDamageDescription('');
+                  setDamageSeverity('minor');
+                }
+              }}
+            />
+            <span>{t('workflows.damage.hasDamage')}</span>
+          </label>
+          {damageRequiredByStatus ? (
+            <p className="hint-text">{t('workflows.damage.requiredForDamagedStatus')}</p>
+          ) : null}
+          {damageActive ? (
+            <>
+              <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription}>
+                <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
+              </Field>
+              <Field label={t('workflows.damage.severity')}>
+                <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
+                  {severityOptions.map((severity) => (
+                    <option key={severity} value={severity}>
+                      {t(`severity.${severity}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          ) : (
+            <p className="hint-text">{t('workflows.damage.optionalHint')}</p>
+          )}
         </fieldset>
 
         <fieldset className="fieldset-card">
