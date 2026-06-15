@@ -69,7 +69,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [borrowerName, setBorrowerName] = useState('');
   const [borrowerPhone, setBorrowerPhone] = useState('');
   const [expectedReturnAt, setExpectedReturnAt] = useState('');
-  const [performedAt, setPerformedAt] = useState('');
+  const [performedAt, setPerformedAt] = useState(nowForDateTimeLocal);
   const [actualReturnAt, setActualReturnAt] = useState('');
   const [odometer, setOdometer] = useState('');
   const [hours, setHours] = useState('');
@@ -490,6 +490,17 @@ function toNumber(value: string) {
 
 function toIso(value: string) {
   return value ? new Date(value).toISOString() : undefined;
+}
+
+/**
+ * Current local date/time formatted for a `datetime-local` input
+ * (`YYYY-MM-DDTHH:mm`). Used to pre-fill "Performed at" so it always carries
+ * the actual time, even when the user does not touch the field.
+ */
+function nowForDateTimeLocal() {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
 }
 
 function loanLabel(loan: Loan, vehicles: Vehicle[], fallback: string) {
