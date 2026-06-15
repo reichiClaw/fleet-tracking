@@ -91,6 +91,18 @@ Alternatively, `./scripts/setup.sh` automates dependency install, checks, and
 (optionally) deployment: `./scripts/setup.sh --install-system-packages --deploy
 --create-superuser`.
 
+To populate the app with realistic demo data for testing (categories,
+companies, drivers, vehicles across every status, an active and a returned
+loan, a damage report, and protocols), run:
+
+```bash
+docker compose exec backend python manage.py seed_demo_data
+```
+
+It creates demo users `demo-operations` and `demo-readonly` (default password
+`demo-pass-1234`, override with `--password`). It is idempotent and must not be
+run in production.
+
 ### HTTPS (recommended for production)
 
 Set `TLS_DOMAIN`/`TLS_EMAIL` in `.env`, enable secure cookies
