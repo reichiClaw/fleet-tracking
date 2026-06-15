@@ -11,6 +11,7 @@ import {
   type CompanyType,
   type Driver,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
@@ -34,8 +35,8 @@ export function CompanyManagementPage() {
     setError(null);
     try {
       setCompanies(await listCompanies());
-    } catch {
-      setError(t('management.loadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('management.loadError')));
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +61,8 @@ export function CompanyManagementPage() {
       setPhone('');
       setEmail('');
       await loadCompanies();
-    } catch {
-      setError(t('management.saveError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('management.saveError')));
     } finally {
       setIsSubmitting(false);
     }
@@ -137,8 +138,8 @@ export function DriverManagementPage() {
       const [nextDrivers, nextCompanies] = await Promise.all([listDrivers(), listCompanies()]);
       setDrivers(nextDrivers);
       setCompanies(nextCompanies);
-    } catch {
-      setError(t('management.loadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('management.loadError')));
     } finally {
       setIsLoading(false);
     }
@@ -173,8 +174,8 @@ export function DriverManagementPage() {
       setEmail('');
       setLicenseClasses('');
       await loadDrivers();
-    } catch {
-      setError(t('management.saveError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('management.saveError')));
     } finally {
       setIsSubmitting(false);
     }

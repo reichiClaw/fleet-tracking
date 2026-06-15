@@ -47,6 +47,15 @@
       "retry": "Erneut versuchen"
     }
   },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "connection": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+    "permission": "Sie haben keine Berechtigung für diese Aktion. Bitte melden Sie sich erneut an oder wenden Sie sich an einen Administrator.",
+    "notFound": "Der angeforderte Eintrag wurde nicht gefunden. Er wurde möglicherweise geändert oder entfernt.",
+    "tooLarge": "Der Upload ist zu groß. Bitte verwenden Sie eine kleinere Datei.",
+    "throttled": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+    "server": "Auf dem Server ist ein Problem aufgetreten. Bitte versuchen Sie es in Kürze erneut."
+  },
   "auth": {
     "login": {
       "title": "Anmelden",

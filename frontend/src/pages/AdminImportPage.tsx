@@ -2,6 +2,7 @@ import { type ChangeEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commitVehicleImport, uploadVehicleImport, type ImportJob } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 
 export function AdminImportPage() {
@@ -27,8 +28,8 @@ export function AdminImportPage() {
     setError(null);
     try {
       setJob(await uploadVehicleImport(file));
-    } catch {
-      setError(t('imports.uploadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('imports.uploadError')));
     } finally {
       setIsUploading(false);
     }
@@ -42,8 +43,8 @@ export function AdminImportPage() {
     setError(null);
     try {
       setJob(await commitVehicleImport(job.id));
-    } catch {
-      setError(t('imports.commitError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('imports.commitError')));
     } finally {
       setIsCommitting(false);
     }

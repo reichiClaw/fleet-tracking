@@ -10,6 +10,7 @@ import {
   type Loan,
   type Vehicle,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
@@ -57,9 +58,9 @@ export function QRAccessPage() {
           setVehicles(nextVehicles);
           setLoans(nextLoans);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('qr.loadError'));
+          setError(getApiErrorMessage(error, t, t('qr.loadError')));
         }
       } finally {
         if (isMounted) {
@@ -262,9 +263,9 @@ export function QRResolvePage() {
         }
         const action = normalizeQrAction(searchParams.get('action'));
         navigate(pathForQrAction(resolution.vehicle, resolution.active_loan ?? undefined, action), { replace: true });
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('qr.resolve.error'));
+          setError(getApiErrorMessage(error, t, t('qr.resolve.error')));
         }
       }
     }

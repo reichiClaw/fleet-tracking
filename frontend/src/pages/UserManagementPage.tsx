@@ -9,6 +9,7 @@ import {
   type ManagedUser,
   type UserRole,
 } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
@@ -35,8 +36,8 @@ export function UserManagementPage() {
     setError(null);
     try {
       setUsers(await listUsers());
-    } catch {
-      setError(t('users.loadError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('users.loadError')));
     } finally {
       setIsLoading(false);
     }
@@ -74,8 +75,8 @@ export function UserManagementPage() {
       setPassword('');
       setNotice(t('users.created'));
       await loadUsers();
-    } catch {
-      setError(t('users.saveError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('users.saveError')));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,8 +89,8 @@ export function UserManagementPage() {
     try {
       await action();
       await loadUsers();
-    } catch {
-      setError(t('users.saveError'));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('users.saveError')));
     } finally {
       setPendingId(null);
     }

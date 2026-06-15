@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { displayVehicleName, listVehicleCategories, listVehicles, type Vehicle, type VehicleCategory } from '../api/fleet';
+import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
@@ -41,9 +42,9 @@ export function VehicleHistoryPage() {
         if (isMounted) {
           setCategories(nextCategories.filter((item) => item.is_active));
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('vehicles.loadError'));
+          setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
         }
       }
     }
@@ -63,9 +64,9 @@ export function VehicleHistoryPage() {
         if (isMounted) {
           setVehicles(nextVehicles);
         }
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setError(t('vehicles.loadError'));
+          setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
           setVehicles([]);
         }
       } finally {
