@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from accounts.views import LoginView, LogoutView, MeView, UserViewSet
+from accounts.views import CsrfView, LoginView, LogoutView, MeView, UserViewSet
 from audit.views import AuditLogViewSet
 from config.views import health
 from damages.views import DamageReportViewSet
@@ -38,6 +38,7 @@ router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
+    path("api/v1/auth/csrf/", CsrfView.as_view(), name="auth-csrf"),
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),

@@ -3,6 +3,7 @@ const LANGUAGE_STORAGE_KEY = 'fleet-language';
 const SUPPORTED_REQUEST_LANGUAGES = new Set(['de', 'en']);
 const CSRF_COOKIE_NAME = 'csrftoken';
 const CSRF_HEADER_NAME = 'X-CSRFToken';
+const CSRF_PATH = '/auth/csrf/';
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
@@ -63,6 +64,29 @@ function isUnsafeMethod(method?: string) {
   return UNSAFE_METHODS.has((method ?? 'GET').toUpperCase());
 }
 
+let csrfBootstrap: Promise<void> | null = null;
+
+async function ensureCsrfToken() {
+  if (getCookie(CSRF_COOKIE_NAME)) {
+    return;
+  }
+  // Django only issues the CSRF cookie on demand. Fetch it once so that
+  // authenticated writes (which require X-CSRFToken) work after a reload or
+  // before the first login, not only immediately after logging in.
+  if (!csrfBootstrap) {
+    csrfBootstrap = fetch(buildApiUrl(CSRF_PATH), {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    })
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        csrfBootstrap = null;
+      });
+  }
+  await csrfBootstrap;
+}
+
 export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | null | undefined>) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = `${API_BASE_URL}${normalizedPath}`;
@@ -85,6 +109,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const { body, headers, language, ...requestInit } = options;
   const isFormData = body instanceof FormData;
   const requestLanguage = resolveRequestLanguage(language);
+  if (isUnsafeMethod(requestInit.method)) {
+    await ensureCsrfToken();
+  }
   const csrfToken = isUnsafeMethod(requestInit.method) ? getCookie(CSRF_COOKIE_NAME) : undefined;
 
   const response = await fetch(buildApiUrl(path), {
