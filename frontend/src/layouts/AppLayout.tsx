@@ -49,40 +49,42 @@ export function AppLayout() {
           <p className="eyebrow">{t('app.subtitle')}</p>
           <h1>{t('app.name')}</h1>
         </div>
-        <div className="top-bar__actions">
-          <div className="top-bar__actions-desktop">
-            <LanguageSelector />
-            <button className="secondary-button" type="button" onClick={() => void logout()}>
-              {t('navigation.logout')}
-            </button>
+        <div className="top-bar__right">
+          <div className="top-bar__identity">
+            <span>{t('layout.signedInAs')}</span>
+            <strong>{user?.name}</strong>
+            <small>{roleLabel}</small>
           </div>
-          <button
-            className="secondary-button top-bar__menu-trigger"
-            type="button"
-            aria-label={t('layout.quickActions')}
-            aria-expanded={isQuickActionsOpen}
-            onClick={() => setIsQuickActionsOpen((current) => !current)}
-          >
-            <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
-          <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
-            <LanguageSelector />
-            <button className="secondary-button" type="button" onClick={() => void logout()}>
-              {t('navigation.logout')}
+          <div className="top-bar__actions">
+            <div className="top-bar__actions-desktop">
+              <LanguageSelector />
+              <button className="secondary-button" type="button" onClick={() => void logout()}>
+                {t('navigation.logout')}
+              </button>
+            </div>
+            <button
+              className="secondary-button top-bar__menu-trigger"
+              type="button"
+              aria-label={t('layout.quickActions')}
+              aria-expanded={isQuickActionsOpen}
+              onClick={() => setIsQuickActionsOpen((current) => !current)}
+            >
+              <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
             </button>
+            <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
+              <LanguageSelector />
+              <button className="secondary-button" type="button" onClick={() => void logout()}>
+                {t('navigation.logout')}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="shell-body">
         <aside className="side-nav" aria-label={t('navigation.primaryLabel')}>
-          <div className="user-card">
-            <span>{t('layout.signedInAs')}</span>
-            <strong>{user?.name}</strong>
-            <small>{roleLabel}</small>
-          </div>
           <nav>
             {visibleItems.map((item) => (
               <NavLink key={item.key} to={item.to} end={item.to === '/app'}>

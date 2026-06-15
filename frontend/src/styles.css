@@ -166,7 +166,17 @@ small {
 .top-bar__actions {
   position: relative;
   justify-content: flex-end;
+}
+
+.top-bar__right {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
   margin-left: auto;
+}
+
+.top-bar__identity {
+  display: none;
 }
 
 .top-bar__actions-desktop {
@@ -264,10 +274,6 @@ small {
 .chip:hover {
   color: #ffffff;
   background: #1769aa;
-}
-
-.user-card {
-  display: none;
 }
 
 .content-panel {
@@ -512,6 +518,14 @@ td {
     align-items: center;
   }
 
+  .top-bar__identity {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: #ffffff;
+  }
+
   .top-bar__menu-trigger,
   .top-bar__menu {
     display: none;
@@ -526,14 +540,6 @@ td {
     display: grid;
     grid-template-columns: 1fr;
     overflow: visible;
-  }
-
-  .user-card {
-    display: grid;
-    gap: 0.15rem;
-    padding: 1rem;
-    border-radius: 1rem;
-    background: #ffffff;
   }
 
   .filter-panel {
