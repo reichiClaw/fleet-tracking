@@ -616,3 +616,90 @@ td {
 .form-grid__full {
   grid-column: 1 / -1;
 }
+
+/* Dashboard: colored status summary cards */
+.summary-card {
+  border-left: 6px solid #c7d4e0;
+}
+.summary-card .status-badge {
+  justify-self: start;
+}
+.summary-card--ok {
+  border-left-color: #1f9d57;
+  background: #f1fbf5;
+}
+.summary-card--ok strong {
+  color: #0d5132;
+}
+.summary-card--warn {
+  border-left-color: #e0a200;
+  background: #fffaef;
+}
+.summary-card--warn strong {
+  color: #7a4b00;
+}
+.summary-card--info {
+  border-left-color: #7c4dff;
+  background: #f7f4ff;
+}
+.summary-card--info strong {
+  color: #4f2c82;
+}
+.summary-card--danger {
+  border-left-color: #d83a3a;
+  background: #fff5f5;
+}
+.summary-card--danger strong {
+  color: #8a1f1f;
+}
+
+/* Dashboard: available-by-category grid */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+}
+.category-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid #d7e2ec;
+  border-radius: 1rem;
+  text-decoration: none;
+  color: inherit;
+  background: #ffffff;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.category-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+}
+.category-card--available {
+  border-color: #b6e6c9;
+  background: #f1fbf5;
+}
+.category-card--empty {
+  opacity: 0.75;
+}
+.category-card__name {
+  font-weight: 700;
+  color: #20303f;
+}
+.category-card__count {
+  font-size: 2.2rem;
+  line-height: 1;
+  color: #0d5132;
+}
+.category-card--empty .category-card__count {
+  color: #8a97a5;
+}
+.category-card__meta {
+  font-size: 0.8rem;
+  color: #607083;
+}
+.category-card__cta {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f6feb;
+}

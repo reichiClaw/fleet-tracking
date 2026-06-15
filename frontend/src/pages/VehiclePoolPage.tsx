@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import {
   displayDriverName,
@@ -33,12 +33,13 @@ const statuses = [
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [status, setStatus] = useState('');
-  const [category, setCategory] = useState('');
+  const [status, setStatus] = useState(searchParams.get('status') ?? '');
+  const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);

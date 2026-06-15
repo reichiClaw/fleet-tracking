@@ -72,6 +72,13 @@
       "maintenance": "Maintenance",
       "damaged": "Damaged"
     },
+    "byCategory": {
+      "title": "Available by category",
+      "description": "Number of vehicles ready to loan in each category. Select a category to see them.",
+      "ofTotal": "of {{total}} total",
+      "viewAvailable": "View available",
+      "empty": "No vehicles in any category yet."
+    },
     "overdue": {
       "title": "Overdue loans",
       "empty": "No overdue loans found."

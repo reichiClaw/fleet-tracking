@@ -72,6 +72,13 @@
       "maintenance": "Wartung",
       "damaged": "Beschädigt"
     },
+    "byCategory": {
+      "title": "Verfügbar nach Kategorie",
+      "description": "Anzahl ausleihbarer Fahrzeuge je Kategorie. Wählen Sie eine Kategorie, um sie anzuzeigen.",
+      "ofTotal": "von {{total}} gesamt",
+      "viewAvailable": "Verfügbare anzeigen",
+      "empty": "Noch keine Fahrzeuge in einer Kategorie."
+    },
     "overdue": {
       "title": "Überfällige Ausleihen",
       "empty": "Keine überfälligen Ausleihen gefunden."
