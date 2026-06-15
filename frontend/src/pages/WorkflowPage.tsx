@@ -353,7 +353,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
               <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
             </Field>
             <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone}>
-              <input value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+              <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
             </Field>
             <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt}>
               <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />

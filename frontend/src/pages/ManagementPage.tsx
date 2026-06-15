@@ -99,7 +99,7 @@ export function CompanyManagementPage() {
           </label>
           <label>
             <span>{t('management.fields.phone')}</span>
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <input min="0" step="1" type="number" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </label>
           <label>
             <span>{t('management.fields.email')}</span>
@@ -212,7 +212,7 @@ export function DriverManagementPage() {
         <div className="form-grid form-grid--three">
           <label>
             <span>{t('management.fields.phone')}</span>
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <input min="0" step="1" type="number" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </label>
           <label>
             <span>{t('management.fields.email')}</span>

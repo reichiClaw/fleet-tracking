@@ -293,7 +293,7 @@ export function LoanCheckoutPage() {
                   <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
                 <Field label={t('loanCheckout.phoneOptional')}>
-                  <input value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
                 </Field>
               </>
             ) : null}
@@ -304,7 +304,7 @@ export function LoanCheckoutPage() {
                   <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
                 <Field label={t('loanCheckout.phoneOptional')}>
-                  <input value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
                 </Field>
               </>
             ) : null}
