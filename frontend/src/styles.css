@@ -958,6 +958,16 @@ tbody tr:hover td {
   .top-bar__menu-trigger {
     width: 2.5rem;
   }
+
+  /* Keep the segmented selector ("Who is borrowing?") on a single row instead
+     of stacking each option full-width. */
+  .segmented {
+    flex-wrap: nowrap;
+  }
+
+  .segmented__option {
+    width: auto;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1061,19 +1071,21 @@ tbody tr:hover td {
 
 .segmented {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
 .segmented__option {
-  flex: 1 1 8rem;
-  padding: 0.6rem 0.75rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.6rem 0.5rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text-soft);
   font-weight: 600;
+  text-align: center;
   cursor: pointer;
   box-shadow: none;
 }
