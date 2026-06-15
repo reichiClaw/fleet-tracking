@@ -66,11 +66,11 @@ describe('WorkflowPage damage handling', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('heading', { name: 'Check-in' });
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'veh-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
 
-    await waitFor(() => expect(screen.getByText('Check-in abgeschlossen')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Fahrzeug zum Pool hinzugefügt')).toBeInTheDocument());
     expect(lastCheckInPayload).toMatchObject({ vehicle: 'veh-1' });
     expect(lastCheckInPayload).not.toHaveProperty('damage_reports');
   });

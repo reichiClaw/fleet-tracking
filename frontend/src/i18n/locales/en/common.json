@@ -28,7 +28,7 @@
     "qrAccess": "QR access",
     "workflows": "Workflows",
     "loanWorkflows": "Loan workflows",
-    "manufacturerWorkflows": "Manufacturer workflows",
+    "manufacturerWorkflows": "Add / remove vehicles",
     "drivers": "Drivers",
     "companies": "Companies",
     "imports": "Imports",
@@ -191,9 +191,9 @@
     "submit": "Complete workflow",
     "submitting": "Submitting...",
     "checkIn": {
-      "title": "Check-in",
-      "description": "Record arrival condition and make the vehicle available, damaged, or in maintenance.",
-      "completed": "Check-in completed"
+      "title": "Add new vehicle to pool",
+      "description": "Add a vehicle to the operational pool: record its arrival condition and set it available, damaged, or in maintenance.",
+      "completed": "Vehicle added to pool"
     },
     "loanCheckout": {
       "title": "Loan checkout",
@@ -207,9 +207,9 @@
       "completed": "Loan return completed"
     },
     "manufacturerCheckout": {
-      "title": "Manufacturer check-out",
-      "description": "Record handoff to a manufacturer or supplier.",
-      "completed": "Manufacturer check-out completed"
+      "title": "Remove vehicle from pool",
+      "description": "Remove a vehicle from the operational pool (e.g. handed over to a manufacturer or supplier).",
+      "completed": "Vehicle removed from pool"
     },
     "fields": {
       "vehicle": "Vehicle",
@@ -273,19 +273,19 @@
       }
     },
     "manufacturer": {
-      "eyebrow": "Manufacturer workflows",
-      "title": "Manufacturer workflows",
-      "description": "Keep manufacturer handovers separate from normal loan workflows.",
+      "eyebrow": "Vehicle pool",
+      "title": "Add or remove vehicles",
+      "description": "Add vehicles to the operational pool or remove them when they leave the fleet.",
       "actions": {
         "checkout": {
-          "title": "Manufacturer check-out",
-          "description": "Record vehicle handover to a manufacturer or supplier.",
-          "open": "Start manufacturer check-out"
+          "title": "Remove vehicle from pool",
+          "description": "Record a vehicle leaving the operational pool (e.g. handed over to a manufacturer or supplier).",
+          "open": "Remove vehicle"
         },
         "checkIn": {
-          "title": "Manufacturer return check-in",
-          "description": "Check a returned manufacturer vehicle back into the operational fleet.",
-          "open": "Start manufacturer return check-in"
+          "title": "Add new vehicle to pool",
+          "description": "Check a vehicle into the operational pool (a new delivery or a returned vehicle).",
+          "open": "Add vehicle"
         }
       }
     }
@@ -497,8 +497,8 @@
         "description": "Open status, history, media, and PDF actions."
       },
       "checkIn": {
-        "title": "Check-in",
-        "description": "Start delivery check-in for this vehicle."
+        "title": "Add new vehicle to pool",
+        "description": "Add this vehicle to the operational pool."
       },
       "loanCheckout": {
         "title": "Loan checkout",
@@ -509,8 +509,8 @@
         "description": "Open the active loan return workflow."
       },
       "manufacturerCheckout": {
-        "title": "Manufacturer check-out",
-        "description": "Start manufacturer or supplier check-out."
+        "title": "Remove vehicle from pool",
+        "description": "Remove this vehicle from the operational pool."
       }
     }
   },

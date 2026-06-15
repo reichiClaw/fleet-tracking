@@ -46,7 +46,7 @@ describe('App smoke flow', () => {
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Historie' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ausleihe-Workflows' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Hersteller-Workflows' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fahrzeuge hinzufügen/entfernen' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'QR-Zugriff' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Importe' })).toBeInTheDocument();
   });
@@ -57,7 +57,7 @@ describe('App smoke flow', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Check-in' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Importe' })).not.toBeInTheDocument();
   });
