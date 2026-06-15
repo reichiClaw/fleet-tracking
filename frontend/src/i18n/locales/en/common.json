@@ -77,29 +77,78 @@
   },
   "dashboard": {
     "eyebrow": "Overview",
-    "title": "Dashboard",
-    "description": "A quick operational summary from vehicles and active loans.",
-    "apiFallback": "Dashboard API data is not available yet. Showing placeholders where no data can be loaded.",
-    "cards": {
-      "available": "Available",
-      "loaned": "Loaned",
-      "maintenance": "Maintenance",
-      "damaged": "Damaged"
+    "title": "Fleet dashboard",
+    "description": "What's happening across your fleet right now — and what needs attention.",
+    "asOf": "As of {{date}}",
+    "loadError": "The dashboard could not be loaded.",
+    "primaryAction": "Loan a vehicle",
+    "secondaryAction": "Vehicle pool",
+    "empty": {
+      "title": "Your fleet is empty",
+      "body": "Add your first vehicle to start tracking availability, loans, and maintenance.",
+      "action": "Add a vehicle"
+    },
+    "kpis": {
+      "fleet": { "label": "Fleet size", "helper": "{{count}} operational" },
+      "available": { "label": "Available", "helper": "Ready to loan" },
+      "loaned": { "label": "On loan", "helper": "{{pct}}% utilization" },
+      "maintenance": { "label": "In maintenance", "helper": "Currently being serviced" },
+      "damaged": { "label": "Damaged", "helper": "Needs attention" },
+      "overdue": { "label": "Overdue returns", "helper": "{{count}} active loans" }
+    },
+    "activity": {
+      "title": "Loan checkouts",
+      "subtitle": "Last 14 days",
+      "total": "{{count}} checkouts in 14 days",
+      "trendUp": "Up {{pct}}% vs the previous week",
+      "trendDown": "Down {{pct}}% vs the previous week",
+      "trendFlat": "No change vs the previous week",
+      "summary": "Daily loan checkouts for the last 14 days."
+    },
+    "statusChart": {
+      "title": "Fleet status",
+      "subtitle": "Current distribution",
+      "centerLabel": "vehicles",
+      "empty": "No vehicles to show yet.",
+      "summary": "Vehicle status distribution:"
+    },
+    "attention": {
+      "title": "Needs attention"
+    },
+    "overdue": {
+      "title": "Overdue returns",
+      "empty": "All loans are on time.",
+      "due": "Due {{date}}"
+    },
+    "damaged": {
+      "title": "Damaged vehicles",
+      "empty": "No damaged vehicles."
     },
     "byCategory": {
       "title": "Available by category",
-      "description": "Number of vehicles ready to loan in each category. Select a category to see them.",
+      "description": "Vehicles ready to loan in each category. Select a category to see them.",
       "ofTotal": "of {{total}} total",
       "viewAvailable": "View available",
       "empty": "No vehicles in any category yet."
     },
-    "overdue": {
-      "title": "Overdue loans",
-      "empty": "No overdue loans found."
+    "recent": {
+      "title": "Recent loans",
+      "empty": "No loans recorded yet.",
+      "columns": {
+        "vehicle": "Vehicle",
+        "borrower": "Borrower",
+        "status": "Status",
+        "date": "Date"
+      }
     },
-    "activity": {
-      "title": "Recent activity",
-      "placeholder": "Recent activity will use the dedicated dashboard endpoint when it is exposed."
+    "quickActions": {
+      "title": "Quick actions",
+      "loan": "Loan a vehicle",
+      "return": "Return a vehicle",
+      "addVehicle": "Add a vehicle",
+      "qr": "QR access",
+      "pool": "Vehicle pool",
+      "history": "Vehicle history"
     }
   },
   "vehicles": {

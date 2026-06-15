@@ -42,7 +42,7 @@ describe('App smoke flow', () => {
     fireEvent.change(screen.getByLabelText('Demo-Rolle'), { target: { value: 'admin' } });
     fireEvent.click(screen.getByRole('button', { name: 'Anmelden' }));
 
-    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Fuhrpark-Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Historie' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ausleihe-Workflows' })).toBeInTheDocument();
@@ -81,8 +81,8 @@ describe('App smoke flow', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Check-in' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Fuhrpark-Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' })).not.toBeInTheDocument();
   });
 
   it('routes authenticated users to the QR access page', async () => {

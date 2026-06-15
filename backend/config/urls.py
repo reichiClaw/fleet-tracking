@@ -6,6 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import CsrfView, LoginView, LogoutView, MeView, UserViewSet
 from audit.views import AuditLogViewSet
+from config.dashboard import DashboardSummaryView
 from config.views import health, readiness
 from damages.views import DamageReportViewSet
 from drivers.views import DriverViewSet
@@ -43,6 +44,7 @@ urlpatterns = [
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),
+    path("api/v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path(
         "api/v1/public/vehicles/qr/<str:qr_code>/",
         PublicVehicleStatusView.as_view(),

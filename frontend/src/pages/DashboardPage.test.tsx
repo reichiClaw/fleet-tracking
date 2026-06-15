@@ -3,46 +3,83 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
+import { AuthProvider } from '../auth/AuthContext';
 import { DashboardPage } from './DashboardPage';
 
-const categories = [
-  { id: 'cat-steiger', name: 'Steiger', is_active: true },
-  { id: 'cat-loader', name: 'Loader', is_active: true },
-];
-const vehicles = [
-  { id: 'v1', qr_code: 'VH-1', internal_number: 'FZ-00001', category: 'cat-steiger', manufacturer: 'A', model: 'm', status: 'available' },
-  { id: 'v2', qr_code: 'VH-2', internal_number: 'FZ-00002', category: 'cat-steiger', manufacturer: 'A', model: 'm', status: 'loaned' },
-  { id: 'v3', qr_code: 'VH-3', internal_number: 'FZ-00003', category: 'cat-loader', manufacturer: 'A', model: 'm', status: 'damaged' },
-  {
-    id: 'v4',
-    qr_code: 'VH-4',
-    internal_number: 'FZ-00004',
-    category: 'cat-steiger',
-    manufacturer: 'A',
-    model: 'm',
-    status: 'manufacturer_checkout',
+const summary = {
+  generated_at: '2026-06-15T12:00:00Z',
+  totals: {
+    vehicles: 4,
+    operational: 4,
+    available: 1,
+    loaned: 1,
+    maintenance: 1,
+    damaged: 1,
+    manufacturer_checkout: 0,
+    announced: 0,
+    archived: 0,
+    active_loans: 1,
+    overdue_loans: 1,
+    utilization_pct: 25,
   },
-];
+  status_distribution: [
+    { status: 'available', count: 1 },
+    { status: 'loaned', count: 1 },
+    { status: 'maintenance', count: 1 },
+    { status: 'damaged', count: 1 },
+  ],
+  checkouts_series: Array.from({ length: 14 }, (_, index) => ({
+    date: `2026-06-${String(index + 1).padStart(2, '0')}`,
+    count: index % 3,
+  })),
+  available_by_category: [{ id: 'cat-steiger', name: 'Steiger', total: 2, available: 1 }],
+  recent_loans: [
+    {
+      id: 'loan-1',
+      vehicle_label: 'FZ-00002 · Acme · TH100',
+      borrower: 'Borrower',
+      status: 'active',
+      created_at: '2026-06-14T10:00:00Z',
+      expected_return_at: '2026-06-20T10:00:00Z',
+    },
+  ],
+  attention: {
+    overdue_loans: [
+      { id: 'ovd-1', vehicle_label: 'FZ-00009 · Acme · TH100', borrower: 'Late Borrower', expected_return_at: '2026-06-10T10:00:00Z' },
+    ],
+    damaged_vehicles: [{ id: 'dmg-1', label: 'FZ-00003 · Acme · TH100', status: 'damaged' }],
+  },
+};
 
-function jsonResponse(body: unknown) {
-  return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
 }
 
 function installFetchMock() {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (url.includes('/vehicle-categories/')) return jsonResponse(categories);
-    if (url.includes('/vehicles/')) return jsonResponse(vehicles);
-    if (url.includes('/loans/')) return jsonResponse([]);
+    if (url.includes('/auth/me/')) return jsonResponse({ username: 'ops', role: 'operations', display_name: 'Ops' });
+    if (url.includes('/dashboard/summary/')) return jsonResponse(summary);
     return jsonResponse({});
   });
   vi.stubGlobal('fetch', fetchMock);
+}
+
+function renderDashboard() {
+  return render(
+    <MemoryRouter>
+      <AuthProvider>
+        <DashboardPage />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
 }
 
 describe('DashboardPage', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    window.localStorage.clear();
     installFetchMock();
     await i18n.changeLanguage('de');
   });
@@ -51,32 +88,45 @@ describe('DashboardPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows available vehicles per category with a link to the filtered pool', async () => {
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    );
+  it('renders KPIs, charts, and a category link from the dashboard summary', async () => {
+    renderDashboard();
 
-    const steigerLink = await screen.findByRole('link', { name: /Steiger/ });
-    expect(within(steigerLink).getByText('1')).toBeInTheDocument();
-    expect(within(steigerLink).getByText('von 2 gesamt')).toBeInTheDocument();
-    expect(steigerLink).toHaveAttribute('href', '/app/vehicles?status=available&category=cat-steiger');
+    expect(await screen.findByRole('heading', { name: 'Fuhrpark-Dashboard' })).toBeInTheDocument();
 
-    const loaderLink = screen.getByRole('link', { name: /Loader/ });
-    expect(within(loaderLink).getByText('0')).toBeInTheDocument();
+    // KPI labels are present
+    expect(screen.getByText('Fuhrparkgröße')).toBeInTheDocument();
+    // "Overdue returns" appears as both a KPI and an attention panel title
+    expect(screen.getAllByText('Überfällige Rückgaben').length).toBeGreaterThanOrEqual(1);
+
+    // Available-by-category link points to the filtered pool
+    const steiger = screen.getByRole('link', { name: /Steiger/ });
+    expect(within(steiger).getByText('1')).toBeInTheDocument();
+    expect(steiger).toHaveAttribute('href', '/app/vehicles?status=available&category=cat-steiger');
+
+    // Two accessible charts (donut + activity) are rendered
+    expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(2);
+
+    // Recent loans table shows the latest loan
+    expect(screen.getByText('FZ-00002 · Acme · TH100')).toBeInTheDocument();
+    // Overdue attention panel shows the late loan
+    expect(screen.getByText('FZ-00009 · Acme · TH100')).toBeInTheDocument();
   });
 
-  it('renders colored status summary counts', async () => {
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
+  it('shows a friendly empty state when there are no vehicles', async () => {
+    vi.unstubAllGlobals();
+    const emptySummary = { ...summary, totals: { ...summary.totals, vehicles: 0 } };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/auth/me/')) return jsonResponse({ username: 'ops', role: 'operations' });
+        if (url.includes('/dashboard/summary/')) return jsonResponse(emptySummary);
+        return jsonResponse({});
+      }),
     );
 
-    expect(await screen.findByText('Verfügbar nach Kategorie')).toBeInTheDocument();
-    // available=1, loaned=1, damaged=1, maintenance=0 across the summary cards.
-    const summaryValues = document.querySelectorAll('.summary-card strong');
-    expect(summaryValues.length).toBe(4);
+    renderDashboard();
+
+    expect(await screen.findByText('Ihr Fuhrpark ist leer')).toBeInTheDocument();
   });
 });

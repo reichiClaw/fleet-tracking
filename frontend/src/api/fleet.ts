@@ -220,7 +220,40 @@ export type PublicVehicleStatus = {
   current_location?: string;
 };
 
-export type DashboardSummary = Record<string, number>;
+export type DashboardTotals = {
+  vehicles: number;
+  operational: number;
+  available: number;
+  loaned: number;
+  maintenance: number;
+  damaged: number;
+  manufacturer_checkout: number;
+  announced: number;
+  archived: number;
+  active_loans: number;
+  overdue_loans: number;
+  utilization_pct: number;
+};
+
+export type DashboardSummary = {
+  generated_at: string;
+  totals: DashboardTotals;
+  status_distribution: { status: VehicleStatus; count: number }[];
+  checkouts_series: { date: string; count: number }[];
+  available_by_category: { id: string; name: string; total: number; available: number }[];
+  recent_loans: {
+    id: string;
+    vehicle_label: string;
+    borrower: string;
+    status: LoanStatus;
+    created_at: string | null;
+    expected_return_at: string | null;
+  }[];
+  attention: {
+    overdue_loans: { id: string; vehicle_label: string; borrower: string; expected_return_at: string }[];
+    damaged_vehicles: { id: string; label: string; status: VehicleStatus }[];
+  };
+};
 
 export type VehicleFilters = {
   status?: string;
@@ -289,6 +322,10 @@ function pathWithQuery(path: string, query: Record<string, string | number | boo
   });
   const queryString = params.toString();
   return queryString ? `${path}?${queryString}` : path;
+}
+
+export async function getDashboardSummary() {
+  return apiClient.get<DashboardSummary>('/dashboard/summary/');
 }
 
 export async function listVehicles(filters: VehicleFilters = {}) {

@@ -77,29 +77,78 @@
   },
   "dashboard": {
     "eyebrow": "Übersicht",
-    "title": "Dashboard",
-    "description": "Eine schnelle operative Übersicht aus Fahrzeugen und aktiven Ausleihen.",
-    "apiFallback": "Dashboard-API-Daten sind noch nicht verfügbar. Platzhalter werden angezeigt, wenn keine Daten geladen werden können.",
-    "cards": {
-      "available": "Verfügbar",
-      "loaned": "Ausgeliehen",
-      "maintenance": "Wartung",
-      "damaged": "Beschädigt"
+    "title": "Fuhrpark-Dashboard",
+    "description": "Was gerade im Fuhrpark passiert – und was Ihre Aufmerksamkeit braucht.",
+    "asOf": "Stand: {{date}}",
+    "loadError": "Das Dashboard konnte nicht geladen werden.",
+    "primaryAction": "Fahrzeug ausleihen",
+    "secondaryAction": "Fahrzeugpool",
+    "empty": {
+      "title": "Ihr Fuhrpark ist leer",
+      "body": "Fügen Sie Ihr erstes Fahrzeug hinzu, um Verfügbarkeit, Ausleihen und Wartung zu verfolgen.",
+      "action": "Fahrzeug hinzufügen"
+    },
+    "kpis": {
+      "fleet": { "label": "Fuhrparkgröße", "helper": "{{count}} im Einsatz" },
+      "available": { "label": "Verfügbar", "helper": "Bereit zur Ausleihe" },
+      "loaned": { "label": "Ausgeliehen", "helper": "{{pct}}% Auslastung" },
+      "maintenance": { "label": "In Wartung", "helper": "Wird gerade gewartet" },
+      "damaged": { "label": "Beschädigt", "helper": "Braucht Aufmerksamkeit" },
+      "overdue": { "label": "Überfällige Rückgaben", "helper": "{{count}} aktive Ausleihen" }
+    },
+    "activity": {
+      "title": "Ausleihen",
+      "subtitle": "Letzte 14 Tage",
+      "total": "{{count}} Ausleihen in 14 Tagen",
+      "trendUp": "{{pct}}% mehr als in der Vorwoche",
+      "trendDown": "{{pct}}% weniger als in der Vorwoche",
+      "trendFlat": "Keine Veränderung zur Vorwoche",
+      "summary": "Tägliche Ausleihen der letzten 14 Tage."
+    },
+    "statusChart": {
+      "title": "Fuhrparkstatus",
+      "subtitle": "Aktuelle Verteilung",
+      "centerLabel": "Fahrzeuge",
+      "empty": "Noch keine Fahrzeuge vorhanden.",
+      "summary": "Statusverteilung der Fahrzeuge:"
+    },
+    "attention": {
+      "title": "Braucht Aufmerksamkeit"
+    },
+    "overdue": {
+      "title": "Überfällige Rückgaben",
+      "empty": "Alle Ausleihen sind im Zeitplan.",
+      "due": "Fällig {{date}}"
+    },
+    "damaged": {
+      "title": "Beschädigte Fahrzeuge",
+      "empty": "Keine beschädigten Fahrzeuge."
     },
     "byCategory": {
       "title": "Verfügbar nach Kategorie",
-      "description": "Anzahl ausleihbarer Fahrzeuge je Kategorie. Wählen Sie eine Kategorie, um sie anzuzeigen.",
+      "description": "Ausleihbare Fahrzeuge je Kategorie. Wählen Sie eine Kategorie, um sie anzuzeigen.",
       "ofTotal": "von {{total}} gesamt",
       "viewAvailable": "Verfügbare anzeigen",
       "empty": "Noch keine Fahrzeuge in einer Kategorie."
     },
-    "overdue": {
-      "title": "Überfällige Ausleihen",
-      "empty": "Keine überfälligen Ausleihen gefunden."
+    "recent": {
+      "title": "Letzte Ausleihen",
+      "empty": "Noch keine Ausleihen erfasst.",
+      "columns": {
+        "vehicle": "Fahrzeug",
+        "borrower": "Entleiher",
+        "status": "Status",
+        "date": "Datum"
+      }
     },
-    "activity": {
-      "title": "Aktuelle Aktivitäten",
-      "placeholder": "Aktuelle Aktivitäten nutzen den dedizierten Dashboard-Endpunkt, sobald er bereitsteht."
+    "quickActions": {
+      "title": "Schnellaktionen",
+      "loan": "Fahrzeug ausleihen",
+      "return": "Fahrzeug zurückgeben",
+      "addVehicle": "Fahrzeug hinzufügen",
+      "qr": "QR-Zugriff",
+      "pool": "Fahrzeugpool",
+      "history": "Fahrzeughistorie"
     }
   },
   "vehicles": {
