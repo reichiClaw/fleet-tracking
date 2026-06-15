@@ -220,3 +220,26 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         response = self.client_for(self.readonly_user).get("/api/v1/vehicles/qr/VH-UNKNOWN999/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_internal_number_is_generated_when_omitted(self):
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/vehicles/",
+            {"category": str(self.category.id), "manufacturer": "Acme", "model": "GenA"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(response.data["internal_number"].startswith("FZ-"))
+
+    def test_generated_internal_numbers_are_unique_and_sequential(self):
+        client = self.client_for(self.admin_user)
+        first = client.post(
+            "/api/v1/vehicles/", {"category": str(self.category.id), "manufacturer": "Acme", "model": "G1"}, format="json"
+        )
+        second = client.post(
+            "/api/v1/vehicles/", {"category": str(self.category.id), "manufacturer": "Acme", "model": "G2"}, format="json"
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(first.data["internal_number"], second.data["internal_number"])

@@ -22,6 +22,22 @@ def generate_vehicle_qr_code() -> str:
     return "VH-" + "".join(secrets.choice(QR_CODE_ALPHABET) for _ in range(10))
 
 
+INTERNAL_NUMBER_PREFIX = "FZ-"
+
+
+def generate_internal_number() -> str:
+    """Return the next sequential internal fleet number, e.g. FZ-00001."""
+    highest = 0
+    existing = Vehicle.objects.filter(internal_number__startswith=INTERNAL_NUMBER_PREFIX).values_list(
+        "internal_number", flat=True
+    )
+    for number in existing:
+        suffix = number[len(INTERNAL_NUMBER_PREFIX) :]
+        if suffix.isdigit():
+            highest = max(highest, int(suffix))
+    return f"{INTERNAL_NUMBER_PREFIX}{highest + 1:05d}"
+
+
 class VehicleStatus(models.TextChoices):
     ANNOUNCED = "announced", _("Announced")
     CHECKED_IN = "checked_in", _("Checked in")
@@ -72,7 +88,7 @@ class VehicleCategory(TimeStampedUUIDModel):
 
 
 class Vehicle(TimeStampedUUIDModel):
-    internal_number = models.CharField(max_length=80, unique=True)
+    internal_number = models.CharField(max_length=80, unique=True, blank=True)
     qr_code = models.CharField(max_length=24, unique=True, default=generate_vehicle_qr_code, editable=False)
     category = models.ForeignKey(VehicleCategory, on_delete=models.PROTECT, related_name="vehicles")
     manufacturer = models.CharField(max_length=120)
@@ -138,5 +154,7 @@ class Vehicle(TimeStampedUUIDModel):
     def save(self, *args, **kwargs):
         if not self.qr_code:
             self.qr_code = generate_vehicle_qr_code()
+        if not self.internal_number:
+            self.internal_number = generate_internal_number()
         self.full_clean()
         return super().save(*args, **kwargs)
