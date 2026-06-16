@@ -1,8 +1,10 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import {
+  cancelReservation,
+  createReservation,
   displayVehicleName,
   generateCheckInPdf,
   generateLoanCheckoutPdf,
@@ -11,27 +13,61 @@ import {
   getVehicle,
   getVehicleHistory,
   mediaDownloadUrl,
+  scheduleManufacturerReturn,
   type Loan,
   type MediaFile,
   type Vehicle,
   type VehicleHistory,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
+import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
+import { Field } from '../components/Field';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
+import { ReservationTimeline } from '../components/ReservationTimeline';
 import { StatusBadge } from '../components/StatusBadge';
 import { publicVehiclePath } from './QRAccessPage';
+
+function defaultReservationStart() {
+  const date = new Date();
+  date.setHours(8, 0, 0, 0);
+  date.setDate(date.getDate() + 1);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
+function defaultReservationEnd() {
+  const date = new Date();
+  date.setHours(17, 0, 0, 0);
+  date.setDate(date.getDate() + 1);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
 
 export function VehicleDetailPage() {
   const { vehicleId } = useParams();
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const canManage = user?.role === 'admin' || user?.role === 'operations';
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [history, setHistory] = useState<VehicleHistory | null>(null);
   const [generatedMedia, setGeneratedMedia] = useState<MediaFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const [reservationStart, setReservationStart] = useState(defaultReservationStart);
+  const [reservationEnd, setReservationEnd] = useState(defaultReservationEnd);
+  const [reservedFor, setReservedFor] = useState('');
+  const [reservationNotes, setReservationNotes] = useState('');
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const [isReserving, setIsReserving] = useState(false);
+
+  const [returnDue, setReturnDue] = useState('');
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [isSavingReturn, setIsSavingReturn] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -46,6 +82,7 @@ export function VehicleDetailPage() {
         if (isMounted) {
           setVehicle(nextVehicle);
           setHistory(nextHistory);
+          setReturnDue(nextVehicle.manufacturer_return_due ?? '');
         }
       } catch (error) {
         if (isMounted) {
@@ -61,9 +98,72 @@ export function VehicleDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [t, vehicleId]);
+  }, [t, vehicleId, reloadToken]);
+
+  async function handleCreateReservation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!vehicleId) {
+      return;
+    }
+    setReservationError(null);
+    if (!reservationStart || !reservationEnd) {
+      setReservationError(t('reservations.validation.required'));
+      return;
+    }
+    setIsReserving(true);
+    try {
+      await createReservation({
+        vehicle: vehicleId,
+        start_at: new Date(reservationStart).toISOString(),
+        end_at: new Date(reservationEnd).toISOString(),
+        reserved_for: reservedFor.trim(),
+        notes: reservationNotes.trim(),
+      });
+      setReservedFor('');
+      setReservationNotes('');
+      setReloadToken((token) => token + 1);
+    } catch (createError) {
+      setReservationError(getApiErrorMessage(createError, t, t('reservations.saveError')));
+    } finally {
+      setIsReserving(false);
+    }
+  }
+
+  async function handleCancelReservation(id: string) {
+    setReservationError(null);
+    try {
+      await cancelReservation(id);
+      setReloadToken((token) => token + 1);
+    } catch (cancelError) {
+      setReservationError(getApiErrorMessage(cancelError, t, t('reservations.saveError')));
+    }
+  }
+
+  async function handleSaveReturnDue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!vehicleId) {
+      return;
+    }
+    setReturnError(null);
+    setIsSavingReturn(true);
+    try {
+      const updated = await scheduleManufacturerReturn(vehicleId, returnDue || null);
+      setVehicle(updated);
+      setReturnDue(updated.manufacturer_return_due ?? '');
+    } catch (saveError) {
+      setReturnError(getApiErrorMessage(saveError, t, t('reservations.returnDue.saveError')));
+    } finally {
+      setIsSavingReturn(false);
+    }
+  }
 
   const activeLoan = useMemo(() => history?.loans.find((loan) => loan.status === 'active'), [history]);
+  const reservations = useMemo(() => history?.reservations ?? [], [history]);
+  const activeReservations = useMemo(() => reservations.filter((item) => item.status === 'active'), [reservations]);
+  const reservationDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }),
+    [i18n.language],
+  );
   const reports = useMemo(() => (history?.media ?? []).filter((media) => media.media_type === 'pdf'), [history]);
 
   function reportTypeLabel(relatedType?: string) {
@@ -183,6 +283,90 @@ export function VehicleDetailPage() {
             <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="content-card">
+        <div className="card-title-row">
+          <div>
+            <h3>{t('reservations.title')}</h3>
+            <p className="hint-text">{t('reservations.description')}</p>
+          </div>
+        </div>
+
+        <form className="reservation-return" onSubmit={handleSaveReturnDue}>
+          {vehicle.manufacturer_return_due ? (
+            <p className="status-badge status-badge--manufacturer_checkout">
+              {t('reservations.returnDue.current', {
+                date: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(
+                  new Date(vehicle.manufacturer_return_due),
+                ),
+              })}
+            </p>
+          ) : (
+            <p className="hint-text">{t('reservations.returnDue.none')}</p>
+          )}
+          {canManage ? (
+            <div className="action-row action-row--wrap">
+              <Field label={t('reservations.returnDue.label')}>
+                <input type="date" value={returnDue ?? ''} onChange={(event) => setReturnDue(event.target.value)} />
+              </Field>
+              <button type="submit" className="warning-button" disabled={isSavingReturn}>
+                {t('reservations.returnDue.save')}
+              </button>
+            </div>
+          ) : null}
+          {returnError ? <p className="field-error">{returnError}</p> : null}
+        </form>
+
+        {activeReservations.length || vehicle.manufacturer_return_due ? (
+          <ReservationTimeline reservations={reservations} returnDue={vehicle.manufacturer_return_due} />
+        ) : (
+          <p className="hint-text">{t('reservations.empty')}</p>
+        )}
+
+        {canManage ? (
+          <form className="form-stack" onSubmit={handleCreateReservation}>
+            <div className="form-grid form-grid--two">
+              <Field label={t('reservations.fields.start')}>
+                <input type="datetime-local" value={reservationStart} onChange={(event) => setReservationStart(event.target.value)} />
+              </Field>
+              <Field label={t('reservations.fields.end')}>
+                <input type="datetime-local" value={reservationEnd} onChange={(event) => setReservationEnd(event.target.value)} />
+              </Field>
+            </div>
+            <Field label={t('reservations.fields.reservedFor')}>
+              <input value={reservedFor} onChange={(event) => setReservedFor(event.target.value)} />
+            </Field>
+            <Field label={t('reservations.fields.notes')}>
+              <textarea value={reservationNotes} onChange={(event) => setReservationNotes(event.target.value)} />
+            </Field>
+            {reservationError ? <p className="field-error">{reservationError}</p> : null}
+            <button type="submit" className="success-button" disabled={isReserving}>
+              {isReserving ? t('reservations.saving') : t('reservations.submit')}
+            </button>
+          </form>
+        ) : null}
+
+        {activeReservations.length ? (
+          <ul className="list-stack list-stack--actions">
+            {activeReservations.map((reservation) => (
+              <li key={reservation.id}>
+                <div>
+                  <strong>{reservation.reserved_for || t('reservations.untitled')}</strong>
+                  <small>
+                    {reservationDateFormatter.format(new Date(reservation.start_at))} –{' '}
+                    {reservationDateFormatter.format(new Date(reservation.end_at))}
+                  </small>
+                </div>
+                {canManage ? (
+                  <button type="button" className="danger-button" onClick={() => handleCancelReservation(reservation.id)}>
+                    {t('reservations.cancel')}
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <section className="content-card">

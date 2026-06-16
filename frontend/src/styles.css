@@ -1566,3 +1566,73 @@ tbody tr:hover td {
     align-items: start;
   }
 }
+
+/* ==========================================================================
+   Reservation timeline
+   ========================================================================== */
+
+.reservation-return {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.timeline__track {
+  position: relative;
+  height: 3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: repeating-linear-gradient(90deg, var(--surface-muted), var(--surface-muted) 1px, transparent 1px, transparent 10%);
+  overflow: hidden;
+}
+
+.timeline__bar {
+  position: absolute;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--brand-600);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.timeline__bar-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline__today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-soft);
+  z-index: 2;
+}
+
+.timeline__due {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed var(--danger-line);
+  z-index: 2;
+}
+
+.timeline__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

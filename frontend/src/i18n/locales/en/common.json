@@ -595,6 +595,37 @@
       }
     }
   },
+  "reservations": {
+    "title": "Reservations & schedule",
+    "description": "Reserve this vehicle for a period and see upcoming bookings on the timeline.",
+    "empty": "No upcoming reservations.",
+    "untitled": "Reservation",
+    "submit": "Reserve vehicle",
+    "saving": "Reserving...",
+    "cancel": "Cancel",
+    "saveError": "The reservation could not be saved.",
+    "fields": {
+      "start": "From",
+      "end": "Until",
+      "reservedFor": "Reserved for",
+      "notes": "Notes"
+    },
+    "validation": {
+      "required": "Please choose a start and end time."
+    },
+    "timeline": {
+      "summary": "Reservation timeline with {{count}} active reservations.",
+      "today": "Today"
+    },
+    "returnDue": {
+      "label": "Send back to manufacturer by",
+      "save": "Save return date",
+      "saveError": "The return date could not be saved.",
+      "none": "No manufacturer return scheduled.",
+      "current": "Return to manufacturer by {{date}}",
+      "marker": "Manufacturer return due {{date}}"
+    }
+  },
   "reports": {
     "eyebrow": "Documents",
     "title": "Reports",

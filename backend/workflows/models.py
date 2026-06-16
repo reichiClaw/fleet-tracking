@@ -85,6 +85,39 @@ class Loan(TimeStampedUUIDModel):
         return super().save(*args, **kwargs)
 
 
+class ReservationStatus(models.TextChoices):
+    ACTIVE = "active", _("Active")
+    CANCELLED = "cancelled", _("Cancelled")
+
+
+class Reservation(TimeStampedUUIDModel):
+    """A time-bounded booking of a vehicle (separate from its current status)."""
+
+    vehicle = models.ForeignKey("vehicles.Vehicle", on_delete=models.CASCADE, related_name="reservations")
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField()
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.SET_NULL, null=True, blank=True, related_name="reservations")
+    company = models.ForeignKey("parties.Company", on_delete=models.SET_NULL, null=True, blank=True, related_name="reservations")
+    reserved_for = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=ReservationStatus.choices, default=ReservationStatus.ACTIVE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_reservations")
+
+    class Meta:
+        ordering = ["start_at"]
+
+    def __str__(self) -> str:
+        return f"Reservation {self.vehicle_id} ({self.start_at:%Y-%m-%d} - {self.end_at:%Y-%m-%d})"
+
+    def clean(self):
+        if self.start_at and self.end_at and self.end_at <= self.start_at:
+            raise ValidationError({"end_at": _("Reservation end must be after its start.")})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class CheckInProtocol(TimeStampedUUIDModel):
     vehicle = models.ForeignKey("vehicles.Vehicle", on_delete=models.PROTECT, related_name="check_in_protocols")
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="check_in_protocols")

@@ -595,6 +595,37 @@
       }
     }
   },
+  "reservations": {
+    "title": "Reservierungen & Termine",
+    "description": "Reservieren Sie dieses Fahrzeug für einen Zeitraum und sehen Sie anstehende Buchungen in der Zeitleiste.",
+    "empty": "Keine anstehenden Reservierungen.",
+    "untitled": "Reservierung",
+    "submit": "Fahrzeug reservieren",
+    "saving": "Wird reserviert...",
+    "cancel": "Stornieren",
+    "saveError": "Die Reservierung konnte nicht gespeichert werden.",
+    "fields": {
+      "start": "Von",
+      "end": "Bis",
+      "reservedFor": "Reserviert für",
+      "notes": "Notizen"
+    },
+    "validation": {
+      "required": "Bitte wählen Sie Start- und Endzeit."
+    },
+    "timeline": {
+      "summary": "Reservierungs-Zeitleiste mit {{count}} aktiven Reservierungen.",
+      "today": "Heute"
+    },
+    "returnDue": {
+      "label": "Rückgabe an Hersteller bis",
+      "save": "Rückgabedatum speichern",
+      "saveError": "Das Rückgabedatum konnte nicht gespeichert werden.",
+      "none": "Keine Hersteller-Rückgabe geplant.",
+      "current": "Rückgabe an Hersteller bis {{date}}",
+      "marker": "Hersteller-Rückgabe fällig {{date}}"
+    }
+  },
   "reports": {
     "eyebrow": "Dokumente",
     "title": "Berichte",

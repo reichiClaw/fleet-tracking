@@ -14,7 +14,12 @@ from imports.views import ImportJobViewSet
 from mediafiles.views import GeneratedDocumentViewSet, MediaFileViewSet
 from parties.views import CompanyViewSet
 from vehicles.views import PublicVehicleStatusView, VehicleCategoryViewSet, VehicleViewSet
-from workflows.views import CheckInProtocolViewSet, LoanViewSet, ManufacturerCheckOutProtocolViewSet
+from workflows.views import (
+    CheckInProtocolViewSet,
+    LoanViewSet,
+    ManufacturerCheckOutProtocolViewSet,
+    ReservationViewSet,
+)
 
 
 router = DefaultRouter()
@@ -24,6 +29,7 @@ router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("companies", CompanyViewSet, basename="company")
 router.register("drivers", DriverViewSet, basename="driver")
 router.register("loans", LoanViewSet, basename="loan")
+router.register("reservations", ReservationViewSet, basename="reservation")
 router.register("workflows/check-ins", CheckInProtocolViewSet, basename="check-in-protocol")
 router.register(
     "workflows/manufacturer-checkouts",

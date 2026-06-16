@@ -38,6 +38,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             "current_operating_hours",
             "current_location",
             "notes",
+            "manufacturer_return_due",
             "archived_at",
             "created_at",
             "updated_at",

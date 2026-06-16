@@ -8,7 +8,7 @@ from drivers.models import Driver
 from mediafiles.models import MediaFile
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleStatus
-from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
+from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol, Reservation, ReservationStatus
 
 
 class LoanSerializer(serializers.ModelSerializer):
@@ -68,6 +68,48 @@ class LoanSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"return_operating_hours": _("Return operating hours must not be lower than checkout operating hours.")}
             )
+        return attrs
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = [
+            "id",
+            "vehicle",
+            "start_at",
+            "end_at",
+            "driver",
+            "company",
+            "reserved_for",
+            "notes",
+            "status",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "status", "created_by", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        instance = self.instance
+        vehicle = attrs.get("vehicle", getattr(instance, "vehicle", None))
+        start = attrs.get("start_at", getattr(instance, "start_at", None))
+        end = attrs.get("end_at", getattr(instance, "end_at", None))
+        if start and end and end <= start:
+            raise serializers.ValidationError({"end_at": _("Reservation end must be after its start.")})
+        if vehicle and start and end:
+            overlapping = Reservation.objects.filter(
+                vehicle=vehicle,
+                status=ReservationStatus.ACTIVE,
+                start_at__lt=end,
+                end_at__gt=start,
+            )
+            if instance is not None:
+                overlapping = overlapping.exclude(pk=instance.pk)
+            if overlapping.exists():
+                raise serializers.ValidationError(
+                    {"start_at": _("This vehicle already has an active reservation that overlaps this period.")}
+                )
         return attrs
 
 

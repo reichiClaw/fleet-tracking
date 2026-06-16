@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accounts.permissions import AuthenticatedReadAdminOperationsWriteNoDelete
-from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
+from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol, Reservation, ReservationStatus
 from workflows.serializers import (
     CheckInProtocolSerializer,
     CheckInWorkflowSerializer,
@@ -14,6 +14,7 @@ from workflows.serializers import (
     LoanSerializer,
     ManufacturerCheckOutProtocolSerializer,
     ManufacturerCheckOutWorkflowSerializer,
+    ReservationSerializer,
 )
 from mediafiles.serializers import MediaFileSerializer
 from workflows.pdf import (
@@ -134,6 +135,33 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
             protocol=self.get_object(), actor=request.user, language=_pdf_language(request)
         )
         return Response(MediaFileSerializer(media, context={"request": request}).data)
+
+
+class ReservationViewSet(viewsets.ModelViewSet):
+    queryset = Reservation.objects.select_related("vehicle", "driver", "company", "created_by").all()
+    serializer_class = ReservationSerializer
+    permission_classes = [AuthenticatedReadAdminOperationsWriteNoDelete]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        vehicle = self.request.query_params.get("vehicle")
+        status_value = self.request.query_params.get("status")
+        if vehicle:
+            queryset = queryset.filter(vehicle_id=vehicle)
+        if status_value:
+            queryset = queryset.filter(status=status_value)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        reservation = self.get_object()
+        reservation.status = ReservationStatus.CANCELLED
+        reservation.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(reservation).data)
 
 
 def _pdf_language(request) -> str | None:

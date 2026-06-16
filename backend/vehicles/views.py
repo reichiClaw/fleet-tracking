@@ -3,20 +3,31 @@
 from __future__ import annotations
 
 from django.utils import timezone
-from rest_framework import status, viewsets
+from django.utils.dateparse import parse_date
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import AuthenticatedReadAdminWrite, IsAdminRole, VehiclePermission
+from accounts.permissions import (
+    AuthenticatedReadAdminOperationsWriteNoDelete,
+    AuthenticatedReadAdminWrite,
+    IsAdminRole,
+    VehiclePermission,
+)
 from damages.serializers import DamageReportSerializer
 from mediafiles.serializers import MediaFileSerializer
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from vehicles.serializers import VehicleCategorySerializer, VehicleSerializer
 from workflows.models import LoanStatus
-from workflows.serializers import CheckInProtocolSerializer, LoanSerializer, ManufacturerCheckOutProtocolSerializer
+from workflows.serializers import (
+    CheckInProtocolSerializer,
+    LoanSerializer,
+    ManufacturerCheckOutProtocolSerializer,
+    ReservationSerializer,
+)
 
 
 class VehicleCategoryViewSet(viewsets.ModelViewSet):
@@ -66,12 +77,30 @@ class VehicleViewSet(viewsets.ModelViewSet):
         serializer.save(archived_at=timezone.now())
         return Response(serializer.data)
 
+    @action(detail=True, methods=["post"], url_path="schedule-manufacturer-return", permission_classes=[AuthenticatedReadAdminOperationsWriteNoDelete])
+    def schedule_manufacturer_return(self, request, pk=None):
+        """Set or clear the date by which the vehicle must be sent back to the manufacturer."""
+        vehicle = self.get_object()
+        raw = request.data.get("manufacturer_return_due")
+        if raw in (None, ""):
+            vehicle.manufacturer_return_due = None
+        else:
+            parsed = parse_date(str(raw))
+            if parsed is None:
+                raise serializers.ValidationError({"manufacturer_return_due": "Enter a valid date (YYYY-MM-DD)."})
+            vehicle.manufacturer_return_due = parsed
+        vehicle.save(update_fields=["manufacturer_return_due", "updated_at"])
+        return Response(VehicleSerializer(vehicle, context={"request": request}).data)
+
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
         vehicle = self.get_object()
         return Response(
             {
                 "loans": LoanSerializer(vehicle.loans.all().order_by("-created_at"), many=True).data,
+                "reservations": ReservationSerializer(
+                    vehicle.reservations.all().order_by("start_at"), many=True
+                ).data,
                 "check_ins": CheckInProtocolSerializer(vehicle.check_in_protocols.all().order_by("-performed_at"), many=True).data,
                 "manufacturer_checkouts": ManufacturerCheckOutProtocolSerializer(
                     vehicle.manufacturer_checkout_protocols.all().order_by("-performed_at"), many=True

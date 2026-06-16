@@ -45,6 +45,7 @@ export type VehicleStatus =
   | 'archived';
 
 export type LoanStatus = 'active' | 'returned' | 'cancelled';
+export type ReservationStatus = 'active' | 'cancelled';
 export type CompanyType = 'subcontractor' | 'manufacturer' | 'supplier' | 'internal';
 export type MediaType = 'photo' | 'signature' | 'pdf' | 'import';
 
@@ -76,8 +77,23 @@ export type Vehicle = {
   current_operating_hours?: string | number | null;
   current_location?: string;
   notes?: string;
+  manufacturer_return_due?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type Reservation = {
+  id: string;
+  vehicle: string;
+  start_at: string;
+  end_at: string;
+  driver?: string | null;
+  company?: string | null;
+  reserved_for?: string;
+  notes?: string;
+  status: ReservationStatus;
+  created_by?: string;
+  created_at?: string;
 };
 
 export type Company = {
@@ -177,6 +193,7 @@ export type DamageReport = {
 
 export type VehicleHistory = {
   loans: Loan[];
+  reservations: Reservation[];
   check_ins: CheckInProtocol[];
   manufacturer_checkouts: ManufacturerCheckoutProtocol[];
   damages: DamageReport[];
@@ -393,6 +410,29 @@ export async function createDriver(payload: Partial<Driver>) {
 export async function listLoans() {
   const response = await apiClient.get<Loan[] | PaginatedResponse<Loan>>('/loans/');
   return listFromResponse(response);
+}
+
+export type ReservationFilters = { vehicle?: string; status?: ReservationStatus };
+
+export async function listReservations(filters: ReservationFilters = {}) {
+  const response = await apiClient.get<Reservation[] | PaginatedResponse<Reservation>>(
+    pathWithQuery('/reservations/', filters),
+  );
+  return listFromResponse(response);
+}
+
+export async function createReservation(payload: Record<string, unknown>) {
+  return apiClient.post<Reservation>('/reservations/', payload);
+}
+
+export async function cancelReservation(id: string) {
+  return apiClient.post<Reservation>(`/reservations/${id}/cancel/`);
+}
+
+export async function scheduleManufacturerReturn(vehicleId: string, due: string | null) {
+  return apiClient.post<Vehicle>(`/vehicles/${vehicleId}/schedule-manufacturer-return/`, {
+    manufacturer_return_due: due ?? '',
+  });
 }
 
 export async function uploadMedia(file: File | Blob, metadata: Partial<MediaFile> & { media_type: MediaType }) {

@@ -248,7 +248,10 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         response = self.client_for(self.readonly_user).get(f"/api/v1/vehicles/{self.vehicle.id}/history/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(set(response.data.keys()), {"loans", "check_ins", "manufacturer_checkouts", "damages", "media"})
+        self.assertEqual(
+            set(response.data.keys()),
+            {"loans", "reservations", "check_ins", "manufacturer_checkouts", "damages", "media"},
+        )
         self.assertEqual(len(response.data["loans"]), 1)
 
     def test_vehicle_qr_resolver_uses_generated_code_not_id(self):

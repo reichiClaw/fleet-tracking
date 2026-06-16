@@ -100,6 +100,9 @@ class Vehicle(TimeStampedUUIDModel):
     current_operating_hours = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
     current_location = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
+    # Optional scheduled date by which the vehicle must be removed from the pool
+    # and sent back to the manufacturer/supplier.
+    manufacturer_return_due = models.DateField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
