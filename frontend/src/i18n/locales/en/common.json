@@ -710,10 +710,14 @@
       "start": "From",
       "end": "Until",
       "reservedFor": "Reserved for",
+      "driver": "Driver",
+      "driverPlaceholder": "Search a driver by name, phone…",
+      "noDrivers": "No drivers found — add one under Companies & Drivers",
       "notes": "Notes"
     },
     "validation": {
-      "required": "Please choose a start and end time."
+      "required": "Please choose a start and end time.",
+      "driverRequired": "Please select a driver from the database."
     },
     "timeline": {
       "summary": "Reservation timeline with {{count}} active reservations.",

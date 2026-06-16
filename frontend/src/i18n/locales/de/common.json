@@ -710,10 +710,14 @@
       "start": "Von",
       "end": "Bis",
       "reservedFor": "Reserviert für",
+      "driver": "Fahrer",
+      "driverPlaceholder": "Fahrer nach Name, Telefon … suchen",
+      "noDrivers": "Keine Fahrer gefunden – unter Firmen & Fahrer anlegen",
       "notes": "Notizen"
     },
     "validation": {
-      "required": "Bitte wählen Sie Start- und Endzeit."
+      "required": "Bitte wählen Sie Start- und Endzeit.",
+      "driverRequired": "Bitte wählen Sie einen Fahrer aus der Datenbank."
     },
     "timeline": {
       "summary": "Reservierungs-Zeitleiste mit {{count}} aktiven Reservierungen.",
