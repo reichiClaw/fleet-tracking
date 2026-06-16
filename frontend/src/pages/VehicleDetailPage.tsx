@@ -110,7 +110,7 @@ export function VehicleDetailPage() {
       </div>
 
       <div className="action-row action-row--wrap">
-        <Link className="button-link" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
+        <Link className="button-link success-button" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
           {t('workflows.checkIn.title')}
         </Link>
         <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
@@ -121,7 +121,7 @@ export function VehicleDetailPage() {
             {t('workflows.loanReturn.title')}
           </Link>
         ) : null}
-        <Link className="button-link" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
+        <Link className="button-link danger-button" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
           {t('workflows.manufacturerCheckout.title')}
         </Link>
       </div>

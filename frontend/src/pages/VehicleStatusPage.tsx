@@ -17,6 +17,17 @@ import { StatusBadge } from '../components/StatusBadge';
 
 type StatusAction = { key: string; to: string; primary: boolean };
 
+/** Semantic button color per action: add = green, remove = red, otherwise neutral. */
+function statusActionClass(key: string, primary: boolean): string {
+  if (key === 'checkIn') {
+    return ' success-button';
+  }
+  if (key === 'manufacturerCheckout') {
+    return ' danger-button';
+  }
+  return primary ? '' : ' secondary-button';
+}
+
 /**
  * Build the contextual actions for a vehicle, based on its current status and
  * any active loan. Only meaningful for operators (admin/operations).
@@ -154,11 +165,7 @@ export function VehicleStatusPage() {
                   <h3>{t('qr.status.actionsTitle')}</h3>
                   <div className="action-row action-row--wrap">
                     {actions.map((action) => (
-                      <Link
-                        key={action.key}
-                        className={`button-link${action.primary ? '' : ' secondary-button'}`}
-                        to={action.to}
-                      >
+                      <Link key={action.key} className={`button-link${statusActionClass(action.key, action.primary)}`} to={action.to}>
                         {t(`qr.status.actions.${action.key}`)}
                       </Link>
                     ))}

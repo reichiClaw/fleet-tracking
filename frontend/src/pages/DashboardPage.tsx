@@ -216,7 +216,7 @@ export function DashboardPage() {
           description={t('dashboard.empty.body')}
           action={
             canManageVehicles ? (
-              <Link className="button-link" to="/app/workflows/add-vehicle">
+              <Link className="button-link success-button" to="/app/workflows/add-vehicle">
                 {t('dashboard.empty.action')}
               </Link>
             ) : (

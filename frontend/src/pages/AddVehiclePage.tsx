@@ -222,7 +222,7 @@ export function AddVehiclePage() {
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
 
-          <button type="submit" disabled={isSubmitting}>
+          <button type="submit" className="success-button" disabled={isSubmitting}>
             {isSubmitting ? t('addVehicle.submitting') : t('addVehicle.submit')}
           </button>
         </form>

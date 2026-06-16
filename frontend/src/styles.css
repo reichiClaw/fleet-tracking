@@ -174,14 +174,43 @@ a:hover {
   color: var(--text);
 }
 
-.danger-button {
-  color: var(--danger-fg);
-  background: var(--danger-bg);
-  border-color: #f4c2c2;
+/* Semantic action buttons for clear visual reference:
+   green = add / positive, red = remove / destructive, amber = caution.
+   Solid fills with accessible white text, matching the brand primary weight. */
+.success-button,
+.button-link.success-button {
+  color: #ffffff;
+  background: #1a7f44;
+  border-color: transparent;
 }
 
-.danger-button:hover {
-  background: #ffd2d2;
+.success-button:hover,
+.button-link.success-button:hover {
+  background: #166a39;
+}
+
+.danger-button,
+.button-link.danger-button {
+  color: #ffffff;
+  background: #c62828;
+  border-color: transparent;
+}
+
+.danger-button:hover,
+.button-link.danger-button:hover {
+  background: #a91f1f;
+}
+
+.warning-button,
+.button-link.warning-button {
+  color: #ffffff;
+  background: #b45309;
+  border-color: transparent;
+}
+
+.warning-button:hover,
+.button-link.warning-button:hover {
+  background: #92400e;
 }
 
 /* --------------------------------------------------------------------------

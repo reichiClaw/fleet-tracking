@@ -154,7 +154,7 @@ export function UserManagementPage() {
             />
           </label>
         </div>
-        <button type="submit" disabled={isSubmitting}>
+        <button type="submit" className="success-button" disabled={isSubmitting}>
           {isSubmitting ? t('users.saving') : t('users.addUser')}
         </button>
       </form>
@@ -222,7 +222,7 @@ function UserList({
             </label>
             <button
               type="button"
-              className="secondary-button"
+              className={user.is_active ? 'danger-button' : 'success-button'}
               disabled={isBusy || isSelf}
               onClick={() => onToggleActive(user)}
             >

@@ -464,7 +464,11 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           <p className="hint-text">{t('media.handoffNote')}</p>
         </fieldset>
 
-        <button type="submit" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className={kind === 'check-in' ? 'success-button' : kind === 'manufacturer-checkout' ? 'danger-button' : undefined}
+          disabled={isSubmitting}
+        >
           {isSubmitting ? t('workflows.submitting') : t('workflows.submit')}
         </button>
       </form>

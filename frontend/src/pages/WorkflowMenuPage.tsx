@@ -6,7 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 
 type WorkflowMenuType = 'loan' | 'manufacturer';
 
-type MenuAction = { key: string; to: string; adminOnly?: boolean };
+type MenuAction = { key: string; to: string; adminOnly?: boolean; variant?: 'success' | 'danger' };
 
 export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
   const { t } = useTranslation();
@@ -29,12 +29,14 @@ export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
           {
             key: 'checkout',
             to: '/app/workflows/manufacturer-checkout',
+            variant: 'danger',
           },
           {
             // Adding a brand-new vehicle is master-data work, so it is admin-only.
             key: 'checkIn',
             to: '/app/workflows/add-vehicle',
             adminOnly: true,
+            variant: 'success',
           },
         ];
   const actions = allActions.filter((action) => !action.adminOnly || isAdmin);
@@ -48,7 +50,7 @@ export function WorkflowMenuPage({ type }: { type: WorkflowMenuType }) {
             <h3>{t(`${prefix}.actions.${action.key}.title`)}</h3>
             <p className="hint-text">{t(`${prefix}.actions.${action.key}.description`)}</p>
             <div className="action-row">
-              <Link className="button-link" to={action.to}>
+              <Link className={`button-link${action.variant ? ` ${action.variant}-button` : ''}`} to={action.to}>
                 {t(`${prefix}.actions.${action.key}.open`)}
               </Link>
             </div>

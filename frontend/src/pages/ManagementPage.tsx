@@ -107,7 +107,7 @@ export function CompanyManagementPage() {
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
         </div>
-        <button type="submit" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addCompany')}</button>
+        <button type="submit" className="success-button" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addCompany')}</button>
         </form>
       ) : null}
       {isLoading ? <LoadingState /> : <CompanyList companies={companies} />}
@@ -224,7 +224,7 @@ export function DriverManagementPage() {
             <input value={licenseClasses} onChange={(event) => setLicenseClasses(event.target.value)} />
           </label>
         </div>
-        <button type="submit" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addDriver')}</button>
+        <button type="submit" className="success-button" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addDriver')}</button>
         </form>
       ) : null}
       {isLoading ? <LoadingState /> : <DriverList drivers={drivers} companies={companies} />}
