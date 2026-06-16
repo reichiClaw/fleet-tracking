@@ -105,6 +105,14 @@ export function SearchableSelect({
                   <button
                     type="button"
                     className={`searchable-select__option${option.value === value ? ' is-selected' : ''}`}
+                    // Select on pointer/mouse down and keep the input focused, so
+                    // the option is chosen before the input's blur can close the
+                    // list (in Safari/Firefox clicking a button does not focus it,
+                    // which otherwise dropped the selection).
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      choose(option);
+                    }}
                     onClick={() => choose(option)}
                   >
                     {option.label}
