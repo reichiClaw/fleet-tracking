@@ -95,6 +95,16 @@ class ReservationSerializer(serializers.ModelSerializer):
         vehicle = attrs.get("vehicle", getattr(instance, "vehicle", None))
         start = attrs.get("start_at", getattr(instance, "start_at", None))
         end = attrs.get("end_at", getattr(instance, "end_at", None))
+        # A reservation must name a driver from the database so we can detect when
+        # a vehicle is loaned to the wrong driver (or is overdue) versus who
+        # actually reserved it.
+        driver = attrs.get("driver", getattr(instance, "driver", None))
+        if driver is None:
+            raise serializers.ValidationError(
+                {"driver": _("Please select a driver from the database for the reservation.")}
+            )
+        if not attrs.get("reserved_for") and not getattr(instance, "reserved_for", ""):
+            attrs["reserved_for"] = str(driver)
         if start and end and end <= start:
             raise serializers.ValidationError({"end_at": _("Reservation end must be after its start.")})
         if vehicle and start and end:

@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   cancelReservation,
   createReservation,
+  displayDriverName,
   displayVehicleName,
   generateCheckInPdf,
   generateLoanCheckoutPdf,
@@ -12,11 +13,13 @@ import {
   generateManufacturerCheckoutPdf,
   getVehicle,
   getVehicleHistory,
+  listDrivers,
   listVehicleCategories,
   mediaDownloadUrl,
   scheduleManufacturerReturn,
   updateVehicle,
   type CreateVehiclePayload,
+  type Driver,
   type Loan,
   type MediaFile,
   type Vehicle,
@@ -29,6 +32,7 @@ import { ErrorState } from '../components/ErrorState';
 import { Field } from '../components/Field';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
+import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 import { ReservationTimeline } from '../components/ReservationTimeline';
 import { StatusBadge } from '../components/StatusBadge';
 import { publicVehiclePath } from './QRAccessPage';
@@ -57,6 +61,7 @@ export function VehicleDetailPage() {
   const isAdmin = user?.role === 'admin';
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [history, setHistory] = useState<VehicleHistory | null>(null);
   const [generatedMedia, setGeneratedMedia] = useState<MediaFile | null>(null);
@@ -67,7 +72,7 @@ export function VehicleDetailPage() {
 
   const [reservationStart, setReservationStart] = useState(defaultReservationStart);
   const [reservationEnd, setReservationEnd] = useState(defaultReservationEnd);
-  const [reservedFor, setReservedFor] = useState('');
+  const [reservationDriver, setReservationDriver] = useState('');
   const [reservationNotes, setReservationNotes] = useState('');
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [isReserving, setIsReserving] = useState(false);
@@ -85,15 +90,17 @@ export function VehicleDetailPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicle, nextHistory, nextCategories] = await Promise.all([
+        const [nextVehicle, nextHistory, nextCategories, nextDrivers] = await Promise.all([
           getVehicle(vehicleId),
           getVehicleHistory(vehicleId),
           listVehicleCategories(),
+          listDrivers(),
         ]);
         if (isMounted) {
           setVehicle(nextVehicle);
           setHistory(nextHistory);
           setCategories(nextCategories);
+          setDrivers(nextDrivers.filter((item) => item.is_active));
           setReturnDue(nextVehicle.manufacturer_return_due ?? '');
         }
       } catch (error) {
@@ -122,16 +129,20 @@ export function VehicleDetailPage() {
       setReservationError(t('reservations.validation.required'));
       return;
     }
+    if (!reservationDriver) {
+      setReservationError(t('reservations.validation.driverRequired'));
+      return;
+    }
     setIsReserving(true);
     try {
       await createReservation({
         vehicle: vehicleId,
         start_at: new Date(reservationStart).toISOString(),
         end_at: new Date(reservationEnd).toISOString(),
-        reserved_for: reservedFor.trim(),
+        driver: reservationDriver,
         notes: reservationNotes.trim(),
       });
-      setReservedFor('');
+      setReservationDriver('');
       setReservationNotes('');
       setReloadToken((token) => token + 1);
     } catch (createError) {
@@ -177,6 +188,15 @@ export function VehicleDetailPage() {
     [i18n.language],
   );
   const reports = useMemo(() => (history?.media ?? []).filter((media) => media.media_type === 'pdf'), [history]);
+  const driverOptions = useMemo<SearchableOption[]>(
+    () =>
+      drivers.map((item) => ({
+        value: item.id,
+        label: displayDriverName(item),
+        keywords: [item.phone, item.email, item.license_classes].filter(Boolean).join(' '),
+      })),
+    [drivers],
+  );
 
   function reportTypeLabel(relatedType?: string) {
     const key = `reports.types.${relatedType}`;
@@ -366,9 +386,14 @@ export function VehicleDetailPage() {
                 <input type="datetime-local" value={reservationEnd} onChange={(event) => setReservationEnd(event.target.value)} />
               </Field>
             </div>
-            <Field label={t('reservations.fields.reservedFor')}>
-              <input value={reservedFor} onChange={(event) => setReservedFor(event.target.value)} />
-            </Field>
+            <SearchableSelect
+              label={t('reservations.fields.driver')}
+              options={driverOptions}
+              value={reservationDriver}
+              onChange={setReservationDriver}
+              placeholder={t('reservations.fields.driverPlaceholder')}
+              emptyText={t('reservations.fields.noDrivers')}
+            />
             <Field label={t('reservations.fields.notes')}>
               <textarea value={reservationNotes} onChange={(event) => setReservationNotes(event.target.value)} />
             </Field>

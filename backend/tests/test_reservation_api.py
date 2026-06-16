@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from drivers.models import Driver
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import Reservation, ReservationStatus
 
@@ -27,6 +28,7 @@ class ReservationAPITests(TestCase):
             model="TH100",
             status=VehicleStatus.AVAILABLE,
         )
+        self.driver = Driver.objects.create(first_name="Lukas", last_name="Meyer")
 
     def client_for(self, user):
         client = APIClient()
@@ -39,8 +41,15 @@ class ReservationAPITests(TestCase):
             "vehicle": str(self.vehicle.id),
             "start_at": start.isoformat(),
             "end_at": (start + timedelta(days=duration_days)).isoformat(),
-            "reserved_for": "Crew A",
+            "driver": str(self.driver.id),
         }
+
+    def test_reservation_requires_a_driver(self):
+        data = self.payload()
+        del data["driver"]
+        response = self.client_for(self.operations_user).post(RESERVATIONS_URL, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("driver", response.data)
 
     def test_operations_can_create_reservation(self):
         response = self.client_for(self.operations_user).post(RESERVATIONS_URL, self.payload(), format="json")
