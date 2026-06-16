@@ -733,6 +733,14 @@ small {
   padding: 0 0.4rem;
 }
 
+/* Inside a grid/flex fieldset a <legend> shrinks to min-content and wraps the
+   caption word-by-word. Span the full row so it stays on one line when there is
+   space and only wraps when the text genuinely does not fit. */
+.fieldset-card legend {
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
 .field-error {
   color: var(--danger-fg);
   font-weight: 600;
