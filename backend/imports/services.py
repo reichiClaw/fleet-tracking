@@ -34,8 +34,89 @@ EXPECTED_COLUMNS = [
     "supplier",
     "notes",
 ]
-REQUIRED_COLUMNS = ["internal_number", "category", "manufacturer", "model"]
+# Only the data we cannot derive is required. ``internal_number`` is optional:
+# when the column is missing or a cell is blank the fleet number is generated
+# automatically (e.g. FZ-00001). ``category`` is optional too: unknown or blank
+# categories fall back to the catch-all category below. Any expected column
+# missing from the file is simply treated as blank for every row.
+REQUIRED_COLUMNS = ["manufacturer", "model"]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
+
+# Catch-all category used when an imported row references an unknown/inactive
+# category or leaves it blank. Created on demand at commit time.
+FALLBACK_CATEGORY_NAME = "Sonstiges"
+
+# Accept common German and English header spellings so files do not have to use
+# the exact internal column keys. Keys are the canonical columns; values are the
+# normalized header variants that map onto them.
+COLUMN_ALIASES: dict[str, set[str]] = {
+    "internal_number": {
+        "internal_number",
+        "interne_nummer",
+        "fahrzeugnummer",
+        "fahrzeug_nummer",
+        "fahrzeug_nr",
+        "fzg_nr",
+        "fzg_nummer",
+        "nummer",
+    },
+    "category": {
+        "category",
+        "kategorie",
+        "fahrzeugkategorie",
+        "fahrzeugart",
+        "fahrzeugtyp",
+        "art",
+    },
+    "manufacturer": {"manufacturer", "hersteller", "marke"},
+    "model": {"model", "modell", "bezeichnung", "typ"},
+    "serial_number": {
+        "serial_number",
+        "seriennummer",
+        "serien_nr",
+        "fahrgestellnummer",
+        "fin",
+    },
+    "license_plate": {
+        "license_plate",
+        "kennzeichen",
+        "kfz_kennzeichen",
+        "amtliches_kennzeichen",
+        "nummernschild",
+    },
+    "current_odometer_km": {
+        "current_odometer_km",
+        "kilometerstand",
+        "km_stand",
+        "kilometer",
+        "km",
+    },
+    "current_operating_hours": {
+        "current_operating_hours",
+        "betriebsstunden",
+        "betriebsstd",
+        "stunden",
+    },
+    "current_location": {
+        "current_location",
+        "standort",
+        "lagerort",
+        "ort",
+    },
+    "supplier": {"supplier", "lieferant", "zulieferer"},
+    "notes": {
+        "notes",
+        "notizen",
+        "bemerkung",
+        "bemerkungen",
+        "anmerkung",
+        "anmerkungen",
+        "kommentar",
+    },
+}
+
+# Reverse lookup: normalized header variant -> canonical column key.
+_ALIAS_TO_COLUMN = {alias: column for column, aliases in COLUMN_ALIASES.items() for alias in aliases}
 
 
 @dataclass(frozen=True)
@@ -192,9 +273,20 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
     updated_count = 0
     committed_rows: list[dict[str, Any]] = []
 
+    fallback_category: VehicleCategory | None = None
+
     for row in job.result.get("rows", []):
         values = row["values"]
-        category = VehicleCategory.objects.get(pk=values["category_id"])
+        category_id = values.get("category_id")
+        if category_id:
+            category = VehicleCategory.objects.get(pk=category_id)
+        else:
+            if fallback_category is None:
+                fallback_category, _created = VehicleCategory.objects.get_or_create(
+                    name=FALLBACK_CATEGORY_NAME,
+                    defaults={"is_active": True},
+                )
+            category = fallback_category
         vehicle = Vehicle.objects.filter(internal_number=values["internal_number"]).first()
         before = _vehicle_snapshot(vehicle) if vehicle else {}
 
@@ -275,14 +367,29 @@ def _file_error(message: str) -> ImportValidationResult:
     return ImportValidationResult(row_count=0, error_count=1, result=result)
 
 
+def _normalize_header(value: Any) -> str:
+    """Normalize a raw header cell for tolerant matching.
+
+    Lower-cases, trims, and collapses spaces/hyphens/dots/slashes into single
+    underscores so headers like "Internal Number", "interne-nummer" or
+    "KFZ Kennzeichen" all resolve to a canonical column key.
+    """
+    text = str(value).strip().lower()
+    for separator in (" ", "-", "/", ".", "\\"):
+        text = text.replace(separator, "_")
+    while "__" in text:
+        text = text.replace("__", "_")
+    return text.strip("_")
+
+
 def _build_header_map(raw_headers: tuple[Any, ...]) -> dict[str, int]:
     header_map: dict[str, int] = {}
     for index, value in enumerate(raw_headers):
         if value is None:
             continue
-        normalized_header = str(value).strip().lower()
-        if normalized_header in EXPECTED_COLUMNS and normalized_header not in header_map:
-            header_map[normalized_header] = index
+        column = _ALIAS_TO_COLUMN.get(_normalize_header(value))
+        if column is not None and column not in header_map:
+            header_map[column] = index
     return header_map
 
 
@@ -334,16 +441,12 @@ def _normalize_row(
             errors.append(_field_error(field, "required", _("%(field)s is required.") % {"field": field}))
 
     category = category_by_name.get(_normalize_lookup(normalized["category"]))
-    if normalized["category"] and not category:
-        errors.append(
-            _field_error(
-                "category",
-                "unknown_category",
-                _("Unknown or inactive vehicle category: %(category)s.") % {"category": normalized["category"]},
-            )
-        )
-    elif category:
+    if category:
         normalized["category_id"] = str(category.id)
+    else:
+        # Unknown or blank category: route the vehicle into the catch-all
+        # category at commit time instead of failing the row.
+        normalized["category_fallback"] = True
 
     normalized["current_odometer_km"] = _non_negative_int(
         values["current_odometer_km"],
