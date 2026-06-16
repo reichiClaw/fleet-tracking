@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import {
   cancelReservation,
+  createDriver,
   createReservation,
   displayDriverName,
   displayVehicleName,
@@ -77,6 +78,13 @@ export function VehicleDetailPage() {
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [isReserving, setIsReserving] = useState(false);
 
+  const [isAddingDriver, setIsAddingDriver] = useState(false);
+  const [newDriverFirstName, setNewDriverFirstName] = useState('');
+  const [newDriverLastName, setNewDriverLastName] = useState('');
+  const [newDriverPhone, setNewDriverPhone] = useState('');
+  const [isSavingDriver, setIsSavingDriver] = useState(false);
+  const [quickDriverError, setQuickDriverError] = useState<string | null>(null);
+
   const [returnDue, setReturnDue] = useState('');
   const [returnError, setReturnError] = useState<string | null>(null);
   const [isSavingReturn, setIsSavingReturn] = useState(false);
@@ -149,6 +157,33 @@ export function VehicleDetailPage() {
       setReservationError(getApiErrorMessage(createError, t, t('reservations.saveError')));
     } finally {
       setIsReserving(false);
+    }
+  }
+
+  async function handleQuickAddDriver() {
+    if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
+      setQuickDriverError(t('management.validation.driverNameRequired'));
+      return;
+    }
+    setIsSavingDriver(true);
+    setQuickDriverError(null);
+    try {
+      const created = await createDriver({
+        first_name: newDriverFirstName.trim(),
+        last_name: newDriverLastName.trim(),
+        phone: newDriverPhone.trim(),
+        is_active: true,
+      });
+      setDrivers((current) => [created, ...current]);
+      setReservationDriver(created.id);
+      setNewDriverFirstName('');
+      setNewDriverLastName('');
+      setNewDriverPhone('');
+      setIsAddingDriver(false);
+    } catch (saveError) {
+      setQuickDriverError(getApiErrorMessage(saveError, t, t('management.saveError')));
+    } finally {
+      setIsSavingDriver(false);
     }
   }
 
@@ -394,6 +429,39 @@ export function VehicleDetailPage() {
               placeholder={t('reservations.fields.driverPlaceholder')}
               emptyText={t('reservations.fields.noDrivers')}
             />
+            {isAddingDriver ? (
+              <div className="quick-add">
+                {quickDriverError ? <ErrorState message={quickDriverError} /> : null}
+                <div className="form-grid form-grid--two">
+                  <Field label={t('management.fields.firstName')}>
+                    <input value={newDriverFirstName} onChange={(event) => setNewDriverFirstName(event.target.value)} />
+                  </Field>
+                  <Field label={t('management.fields.lastName')}>
+                    <input value={newDriverLastName} onChange={(event) => setNewDriverLastName(event.target.value)} />
+                  </Field>
+                </div>
+                <Field label={t('loanCheckout.phoneOptional')}>
+                  <input type="tel" value={newDriverPhone} onChange={(event) => setNewDriverPhone(event.target.value)} />
+                </Field>
+                <div className="action-row">
+                  <button type="button" className="success-button" disabled={isSavingDriver} onClick={handleQuickAddDriver}>
+                    {isSavingDriver ? t('management.saving') : t('loanCheckout.saveDriver')}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={isSavingDriver}
+                    onClick={() => setIsAddingDriver(false)}
+                  >
+                    {t('management.cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="ghost-button add-driver-button" onClick={() => setIsAddingDriver(true)}>
+                {`+ ${t('loanCheckout.quickAddDriver')}`}
+              </button>
+            )}
             <Field label={t('reservations.fields.notes')}>
               <textarea value={reservationNotes} onChange={(event) => setReservationNotes(event.target.value)} />
             </Field>
