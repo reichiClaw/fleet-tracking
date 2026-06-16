@@ -256,7 +256,8 @@
     "checkIn": {
       "title": "Add new vehicle to pool",
       "description": "Add a vehicle to the operational pool: record its arrival condition and set it available, damaged, or in maintenance.",
-      "completed": "Vehicle added to pool"
+      "completed": "Vehicle added to pool",
+      "noAnnounced": "No vehicles are awaiting check-in. Import or add vehicles first."
     },
     "loanCheckout": {
       "title": "Loan checkout",
@@ -296,6 +297,9 @@
     },
     "placeholders": {
       "selectVehicle": "Select vehicle",
+      "searchVehicle": "Search by name, type, plate, serial…",
+      "searchAnnouncedVehicle": "Search announced vehicles to check in…",
+      "noVehicleMatches": "No matching vehicles",
       "selectLoan": "Select active loan",
       "optionalCompany": "No company selected",
       "optionalDriver": "No driver selected"
