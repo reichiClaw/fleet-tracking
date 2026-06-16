@@ -34,8 +34,84 @@ EXPECTED_COLUMNS = [
     "supplier",
     "notes",
 ]
-REQUIRED_COLUMNS = ["internal_number", "category", "manufacturer", "model"]
+# Only the data we cannot derive is required. ``internal_number`` is optional:
+# when the column is missing or a cell is blank the fleet number is generated
+# automatically (e.g. FZ-00001). Any expected column missing from the file is
+# simply treated as blank for every row.
+REQUIRED_COLUMNS = ["category", "manufacturer", "model"]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
+
+# Accept common German and English header spellings so files do not have to use
+# the exact internal column keys. Keys are the canonical columns; values are the
+# normalized header variants that map onto them.
+COLUMN_ALIASES: dict[str, set[str]] = {
+    "internal_number": {
+        "internal_number",
+        "interne_nummer",
+        "fahrzeugnummer",
+        "fahrzeug_nummer",
+        "fahrzeug_nr",
+        "fzg_nr",
+        "fzg_nummer",
+        "nummer",
+    },
+    "category": {
+        "category",
+        "kategorie",
+        "fahrzeugkategorie",
+        "fahrzeugart",
+        "fahrzeugtyp",
+        "art",
+    },
+    "manufacturer": {"manufacturer", "hersteller", "marke"},
+    "model": {"model", "modell", "bezeichnung", "typ"},
+    "serial_number": {
+        "serial_number",
+        "seriennummer",
+        "serien_nr",
+        "fahrgestellnummer",
+        "fin",
+    },
+    "license_plate": {
+        "license_plate",
+        "kennzeichen",
+        "kfz_kennzeichen",
+        "amtliches_kennzeichen",
+        "nummernschild",
+    },
+    "current_odometer_km": {
+        "current_odometer_km",
+        "kilometerstand",
+        "km_stand",
+        "kilometer",
+        "km",
+    },
+    "current_operating_hours": {
+        "current_operating_hours",
+        "betriebsstunden",
+        "betriebsstd",
+        "stunden",
+    },
+    "current_location": {
+        "current_location",
+        "standort",
+        "lagerort",
+        "ort",
+    },
+    "supplier": {"supplier", "lieferant", "zulieferer"},
+    "notes": {
+        "notes",
+        "notizen",
+        "bemerkung",
+        "bemerkungen",
+        "anmerkung",
+        "anmerkungen",
+        "kommentar",
+    },
+}
+
+# Reverse lookup: normalized header variant -> canonical column key.
+_ALIAS_TO_COLUMN = {alias: column for column, aliases in COLUMN_ALIASES.items() for alias in aliases}
 
 
 @dataclass(frozen=True)
@@ -275,14 +351,29 @@ def _file_error(message: str) -> ImportValidationResult:
     return ImportValidationResult(row_count=0, error_count=1, result=result)
 
 
+def _normalize_header(value: Any) -> str:
+    """Normalize a raw header cell for tolerant matching.
+
+    Lower-cases, trims, and collapses spaces/hyphens/dots/slashes into single
+    underscores so headers like "Internal Number", "interne-nummer" or
+    "KFZ Kennzeichen" all resolve to a canonical column key.
+    """
+    text = str(value).strip().lower()
+    for separator in (" ", "-", "/", ".", "\\"):
+        text = text.replace(separator, "_")
+    while "__" in text:
+        text = text.replace("__", "_")
+    return text.strip("_")
+
+
 def _build_header_map(raw_headers: tuple[Any, ...]) -> dict[str, int]:
     header_map: dict[str, int] = {}
     for index, value in enumerate(raw_headers):
         if value is None:
             continue
-        normalized_header = str(value).strip().lower()
-        if normalized_header in EXPECTED_COLUMNS and normalized_header not in header_map:
-            header_map[normalized_header] = index
+        column = _ALIAS_TO_COLUMN.get(_normalize_header(value))
+        if column is not None and column not in header_map:
+            header_map[column] = index
     return header_map
 
 

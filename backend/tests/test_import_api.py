@@ -55,10 +55,10 @@ class VehicleImportAPITests(TestCase):
         client.force_authenticate(user=user)
         return client
 
-    def workbook_upload(self, rows, filename="vehicles.xlsx"):
+    def workbook_upload(self, rows, filename="vehicles.xlsx", header=HEADER):
         workbook = Workbook()
         worksheet = workbook.active
-        worksheet.append(HEADER)
+        worksheet.append(header)
         for row in rows:
             worksheet.append(row)
         buffer = BytesIO()
@@ -70,6 +70,24 @@ class VehicleImportAPITests(TestCase):
             buffer.read(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+    def upload_and_commit(self, rows, header=HEADER):
+        upload_response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload(rows, header=header)},
+            format="multipart",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+        self.assertEqual(upload_response.status_code, status.HTTP_201_CREATED, upload_response.data)
+        self.assertEqual(
+            upload_response.data["status"], ImportJob.Status.VALIDATED, upload_response.data["result"]
+        )
+        commit_response = self.client_for(self.admin_user).post(
+            f"/api/v1/imports/{upload_response.data['id']}/commit/",
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, status.HTTP_200_OK, commit_response.data)
+        return commit_response
 
     def test_vehicle_import_upload_is_admin_only(self):
         response = self.client_for(self.operations_user).post(
@@ -185,5 +203,47 @@ class VehicleImportAPITests(TestCase):
         )
 
         self.assertEqual(commit_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Vehicle.objects.count(), 0)
+
+    def test_import_generates_internal_number_when_column_missing(self):
+        # Only the required columns are present; everything else is left out and
+        # should be stored blank, with the fleet number generated automatically.
+        header = ["category", "manufacturer", "model"]
+        self.upload_and_commit([["Steiger", "Acme", "TH100"]], header=header)
+
+        self.assertEqual(Vehicle.objects.count(), 1)
+        vehicle = Vehicle.objects.get()
+        self.assertTrue(vehicle.internal_number.startswith("FZ-"))
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+        self.assertEqual(vehicle.serial_number, "")
+        self.assertEqual(vehicle.license_plate, "")
+        self.assertIsNone(vehicle.current_odometer_km)
+        self.assertEqual(vehicle.current_location, "")
+
+    def test_import_accepts_german_headers(self):
+        header = ["Kategorie", "Hersteller", "Modell", "Kennzeichen", "Kilometerstand", "Standort"]
+        self.upload_and_commit([["Steiger", "Acme", "TH100", "B-AC 123", 1500, "Depot Nord"]], header=header)
+
+        self.assertEqual(Vehicle.objects.count(), 1)
+        vehicle = Vehicle.objects.get()
+        self.assertEqual(vehicle.manufacturer, "Acme")
+        self.assertEqual(vehicle.model, "TH100")
+        self.assertEqual(vehicle.license_plate, "B-AC 123")
+        self.assertEqual(vehicle.current_odometer_km, 1500)
+        self.assertEqual(vehicle.current_location, "Depot Nord")
+        self.assertEqual(vehicle.category, self.category)
+
+    def test_import_still_requires_core_columns(self):
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload([["Acme", "TH100"]], header=["manufacturer", "model"])},
+            format="multipart",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
+        errors = response.data["result"]["errors"]
+        self.assertTrue(any(error.get("field") == "category" for error in errors))
         self.assertEqual(Vehicle.objects.count(), 0)
 
