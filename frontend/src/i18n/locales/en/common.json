@@ -35,6 +35,7 @@
     "drivers": "Drivers",
     "companies": "Companies",
     "partners": "Companies & Drivers",
+    "archive": "Archive",
     "imports": "Imports",
     "users": "Users",
     "logout": "Log out"
@@ -432,6 +433,15 @@
     "generateReturn": "Generate return PDF",
     "generated": "PDF generated",
     "error": "The PDF could not be generated."
+  },
+  "archive": {
+    "eyebrow": "Fleet",
+    "title": "Archive",
+    "description": "Vehicles that have left the active fleet — handed back to the manufacturer or archived.",
+    "empty": {
+      "title": "Archive is empty",
+      "body": "No vehicles have been removed from the pool yet."
+    }
   },
   "partners": {
     "eyebrow": "Directory",

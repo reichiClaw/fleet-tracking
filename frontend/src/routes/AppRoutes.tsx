@@ -6,6 +6,7 @@ import { LoadingState } from '../components/LoadingState';
 import { AppLayout } from '../layouts/AppLayout';
 import { AddVehiclePage } from '../pages/AddVehiclePage';
 import { AdminImportPage } from '../pages/AdminImportPage';
+import { ArchivePage } from '../pages/ArchivePage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
 import { LoginPage } from '../pages/LoginPage';
@@ -69,6 +70,7 @@ export function AppRoutes() {
         <Route path="vehicles" element={<VehiclePoolPage />} />
         <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
         <Route path="history" element={<VehicleHistoryPage />} />
+        <Route path="archive" element={<ArchivePage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="qr" element={<QRAccessPage />} />
         <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
