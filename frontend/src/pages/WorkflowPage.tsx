@@ -60,6 +60,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
+  const [hasSignature, setHasSignature] = useState(false);
 
   const initialVehicle = searchParams.get('vehicle') ?? '';
   const initialLoan = searchParams.get('loan') ?? '';
@@ -124,6 +125,9 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
   function addMedia(media: MediaFile) {
     setMediaFileIds((current) => [...current, media.id]);
+    if (media.media_type === 'signature') {
+      setHasSignature(true);
+    }
   }
 
   function validate() {
@@ -150,6 +154,11 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
     if (damageActive && !damageDescription.trim()) {
       nextErrors.damageDescription = t('workflows.validation.damageDescriptionRequired');
+    }
+
+    // Every loan return must be signed off.
+    if (kind === 'loan-return' && !hasSignature) {
+      nextErrors.signature = t('workflows.validation.signatureRequired');
     }
 
     setFieldErrors(nextErrors);
@@ -444,6 +453,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
         <fieldset className="fieldset-card">
           <legend>{t('media.title')}</legend>
+          {kind === 'loan-return' ? <p className="hint-text">{t('media.signatureRequired')}</p> : null}
           <MediaUploadField
             mediaType="photo"
             vehicleId={selectedVehicleId}
@@ -461,6 +471,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             label={t('media.signatureLabel')}
             onUploaded={addMedia}
           />
+          {fieldErrors.signature ? <small className="field-error">{fieldErrors.signature}</small> : null}
           <p className="hint-text">{t('media.handoffNote')}</p>
         </fieldset>
 

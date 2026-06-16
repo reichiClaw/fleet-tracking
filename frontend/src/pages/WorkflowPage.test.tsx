@@ -36,7 +36,16 @@ function installFetchMock() {
     if (url.includes('/vehicles/') && method === 'GET') return jsonResponse(vehicles);
     if (url.includes('/companies/') && method === 'GET') return jsonResponse([]);
     if (url.includes('/drivers/') && method === 'GET') return jsonResponse([]);
-    if (url.includes('/loans/') && method === 'GET') return jsonResponse([]);
+    if (url.includes('/loans/') && method === 'GET')
+      return jsonResponse([
+        {
+          id: 'loan-1',
+          vehicle: 'veh-1',
+          borrower_name: 'Borrower',
+          expected_return_at: new Date().toISOString(),
+          status: 'active',
+        },
+      ]);
     if (url.endsWith('/workflows/check-ins/') && method === 'POST') {
       lastCheckInPayload = JSON.parse(String(init?.body));
       return jsonResponse({ id: 'checkin-1', vehicle: 'veh-1' }, 201);
@@ -73,5 +82,21 @@ describe('WorkflowPage damage handling', () => {
     await waitFor(() => expect(screen.getByText('Fahrzeug zum Pool hinzugefügt')).toBeInTheDocument());
     expect(lastCheckInPayload).toMatchObject({ vehicle: 'veh-1' });
     expect(lastCheckInPayload).not.toHaveProperty('damage_reports');
+  });
+
+  it('requires a signature to complete a loan return', async () => {
+    render(
+      <MemoryRouter>
+        <WorkflowPage kind="loan-return" />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Ausleihe zurückgeben' });
+    fireEvent.change(screen.getByLabelText('Aktive Ausleihe'), { target: { value: 'loan-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
+
+    expect(
+      await screen.findByText('Für den Abschluss der Rückgabe ist eine Unterschrift erforderlich.'),
+    ).toBeInTheDocument();
   });
 });
