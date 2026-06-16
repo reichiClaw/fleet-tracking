@@ -7,6 +7,8 @@ import {
   displayDriverName,
   listCompanies,
   listDrivers,
+  updateCompany,
+  updateDriver,
   type Company,
   type CompanyType,
   type Driver,
@@ -110,7 +112,11 @@ export function CompanyManagementPage() {
         <button type="submit" className="success-button" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addCompany')}</button>
         </form>
       ) : null}
-      {isLoading ? <LoadingState /> : <CompanyList companies={companies} />}
+      {isLoading ? (
+        <LoadingState />
+      ) : (
+        <CompanyList companies={companies} canEdit={user?.role === 'admin'} onSaved={loadCompanies} />
+      )}
     </section>
   );
 }
@@ -227,12 +233,29 @@ export function DriverManagementPage() {
         <button type="submit" className="success-button" disabled={isSubmitting}>{isSubmitting ? t('management.saving') : t('management.addDriver')}</button>
         </form>
       ) : null}
-      {isLoading ? <LoadingState /> : <DriverList drivers={drivers} companies={companies} />}
+      {isLoading ? (
+        <LoadingState />
+      ) : (
+        <DriverList
+          drivers={drivers}
+          companies={companies}
+          canEdit={user?.role === 'admin'}
+          onSaved={loadDrivers}
+        />
+      )}
     </section>
   );
 }
 
-function CompanyList({ companies }: { companies: Company[] }) {
+function CompanyList({
+  companies,
+  canEdit,
+  onSaved,
+}: {
+  companies: Company[];
+  canEdit: boolean;
+  onSaved: () => Promise<void> | void;
+}) {
   const { t } = useTranslation();
   if (!companies.length) {
     return <p className="hint-text">{t('management.companies.empty')}</p>;
@@ -240,17 +263,167 @@ function CompanyList({ companies }: { companies: Company[] }) {
   return (
     <div className="card-grid card-grid--two">
       {companies.map((company) => (
-        <article className="content-card" key={company.id}>
-          <h3>{company.name}</h3>
-          <p>{t(`companyTypes.${company.company_type}`)}</p>
-          <p className="hint-text">{company.contact_name || company.email || company.phone || t('common.notAvailable')}</p>
-        </article>
+        <CompanyCard key={company.id} company={company} canEdit={canEdit} onSaved={onSaved} />
       ))}
     </div>
   );
 }
 
-function DriverList({ drivers, companies }: { drivers: Driver[]; companies: Company[] }) {
+function CompanyCard({
+  company,
+  canEdit,
+  onSaved,
+}: {
+  company: Company;
+  canEdit: boolean;
+  onSaved: () => Promise<void> | void;
+}) {
+  const { t } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState(company.name);
+  const [companyType, setCompanyType] = useState<CompanyType>(company.company_type);
+  const [contactName, setContactName] = useState(company.contact_name ?? '');
+  const [phone, setPhone] = useState(company.phone ?? '');
+  const [email, setEmail] = useState(company.email ?? '');
+  const [address, setAddress] = useState(company.address ?? '');
+  const [notes, setNotes] = useState(company.notes ?? '');
+  const [isActive, setIsActive] = useState(company.is_active);
+
+  function startEditing() {
+    setName(company.name);
+    setCompanyType(company.company_type);
+    setContactName(company.contact_name ?? '');
+    setPhone(company.phone ?? '');
+    setEmail(company.email ?? '');
+    setAddress(company.address ?? '');
+    setNotes(company.notes ?? '');
+    setIsActive(company.is_active);
+    setError(null);
+    setIsEditing(true);
+  }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!name.trim()) {
+      setError(t('management.validation.nameRequired'));
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateCompany(company.id, {
+        name: name.trim(),
+        company_type: companyType,
+        contact_name: contactName,
+        phone,
+        email,
+        address,
+        notes,
+        is_active: isActive,
+      });
+      setIsEditing(false);
+      await onSaved();
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, t, t('management.saveError')));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <form className="content-card form-stack" onSubmit={handleSave}>
+        {error ? <ErrorState message={error} /> : null}
+        <div className="form-grid form-grid--two">
+          <label>
+            <span>{t('management.fields.name')}</span>
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.companyType')}</span>
+            <select value={companyType} onChange={(event) => setCompanyType(event.target.value as CompanyType)}>
+              <option value="subcontractor">{t('companyTypes.subcontractor')}</option>
+              <option value="manufacturer">{t('companyTypes.manufacturer')}</option>
+              <option value="supplier">{t('companyTypes.supplier')}</option>
+              <option value="internal">{t('companyTypes.internal')}</option>
+            </select>
+          </label>
+        </div>
+        <div className="form-grid form-grid--three">
+          <label>
+            <span>{t('management.fields.contactName')}</span>
+            <input value={contactName} onChange={(event) => setContactName(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.phone')}</span>
+            <input min="0" step="1" type="number" value={phone} onChange={(event) => setPhone(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.email')}</span>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+        </div>
+        <label>
+          <span>{t('management.fields.address')}</span>
+          <input value={address} onChange={(event) => setAddress(event.target.value)} />
+        </label>
+        <label>
+          <span>{t('management.fields.notes')}</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+        </label>
+        <label className="checkbox-inline">
+          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+          <span>{t('management.fields.active')}</span>
+        </label>
+        <div className="action-row">
+          <button type="submit" className="success-button" disabled={isSaving}>
+            {isSaving ? t('management.saving') : t('management.save')}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSaving}
+            onClick={() => setIsEditing(false)}
+          >
+            {t('management.cancel')}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <article className="content-card">
+      <h3>{company.name}</h3>
+      <p>
+        {t(`companyTypes.${company.company_type}`)}
+        {!company.is_active ? ` · ${t('management.inactiveBadge')}` : ''}
+      </p>
+      <p className="hint-text">{company.contact_name || company.email || company.phone || t('common.notAvailable')}</p>
+      {canEdit ? (
+        <div className="action-row">
+          <button type="button" className="secondary-button" onClick={startEditing}>
+            {t('management.edit')}
+          </button>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function DriverList({
+  drivers,
+  companies,
+  canEdit,
+  onSaved,
+}: {
+  drivers: Driver[];
+  companies: Company[];
+  canEdit: boolean;
+  onSaved: () => Promise<void> | void;
+}) {
   const { t } = useTranslation();
   const companiesById = new Map(companies.map((company) => [company.id, company.name]));
   if (!drivers.length) {
@@ -259,12 +432,165 @@ function DriverList({ drivers, companies }: { drivers: Driver[]; companies: Comp
   return (
     <div className="card-grid card-grid--two">
       {drivers.map((driver) => (
-        <article className="content-card" key={driver.id}>
-          <h3>{displayDriverName(driver)}</h3>
-          <p>{driver.company ? companiesById.get(driver.company) || t('common.unknown') : t('management.fields.noCompany')}</p>
-          <p className="hint-text">{driver.phone || driver.email || driver.license_classes || t('common.notAvailable')}</p>
-        </article>
+        <DriverCard
+          key={driver.id}
+          driver={driver}
+          companies={companies}
+          companiesById={companiesById}
+          canEdit={canEdit}
+          onSaved={onSaved}
+        />
       ))}
     </div>
+  );
+}
+
+function DriverCard({
+  driver,
+  companies,
+  companiesById,
+  canEdit,
+  onSaved,
+}: {
+  driver: Driver;
+  companies: Company[];
+  companiesById: Map<string, string>;
+  canEdit: boolean;
+  onSaved: () => Promise<void> | void;
+}) {
+  const { t } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState(driver.first_name);
+  const [lastName, setLastName] = useState(driver.last_name);
+  const [company, setCompany] = useState(driver.company ?? '');
+  const [phone, setPhone] = useState(driver.phone ?? '');
+  const [email, setEmail] = useState(driver.email ?? '');
+  const [licenseClasses, setLicenseClasses] = useState(driver.license_classes ?? '');
+  const [notes, setNotes] = useState(driver.notes ?? '');
+  const [isActive, setIsActive] = useState(driver.is_active);
+
+  function startEditing() {
+    setFirstName(driver.first_name);
+    setLastName(driver.last_name);
+    setCompany(driver.company ?? '');
+    setPhone(driver.phone ?? '');
+    setEmail(driver.email ?? '');
+    setLicenseClasses(driver.license_classes ?? '');
+    setNotes(driver.notes ?? '');
+    setIsActive(driver.is_active);
+    setError(null);
+    setIsEditing(true);
+  }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!firstName.trim() || !lastName.trim()) {
+      setError(t('management.validation.driverNameRequired'));
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateDriver(driver.id, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        company: company || null,
+        phone,
+        email,
+        license_classes: licenseClasses,
+        notes,
+        is_active: isActive,
+      });
+      setIsEditing(false);
+      await onSaved();
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, t, t('management.saveError')));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <form className="content-card form-stack" onSubmit={handleSave}>
+        {error ? <ErrorState message={error} /> : null}
+        <div className="form-grid form-grid--two">
+          <label>
+            <span>{t('management.fields.firstName')}</span>
+            <input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.lastName')}</span>
+            <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          </label>
+        </div>
+        <label>
+          <span>{t('management.fields.company')}</span>
+          <select value={company} onChange={(event) => setCompany(event.target.value)}>
+            <option value="">{t('management.fields.noCompany')}</option>
+            {companies.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="form-grid form-grid--three">
+          <label>
+            <span>{t('management.fields.phone')}</span>
+            <input min="0" step="1" type="number" value={phone} onChange={(event) => setPhone(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.email')}</span>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <label>
+            <span>{t('management.fields.licenseClasses')}</span>
+            <input value={licenseClasses} onChange={(event) => setLicenseClasses(event.target.value)} />
+          </label>
+        </div>
+        <label>
+          <span>{t('management.fields.notes')}</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+        </label>
+        <label className="checkbox-inline">
+          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+          <span>{t('management.fields.active')}</span>
+        </label>
+        <div className="action-row">
+          <button type="submit" className="success-button" disabled={isSaving}>
+            {isSaving ? t('management.saving') : t('management.save')}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSaving}
+            onClick={() => setIsEditing(false)}
+          >
+            {t('management.cancel')}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <article className="content-card">
+      <h3>
+        {displayDriverName(driver)}
+        {!driver.is_active ? ` · ${t('management.inactiveBadge')}` : ''}
+      </h3>
+      <p>{driver.company ? companiesById.get(driver.company) || t('common.unknown') : t('management.fields.noCompany')}</p>
+      <p className="hint-text">{driver.phone || driver.email || driver.license_classes || t('common.notAvailable')}</p>
+      {canEdit ? (
+        <div className="action-row">
+          <button type="button" className="secondary-button" onClick={startEditing}>
+            {t('management.edit')}
+          </button>
+        </div>
+      ) : null}
+    </article>
   );
 }
