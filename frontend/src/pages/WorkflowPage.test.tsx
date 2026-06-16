@@ -79,7 +79,7 @@ describe('WorkflowPage damage handling', () => {
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
     fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
 
     await waitFor(() => expect(screen.getByText('Fahrzeug zum Pool hinzugefügt')).toBeInTheDocument());
     expect(lastCheckInPayload).toMatchObject({ vehicle: 'veh-1' });
@@ -98,7 +98,7 @@ describe('WorkflowPage damage handling', () => {
     fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
     fireEvent.click(screen.getByLabelText('Ja'));
     fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
 
     expect(
       await screen.findByText('Bitte fügen Sie mindestens ein Foto des Schadens hinzu.'),
