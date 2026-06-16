@@ -6,7 +6,9 @@
   },
   "common": {
     "notAvailable": "Not available",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "yes": "Yes",
+    "no": "No"
   },
   "language": {
     "label": "Language",
@@ -312,6 +314,8 @@
       "description": "Damage description",
       "severity": "Severity",
       "hasDamage": "Damage occurred",
+      "deliveryQuestion": "Damage on delivery?",
+      "occurredQuestion": "Damage occurred?",
       "photoLabel": "Photo of the damage",
       "photoRequired": "At least one photo of the damage is required.",
       "photoCount": "{{count}} photo(s) added",

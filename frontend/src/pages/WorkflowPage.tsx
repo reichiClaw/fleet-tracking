@@ -424,23 +424,36 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
         <fieldset className="fieldset-card">
           <legend>{t('workflows.damage.title')}</legend>
-          <label className="checkbox-inline">
-            <input
-              type="checkbox"
-              checked={damageActive}
-              disabled={damageRequiredByStatus}
-              onChange={(event) => {
-                const next = event.target.checked;
-                setHasDamage(next);
-                if (!next) {
+          <span className="field-label">
+            {t(kind === 'check-in' ? 'workflows.damage.deliveryQuestion' : 'workflows.damage.occurredQuestion')}
+          </span>
+          <div className="radio-group">
+            <label className="radio-inline">
+              <input
+                type="radio"
+                name="workflow-has-damage"
+                checked={!damageActive}
+                disabled={damageRequiredByStatus}
+                onChange={() => {
+                  setHasDamage(false);
                   setDamageDescription('');
                   setDamageSeverity('minor');
                   setDamagePhotoIds([]);
-                }
-              }}
-            />
-            <span>{t('workflows.damage.hasDamage')}</span>
-          </label>
+                }}
+              />
+              <span>{t('common.no')}</span>
+            </label>
+            <label className="radio-inline">
+              <input
+                type="radio"
+                name="workflow-has-damage"
+                checked={damageActive}
+                disabled={damageRequiredByStatus}
+                onChange={() => setHasDamage(true)}
+              />
+              <span>{t('common.yes')}</span>
+            </label>
+          </div>
           {damageRequiredByStatus ? (
             <p className="hint-text">{t('workflows.damage.requiredForDamagedStatus')}</p>
           ) : null}

@@ -6,7 +6,9 @@
   },
   "common": {
     "notAvailable": "Nicht verfügbar",
-    "unknown": "Unbekannt"
+    "unknown": "Unbekannt",
+    "yes": "Ja",
+    "no": "Nein"
   },
   "language": {
     "label": "Sprache",
@@ -312,6 +314,8 @@
       "description": "Schadensbeschreibung",
       "severity": "Schweregrad",
       "hasDamage": "Schaden ist aufgetreten",
+      "deliveryQuestion": "Schaden bei Lieferung?",
+      "occurredQuestion": "Schaden aufgetreten?",
       "photoLabel": "Foto des Schadens",
       "photoRequired": "Mindestens ein Foto des Schadens ist erforderlich.",
       "photoCount": "{{count}} Foto(s) hinzugefügt",

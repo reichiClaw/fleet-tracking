@@ -93,7 +93,7 @@ describe('WorkflowPage damage handling', () => {
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'veh-1' } });
-    fireEvent.click(screen.getByLabelText('Schaden ist aufgetreten'));
+    fireEvent.click(screen.getByLabelText('Ja'));
     fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
     fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
 
