@@ -139,38 +139,70 @@ export function QRAccessPage() {
 
   async function startScanner() {
     setError(null);
-    const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
-    if (!Detector || !navigator.mediaDevices?.getUserMedia) {
+    // Camera scanning needs getUserMedia, which requires a secure context (HTTPS
+    // or localhost). It is available on modern iOS Safari and Android browsers.
+    if (!navigator.mediaDevices?.getUserMedia) {
       setError(t('qr.scan.unsupported'));
       return;
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (!videoRef.current) {
+      const video = videoRef.current;
+      if (!video) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
 
-      const detector = new Detector({ formats: ['qr_code'] });
-      let stopped = false;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      await video.play();
       setIsScanning(true);
+
+      // Prefer the native BarcodeDetector (Android/Chrome). iOS Safari lacks it,
+      // so fall back to decoding camera frames with jsQR — works on every phone.
+      const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+      const detector = Detector ? new Detector({ formats: ['qr_code'] }) : null;
+      const canvas = detector ? null : document.createElement('canvas');
+      const context = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null;
+      // Load the pure-JS QR decoder only when the native detector is missing
+      // (e.g. iOS Safari), keeping it out of the initial bundle.
+      const decodeQr = detector ? null : (await import('jsqr')).default;
+      let stopped = false;
+
+      async function decodeFrame(): Promise<string | null> {
+        if (!video) {
+          return null;
+        }
+        if (detector) {
+          const results = await detector.detect(video);
+          return results[0]?.rawValue ?? null;
+        }
+        if (!canvas || !context || !decodeQr || !video.videoWidth) {
+          return null;
+        }
+        // Downscale for fast, battery-friendly decoding on phones.
+        const scale = Math.min(1, 640 / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const result = decodeQr(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+        return result?.data ?? null;
+      }
 
       async function scanFrame() {
         if (stopped || !videoRef.current) {
           return;
         }
         try {
-          const results = await detector.detect(videoRef.current);
-          const firstResult = results[0]?.rawValue;
-          if (firstResult) {
-            handleScannedValue(firstResult);
+          const value = await decodeFrame();
+          if (value) {
+            handleScannedValue(value);
             return;
           }
         } catch {
-          // Keep scanning; transient detector errors happen while camera frames settle.
+          // Keep scanning; transient detector/frame errors happen while the camera settles.
         }
         window.requestAnimationFrame(scanFrame);
       }

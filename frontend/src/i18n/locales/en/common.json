@@ -565,7 +565,7 @@
       "start": "Start scanner",
       "stop": "Stop scanner",
       "scanning": "Scanning...",
-      "unsupported": "This browser does not support camera QR scanning. Use the manual field or your device camera app.",
+      "unsupported": "Camera scanning needs a secure (HTTPS) connection and camera permission. Use the manual field below or your device's camera app.",
       "cameraError": "The camera could not be started.",
       "invalid": "This QR code is not a Fleet Tracking vehicle link.",
       "empty": "Please enter a QR link or vehicle code.",

@@ -565,7 +565,7 @@
       "start": "Scanner starten",
       "stop": "Scanner stoppen",
       "scanning": "Scan läuft...",
-      "unsupported": "Dieser Browser unterstützt keinen QR-Scan per Kamera. Nutzen Sie das manuelle Feld oder die Kamera-App des Geräts.",
+      "unsupported": "Der Kamera-Scan benötigt eine sichere (HTTPS-)Verbindung und Kamerazugriff. Nutzen Sie das manuelle Feld unten oder die Kamera-App Ihres Geräts.",
       "cameraError": "Die Kamera konnte nicht gestartet werden.",
       "invalid": "Dieser QR-Code ist kein Fleet-Tracking-Fahrzeuglink.",
       "empty": "Bitte geben Sie einen QR-Link oder Fahrzeugcode ein.",
