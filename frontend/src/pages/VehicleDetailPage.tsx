@@ -12,11 +12,15 @@ import {
   generateManufacturerCheckoutPdf,
   getVehicle,
   getVehicleHistory,
+  listVehicleCategories,
   mediaDownloadUrl,
   scheduleManufacturerReturn,
+  updateVehicle,
+  type CreateVehiclePayload,
   type Loan,
   type MediaFile,
   type Vehicle,
+  type VehicleCategory,
   type VehicleHistory,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
@@ -50,7 +54,10 @@ export function VehicleDetailPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canManage = user?.role === 'admin' || user?.role === 'operations';
+  const isAdmin = user?.role === 'admin';
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
   const [history, setHistory] = useState<VehicleHistory | null>(null);
   const [generatedMedia, setGeneratedMedia] = useState<MediaFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,10 +85,15 @@ export function VehicleDetailPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicle, nextHistory] = await Promise.all([getVehicle(vehicleId), getVehicleHistory(vehicleId)]);
+        const [nextVehicle, nextHistory, nextCategories] = await Promise.all([
+          getVehicle(vehicleId),
+          getVehicleHistory(vehicleId),
+          listVehicleCategories(),
+        ]);
         if (isMounted) {
           setVehicle(nextVehicle);
           setHistory(nextHistory);
+          setCategories(nextCategories);
           setReturnDue(nextVehicle.manufacturer_return_due ?? '');
         }
       } catch (error) {
@@ -260,29 +272,49 @@ export function VehicleDetailPage() {
       </section>
 
       <section className="content-card">
-        <h3>{t('vehicles.detail.dataTitle')}</h3>
-        <dl className="detail-list detail-list--wide">
-          <div>
-            <dt>{t('vehicles.fields.licensePlate')}</dt>
-            <dd>{vehicle.license_plate || t('common.notAvailable')}</dd>
-          </div>
-          <div>
-            <dt>{t('vehicles.fields.serialNumber')}</dt>
-            <dd>{vehicle.serial_number || t('common.notAvailable')}</dd>
-          </div>
-          <div>
-            <dt>{t('vehicles.fields.location')}</dt>
-            <dd>{vehicle.current_location || t('common.notAvailable')}</dd>
-          </div>
-          <div>
-            <dt>{t('vehicles.fields.odometer')}</dt>
-            <dd>{vehicle.current_odometer_km ?? t('common.notAvailable')}</dd>
-          </div>
-          <div>
-            <dt>{t('vehicles.fields.hours')}</dt>
-            <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
-          </div>
-        </dl>
+        <div className="card-title-row">
+          <h3>{t('vehicles.detail.dataTitle')}</h3>
+          {isAdmin && !isEditing ? (
+            <button type="button" className="secondary-button" onClick={() => setIsEditing(true)}>
+              {t('vehicles.detail.edit')}
+            </button>
+          ) : null}
+        </div>
+        {isEditing && vehicle ? (
+          <VehicleEditForm
+            vehicle={vehicle}
+            categories={categories}
+            onCancel={() => setIsEditing(false)}
+            onSaved={(updated) => {
+              setVehicle(updated);
+              setIsEditing(false);
+              setReloadToken((token) => token + 1);
+            }}
+          />
+        ) : (
+          <dl className="detail-list detail-list--wide">
+            <div>
+              <dt>{t('vehicles.fields.licensePlate')}</dt>
+              <dd>{vehicle.license_plate || t('common.notAvailable')}</dd>
+            </div>
+            <div>
+              <dt>{t('vehicles.fields.serialNumber')}</dt>
+              <dd>{vehicle.serial_number || t('common.notAvailable')}</dd>
+            </div>
+            <div>
+              <dt>{t('vehicles.fields.location')}</dt>
+              <dd>{vehicle.current_location || t('common.notAvailable')}</dd>
+            </div>
+            <div>
+              <dt>{t('vehicles.fields.odometer')}</dt>
+              <dd>{vehicle.current_odometer_km ?? t('common.notAvailable')}</dd>
+            </div>
+            <div>
+              <dt>{t('vehicles.fields.hours')}</dt>
+              <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
+            </div>
+          </dl>
+        )}
       </section>
 
       <section className="content-card">
@@ -467,6 +499,129 @@ export function VehicleDetailPage() {
         )}
       />
     </section>
+  );
+}
+
+function VehicleEditForm({
+  vehicle,
+  categories,
+  onCancel,
+  onSaved,
+}: {
+  vehicle: Vehicle;
+  categories: VehicleCategory[];
+  onCancel: () => void;
+  onSaved: (vehicle: Vehicle) => void;
+}) {
+  const { t } = useTranslation();
+  const currentCategoryId = typeof vehicle.category === 'string' ? vehicle.category : vehicle.category?.id ?? '';
+  const [category, setCategory] = useState(currentCategoryId);
+  const [internalNumber, setInternalNumber] = useState(vehicle.internal_number ?? '');
+  const [manufacturer, setManufacturer] = useState(vehicle.manufacturer ?? '');
+  const [model, setModel] = useState(vehicle.model ?? '');
+  const [serialNumber, setSerialNumber] = useState(vehicle.serial_number ?? '');
+  const [licensePlate, setLicensePlate] = useState(vehicle.license_plate ?? '');
+  const [location, setLocation] = useState(vehicle.current_location ?? '');
+  const [odometer, setOdometer] = useState(vehicle.current_odometer_km != null ? String(vehicle.current_odometer_km) : '');
+  const [hours, setHours] = useState(vehicle.current_operating_hours != null ? String(vehicle.current_operating_hours) : '');
+  const [notes, setNotes] = useState(vehicle.notes ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const activeCategories = categories.filter((item) => item.is_active || item.id === currentCategoryId);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!manufacturer.trim() || !model.trim()) {
+      setError(t('vehicles.detail.editValidation'));
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    const payload: Partial<CreateVehiclePayload> = {
+      category,
+      manufacturer: manufacturer.trim(),
+      model: model.trim(),
+      serial_number: serialNumber.trim(),
+      license_plate: licensePlate.trim(),
+      current_location: location.trim(),
+      notes: notes.trim(),
+    };
+    if (internalNumber.trim()) {
+      payload.internal_number = internalNumber.trim();
+    }
+    if (odometer !== '') {
+      payload.current_odometer_km = Number(odometer);
+    }
+    if (hours !== '') {
+      payload.current_operating_hours = hours;
+    }
+    try {
+      const updated = await updateVehicle(vehicle.id, payload);
+      onSaved(updated);
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, t, t('vehicles.detail.editError')));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <form className="form-stack" onSubmit={handleSubmit}>
+      {error ? <ErrorState message={error} /> : null}
+      <div className="form-grid form-grid--two">
+        <Field label={t('addVehicle.fields.category')}>
+          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+            {activeCategories.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('addVehicle.fields.internalNumber')}>
+          <input value={internalNumber} onChange={(event) => setInternalNumber(event.target.value)} />
+        </Field>
+      </div>
+      <div className="form-grid form-grid--two">
+        <Field label={t('addVehicle.fields.manufacturer')}>
+          <input value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} />
+        </Field>
+        <Field label={t('addVehicle.fields.model')}>
+          <input value={model} onChange={(event) => setModel(event.target.value)} />
+        </Field>
+      </div>
+      <div className="form-grid form-grid--two">
+        <Field label={t('addVehicle.fields.serialNumber')}>
+          <input value={serialNumber} onChange={(event) => setSerialNumber(event.target.value)} />
+        </Field>
+        <Field label={t('addVehicle.fields.licensePlate')}>
+          <input value={licensePlate} onChange={(event) => setLicensePlate(event.target.value)} />
+        </Field>
+      </div>
+      <Field label={t('addVehicle.fields.location')}>
+        <input value={location} onChange={(event) => setLocation(event.target.value)} />
+      </Field>
+      <div className="form-grid form-grid--two">
+        <Field label={t('addVehicle.fields.odometer')}>
+          <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+        </Field>
+        <Field label={t('addVehicle.fields.hours')}>
+          <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
+        </Field>
+      </div>
+      <Field label={t('addVehicle.fields.notes')}>
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+      </Field>
+      <div className="action-row">
+        <button type="submit" className="success-button" disabled={isSaving}>
+          {isSaving ? t('vehicles.detail.saving') : t('vehicles.detail.save')}
+        </button>
+        <button type="button" className="secondary-button" disabled={isSaving} onClick={onCancel}>
+          {t('management.cancel')}
+        </button>
+      </div>
+    </form>
   );
 }
 
