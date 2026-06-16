@@ -32,6 +32,7 @@
     "manufacturerWorkflows": "Add / remove vehicles",
     "drivers": "Drivers",
     "companies": "Companies",
+    "partners": "Companies & Drivers",
     "imports": "Imports",
     "users": "Users",
     "logout": "Log out"
@@ -419,6 +420,22 @@
     "generateReturn": "Generate return PDF",
     "generated": "PDF generated",
     "error": "The PDF could not be generated."
+  },
+  "partners": {
+    "eyebrow": "Directory",
+    "title": "Companies & Drivers",
+    "intro": "Manage your companies as groups and the drivers that belong to them — all in one place.",
+    "summary": "{{companies}} companies · {{drivers}} drivers",
+    "searchPlaceholder": "Search companies or drivers",
+    "newCompany": "New company",
+    "editCompany": "Edit company",
+    "addDriver": "Add driver",
+    "editDriver": "Edit driver",
+    "driverCount": "{{count}} drivers",
+    "independentTitle": "Independent drivers",
+    "independentHint": "Drivers that are not assigned to any company.",
+    "emptyDrivers": "No drivers in this group yet.",
+    "emptyCompanies": "No companies yet. Create your first group to get started."
   },
   "management": {
     "loadError": "Management data could not be loaded.",

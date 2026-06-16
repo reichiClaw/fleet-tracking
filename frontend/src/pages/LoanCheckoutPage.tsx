@@ -274,7 +274,7 @@ export function LoanCheckoutPage() {
                 </select>
                 {drivers.length === 0 ? (
                   <small className="hint-text">
-                    {t('loanCheckout.noDrivers')} <Link to="/app/drivers">{t('navigation.drivers')}</Link>
+                    {t('loanCheckout.noDrivers')} <Link to="/app/partners">{t('navigation.partners')}</Link>
                   </small>
                 ) : null}
               </Field>
@@ -293,7 +293,7 @@ export function LoanCheckoutPage() {
                   </select>
                   {companies.length === 0 ? (
                     <small className="hint-text">
-                      {t('loanCheckout.noCompanies')} <Link to="/app/companies">{t('navigation.companies')}</Link>
+                      {t('loanCheckout.noCompanies')} <Link to="/app/partners">{t('navigation.partners')}</Link>
                     </small>
                   ) : null}
                 </Field>

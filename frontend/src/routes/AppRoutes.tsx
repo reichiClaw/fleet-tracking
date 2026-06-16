@@ -9,7 +9,7 @@ import { AdminImportPage } from '../pages/AdminImportPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
 import { LoginPage } from '../pages/LoginPage';
-import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
+import { PartnersPage } from '../pages/PartnersPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { QRAccessPage } from '../pages/QRAccessPage';
 import { ReportsPage } from '../pages/ReportsPage';
@@ -78,8 +78,10 @@ export function AppRoutes() {
         <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole>} />
         <Route path="workflows/loan-return" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole>} />
         <Route path="workflows/manufacturer-checkout" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="manufacturer-checkout" /></RequireRole>} />
-        <Route path="drivers" element={<DriverManagementPage />} />
-        <Route path="companies" element={<CompanyManagementPage />} />
+        <Route path="partners" element={<PartnersPage />} />
+        {/* Legacy paths kept as redirects so existing links keep working. */}
+        <Route path="drivers" element={<Navigate to="/app/partners" replace />} />
+        <Route path="companies" element={<Navigate to="/app/partners" replace />} />
         <Route path="imports" element={<RequireRole roles={adminRoles}><AdminImportPage /></RequireRole>} />
         <Route path="users" element={<RequireRole roles={adminRoles}><UserManagementPage /></RequireRole>} />
       </Route>

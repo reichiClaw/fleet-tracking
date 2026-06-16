@@ -32,6 +32,7 @@
     "manufacturerWorkflows": "Fahrzeuge hinzufügen/entfernen",
     "drivers": "Fahrer",
     "companies": "Firmen",
+    "partners": "Firmen & Fahrer",
     "imports": "Importe",
     "users": "Benutzer",
     "logout": "Abmelden"
@@ -419,6 +420,22 @@
     "generateReturn": "Rückgabe-PDF erzeugen",
     "generated": "PDF erzeugt",
     "error": "Das PDF konnte nicht erzeugt werden."
+  },
+  "partners": {
+    "eyebrow": "Verzeichnis",
+    "title": "Firmen & Fahrer",
+    "intro": "Verwalten Sie Firmen als Gruppen und die zugehörigen Fahrer – alles an einem Ort.",
+    "summary": "{{companies}} Firmen · {{drivers}} Fahrer",
+    "searchPlaceholder": "Firmen oder Fahrer suchen",
+    "newCompany": "Neue Firma",
+    "editCompany": "Firma bearbeiten",
+    "addDriver": "Fahrer hinzufügen",
+    "editDriver": "Fahrer bearbeiten",
+    "driverCount": "{{count}} Fahrer",
+    "independentTitle": "Unabhängige Fahrer",
+    "independentHint": "Fahrer, die keiner Firma zugeordnet sind.",
+    "emptyDrivers": "Noch keine Fahrer in dieser Gruppe.",
+    "emptyCompanies": "Noch keine Firmen. Legen Sie Ihre erste Gruppe an, um zu beginnen."
   },
   "management": {
     "loadError": "Verwaltungsdaten konnten nicht geladen werden.",
