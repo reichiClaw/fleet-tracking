@@ -26,6 +26,7 @@ const navigationItems: NavigationItem[] = [
     roles: ['admin', 'operations'],
   },
   { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
   { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
 ];
@@ -90,6 +91,13 @@ function NavIcon({ name }: { name: string }) {
         <path d="M12 3v12" />
         <path d="M8 11l4 4 4-4" />
         <path d="M4 21h16" />
+      </>
+    ),
+    archive: (
+      <>
+        <path d="M3 4h18v4H3z" />
+        <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+        <path d="M9 12h6" />
       </>
     ),
     reports: (

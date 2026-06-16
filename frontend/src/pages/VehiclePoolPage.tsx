@@ -29,13 +29,17 @@ const statuses = [
   'loaned',
   'maintenance',
   'damaged',
-  'archived',
 ] as const;
+
+// Vehicles handed back to the manufacturer (or archived) leave the active fleet
+// and are only shown on the Archive page.
+const ARCHIVED_STATUSES = new Set(['manufacturer_checkout', 'archived']);
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
-  const initialStatus = searchParams.get('status') === 'manufacturer_checkout' ? '' : searchParams.get('status') ?? '';
+  const requestedStatus = searchParams.get('status') ?? '';
+  const initialStatus = ARCHIVED_STATUSES.has(requestedStatus) ? '' : requestedStatus;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -117,7 +121,7 @@ export function VehiclePoolPage() {
     );
   }, [drivers, loans]);
 
-  const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => vehicle.status !== 'manufacturer_checkout'), [vehicles]);
+  const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => !ARCHIVED_STATUSES.has(vehicle.status)), [vehicles]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

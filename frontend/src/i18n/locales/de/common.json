@@ -35,6 +35,7 @@
     "drivers": "Fahrer",
     "companies": "Firmen",
     "partners": "Firmen & Fahrer",
+    "archive": "Archiv",
     "imports": "Importe",
     "users": "Benutzer",
     "logout": "Abmelden"
@@ -428,6 +429,15 @@
     "generateReturn": "Rückgabe-PDF erzeugen",
     "generated": "PDF erzeugt",
     "error": "Das PDF konnte nicht erzeugt werden."
+  },
+  "archive": {
+    "eyebrow": "Fuhrpark",
+    "title": "Archiv",
+    "description": "Fahrzeuge, die nicht mehr zum aktiven Fuhrpark gehören – an den Hersteller zurückgegeben oder archiviert.",
+    "empty": {
+      "title": "Archiv ist leer",
+      "body": "Es wurden noch keine Fahrzeuge aus dem Pool entfernt."
+    }
   },
   "partners": {
     "eyebrow": "Verzeichnis",
