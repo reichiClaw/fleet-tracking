@@ -15,19 +15,19 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
   { key: 'loanWorkflows', to: '/app/workflows/loans', translationKey: 'navigation.loanWorkflows', roles: ['admin', 'operations'] },
+  { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
   {
     key: 'manufacturerWorkflows',
     to: '/app/workflows/manufacturer',
     translationKey: 'navigation.manufacturerWorkflows',
     roles: ['admin', 'operations'],
   },
-  { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
-  { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
 ];
 
 function NavIcon({ name }: { name: string }) {
