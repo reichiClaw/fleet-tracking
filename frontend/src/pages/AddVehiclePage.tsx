@@ -1,11 +1,13 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   createDamageReport,
   createVehicle,
+  displayVehicleName,
   listVehicleCategories,
+  listVehicles,
   updateMedia,
   type CreateVehiclePayload,
   type DamageSeverity,
@@ -19,6 +21,7 @@ import { Field } from '../components/Field';
 import { LoadingState } from '../components/LoadingState';
 import { MediaUploadField } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
+import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 
 type FieldErrors = Record<string, string>;
 
@@ -26,7 +29,9 @@ const severityOptions: DamageSeverity[] = ['unknown', 'minor', 'major', 'critica
 
 export function AddVehiclePage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [announcedVehicles, setAnnouncedVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +60,11 @@ export function AddVehiclePage() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextCategories = await listVehicleCategories();
+        const [nextCategories, nextVehicles] = await Promise.all([listVehicleCategories(), listVehicles()]);
         if (isMounted) {
           const active = nextCategories.filter((item) => item.is_active);
           setCategories(active);
+          setAnnouncedVehicles(nextVehicles.filter((item) => item.status === 'announced'));
           // Autofill the category when there is only one choice so the
           // operator does not have to pick it manually on every vehicle.
           if (active.length === 1) {
@@ -82,6 +88,33 @@ export function AddVehiclePage() {
   }, [t]);
 
   const canSubmit = useMemo(() => categories.length > 0, [categories]);
+
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [categories]);
+
+  const announcedOptions = useMemo<SearchableOption[]>(
+    () =>
+      announcedVehicles.map((item) => {
+        const categoryName =
+          typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
+        const keywords = [
+          item.internal_number,
+          item.manufacturer,
+          item.model,
+          item.license_plate,
+          item.serial_number,
+          item.current_location,
+          categoryName,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return { value: item.id, label: displayVehicleName(item), keywords };
+      }),
+    [announcedVehicles, categoryNameById],
+  );
 
   function resetForm() {
     setCategory(categories.length === 1 ? categories[0].id : '');
@@ -202,6 +235,25 @@ export function AddVehiclePage() {
       <PageHeader eyebrow={t('addVehicle.eyebrow')} title={t('addVehicle.title')} description={t('addVehicle.intro')} />
 
       {error ? <ErrorState message={error} /> : null}
+
+      {announcedOptions.length > 0 ? (
+        <section className="content-card form-stack">
+          <h3 className="form-section-title">{t('addVehicle.checkInExisting.title')}</h3>
+          <p className="hint-text">{t('addVehicle.checkInExisting.hint')}</p>
+          <SearchableSelect
+            label={t('addVehicle.checkInExisting.label')}
+            options={announcedOptions}
+            value=""
+            onChange={(vehicleId) => {
+              if (vehicleId) {
+                navigate(`/app/workflows/check-in?vehicle=${vehicleId}`);
+              }
+            }}
+            placeholder={t('addVehicle.checkInExisting.searchPlaceholder')}
+            emptyText={t('addVehicle.checkInExisting.noMatches')}
+          />
+        </section>
+      ) : null}
 
       {created ? (
         <article className="content-card success-card">
