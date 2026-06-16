@@ -84,6 +84,25 @@ describe('WorkflowPage damage handling', () => {
     expect(lastCheckInPayload).not.toHaveProperty('damage_reports');
   });
 
+  it('requires a damage photo when damage is reported on check-in', async () => {
+    render(
+      <MemoryRouter>
+        <WorkflowPage kind="check-in" />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
+    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'veh-1' } });
+    fireEvent.click(screen.getByLabelText('Schaden ist aufgetreten'));
+    fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
+
+    expect(
+      await screen.findByText('Bitte fügen Sie mindestens ein Foto des Schadens hinzu.'),
+    ).toBeInTheDocument();
+    expect(lastCheckInPayload).toBeNull();
+  });
+
   it('requires a signature to complete a loan return', async () => {
     render(
       <MemoryRouter>

@@ -304,6 +304,7 @@
       "phoneRequired": "Bitte geben Sie eine Telefonnummer des Entleihers ein.",
       "expectedReturnRequired": "Bitte wählen Sie eine erwartete Rückgabe.",
       "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden.",
+      "damagePhotoRequired": "Bitte fügen Sie mindestens ein Foto des Schadens hinzu.",
       "signatureRequired": "Für den Abschluss der Rückgabe ist eine Unterschrift erforderlich."
     },
     "damage": {
@@ -311,6 +312,9 @@
       "description": "Schadensbeschreibung",
       "severity": "Schweregrad",
       "hasDamage": "Schaden ist aufgetreten",
+      "photoLabel": "Foto des Schadens",
+      "photoRequired": "Mindestens ein Foto des Schadens ist erforderlich.",
+      "photoCount": "{{count}} Foto(s) hinzugefügt",
       "optionalHint": "Kein Schaden zu melden.",
       "requiredForDamagedStatus": "Schadensangaben sind erforderlich, wenn der Zielstatus auf \"Beschädigt\" gesetzt ist."
     }

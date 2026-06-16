@@ -80,6 +80,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [hasDamage, setHasDamage] = useState(false);
   const [damageDescription, setDamageDescription] = useState('');
   const [damageSeverity, setDamageSeverity] = useState('minor');
+  const [damagePhotoIds, setDamagePhotoIds] = useState<string[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -130,6 +131,10 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     }
   }
 
+  function addDamagePhoto(media: MediaFile) {
+    setDamagePhotoIds((current) => [...current, media.id]);
+  }
+
   function validate() {
     const nextErrors: FieldErrors = {};
     if (kind === 'loan-return') {
@@ -154,6 +159,11 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
     if (damageActive && !damageDescription.trim()) {
       nextErrors.damageDescription = t('workflows.validation.damageDescriptionRequired');
+    }
+
+    // A damage report must be backed by at least one photo of the damage.
+    if (damageActive && damagePhotoIds.length === 0) {
+      nextErrors.damagePhoto = t('workflows.validation.damagePhotoRequired');
     }
 
     // Every loan return must be signed off.
@@ -261,7 +271,9 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     }
 
     if (damageActive && damageDescription.trim()) {
-      payload.damage_reports = [{ description: damageDescription.trim(), severity: damageSeverity }];
+      payload.damage_reports = [
+        { description: damageDescription.trim(), severity: damageSeverity, media_file_ids: damagePhotoIds },
+      ];
     }
 
     return payload;
@@ -423,6 +435,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
                 if (!next) {
                   setDamageDescription('');
                   setDamageSeverity('minor');
+                  setDamagePhotoIds([]);
                 }
               }}
             />
@@ -445,6 +458,23 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
                   ))}
                 </select>
               </Field>
+              <MediaUploadField
+                mediaType="photo"
+                vehicleId={selectedVehicleId}
+                relatedType="workflow_draft"
+                label={t('workflows.damage.photoLabel')}
+                accept="image/*"
+                capture
+                onUploaded={addDamagePhoto}
+              />
+              {damagePhotoIds.length > 0 ? (
+                <p className="hint-text">{t('workflows.damage.photoCount', { count: damagePhotoIds.length })}</p>
+              ) : null}
+              {fieldErrors.damagePhoto ? (
+                <small className="field-error">{fieldErrors.damagePhoto}</small>
+              ) : (
+                <p className="hint-text">{t('workflows.damage.photoRequired')}</p>
+              )}
             </>
           ) : (
             <p className="hint-text">{t('workflows.damage.optionalHint')}</p>
