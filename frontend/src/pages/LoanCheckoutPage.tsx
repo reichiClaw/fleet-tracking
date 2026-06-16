@@ -5,23 +5,27 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Field } from '../components/Field';
 
 import {
+  createDriver,
   createLoanCheckout,
   displayDriverName,
   displayVehicleName,
   generateLoanCheckoutPdf,
   listCompanies,
   listDrivers,
+  listVehicleCategories,
   listVehicles,
   mediaDownloadUrl,
   type Company,
   type Driver,
   type MediaFile,
   type Vehicle,
+  type VehicleCategory,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
+import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 
 type BorrowerType = 'driver' | 'company' | 'other';
 type FieldErrors = Record<string, string>;
@@ -41,6 +45,7 @@ export function LoanCheckoutPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,21 +74,58 @@ export function LoanCheckoutPage() {
   const [generatedPdf, setGeneratedPdf] = useState<MediaFile | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  // Quick-add driver inline so a loan is not blocked by a missing driver record.
+  const [isAddingDriver, setIsAddingDriver] = useState(false);
+  const [newDriverFirstName, setNewDriverFirstName] = useState('');
+  const [newDriverLastName, setNewDriverLastName] = useState('');
+  const [newDriverPhone, setNewDriverPhone] = useState('');
+  const [isSavingDriver, setIsSavingDriver] = useState(false);
+  const [quickDriverError, setQuickDriverError] = useState<string | null>(null);
+
+  async function handleQuickAddDriver() {
+    if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
+      setQuickDriverError(t('management.validation.driverNameRequired'));
+      return;
+    }
+    setIsSavingDriver(true);
+    setQuickDriverError(null);
+    try {
+      const created = await createDriver({
+        first_name: newDriverFirstName.trim(),
+        last_name: newDriverLastName.trim(),
+        phone: newDriverPhone.trim(),
+        is_active: true,
+      });
+      setDrivers((current) => [created, ...current]);
+      setDriver(created.id);
+      setNewDriverFirstName('');
+      setNewDriverLastName('');
+      setNewDriverPhone('');
+      setIsAddingDriver(false);
+    } catch (saveError) {
+      setQuickDriverError(getApiErrorMessage(saveError, t, t('management.saveError')));
+    } finally {
+      setIsSavingDriver(false);
+    }
+  }
+
   useEffect(() => {
     let isMounted = true;
     async function load() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextDrivers, nextCompanies] = await Promise.all([
+        const [nextVehicles, nextDrivers, nextCompanies, nextCategories] = await Promise.all([
           listVehicles(),
           listDrivers(),
           listCompanies(),
+          listVehicleCategories(),
         ]);
         if (isMounted) {
           setVehicles(nextVehicles);
           setDrivers(nextDrivers.filter((item) => item.is_active));
           setCompanies(nextCompanies.filter((item) => item.is_active));
+          setCategories(nextCategories);
         }
       } catch (error) {
         if (isMounted) {
@@ -107,6 +149,64 @@ export function LoanCheckoutPage() {
   );
   const selectedDriver = useMemo(() => drivers.find((item) => item.id === driver), [driver, drivers]);
   const selectedCompany = useMemo(() => companies.find((item) => item.id === company), [company, companies]);
+
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [categories]);
+
+  // Vehicle options carry every searchable field (name/number, manufacturer,
+  // model, plate, serial, category, location, status) so the search box finds a
+  // vehicle by anything stored about it.
+  const vehicleOptions = useMemo<SearchableOption[]>(
+    () =>
+      loanableVehicles.map((item) => {
+        const categoryName =
+          typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
+        const keywords = [
+          item.internal_number,
+          item.manufacturer,
+          item.model,
+          item.license_plate,
+          item.serial_number,
+          item.current_location,
+          categoryName,
+          item.status,
+          t(`status.${item.status}`),
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return { value: item.id, label: displayVehicleName(item), keywords };
+      }),
+    [loanableVehicles, categoryNameById, t],
+  );
+
+  const driverOptions = useMemo<SearchableOption[]>(
+    () =>
+      drivers.map((item) => {
+        const companyName = item.company ? companies.find((c) => c.id === item.company)?.name ?? '' : '';
+        const keywords = [item.phone, item.email, item.license_classes, companyName].filter(Boolean).join(' ');
+        return {
+          value: item.id,
+          label: `${displayDriverName(item)}${item.phone ? ` (${item.phone})` : ''}`,
+          keywords,
+        };
+      }),
+    [drivers, companies],
+  );
+
+  const companyOptions = useMemo<SearchableOption[]>(
+    () =>
+      companies.map((item) => ({
+        value: item.id,
+        label: item.name,
+        keywords: [item.contact_name, item.email, item.phone, t(`companyTypes.${item.company_type}`)]
+          .filter(Boolean)
+          .join(' '),
+      })),
+    [companies, t],
+  );
 
   function addMedia(media: MediaFile) {
     setMediaFileIds((current) => [...current, media.id]);
@@ -234,17 +334,17 @@ export function LoanCheckoutPage() {
 
       {!result ? (
         <form className="content-card form-stack" onSubmit={handleSubmit}>
-          <Field label={t('workflows.fields.vehicle')} error={fieldErrors.vehicle}>
-            <select value={vehicle} onChange={(event) => setVehicle(event.target.value)}>
-              <option value="">{t('workflows.placeholders.selectVehicle')}</option>
-              {loanableVehicles.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {displayVehicleName(item)}
-                </option>
-              ))}
-            </select>
+          <SearchableSelect
+            label={t('workflows.fields.vehicle')}
+            options={vehicleOptions}
+            value={vehicle}
+            onChange={setVehicle}
+            placeholder={t('loanCheckout.searchVehicle')}
+            emptyText={t('loanCheckout.noMatches')}
+            error={fieldErrors.vehicle}
+          >
             {loanableVehicles.length === 0 ? <small className="hint-text">{t('loanCheckout.noVehicles')}</small> : null}
-          </Field>
+          </SearchableSelect>
 
           <fieldset className="fieldset-card">
             <legend>{t('loanCheckout.borrowerType.label')}</legend>
@@ -262,41 +362,72 @@ export function LoanCheckoutPage() {
             </div>
 
             {borrowerType === 'driver' ? (
-              <Field label={t('workflows.fields.driver')} error={fieldErrors.driver}>
-                <select value={driver} onChange={(event) => setDriver(event.target.value)}>
-                  <option value="">{t('loanCheckout.selectDriver')}</option>
-                  {drivers.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {displayDriverName(item)}
-                      {item.phone ? ` (${item.phone})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {drivers.length === 0 ? (
-                  <small className="hint-text">
-                    {t('loanCheckout.noDrivers')} <Link to="/app/partners">{t('navigation.partners')}</Link>
-                  </small>
-                ) : null}
-              </Field>
+              <>
+                <SearchableSelect
+                  label={t('workflows.fields.driver')}
+                  options={driverOptions}
+                  value={driver}
+                  onChange={setDriver}
+                  placeholder={t('loanCheckout.searchDriver')}
+                  emptyText={t('loanCheckout.noMatches')}
+                  error={fieldErrors.driver}
+                >
+                  {drivers.length === 0 ? <small className="hint-text">{t('loanCheckout.noDrivers')}</small> : null}
+                </SearchableSelect>
+
+                {isAddingDriver ? (
+                  <div className="quick-add">
+                    {quickDriverError ? <ErrorState message={quickDriverError} /> : null}
+                    <div className="form-grid form-grid--two">
+                      <Field label={t('management.fields.firstName')}>
+                        <input value={newDriverFirstName} onChange={(event) => setNewDriverFirstName(event.target.value)} />
+                      </Field>
+                      <Field label={t('management.fields.lastName')}>
+                        <input value={newDriverLastName} onChange={(event) => setNewDriverLastName(event.target.value)} />
+                      </Field>
+                    </div>
+                    <Field label={t('loanCheckout.phoneOptional')}>
+                      <input type="tel" value={newDriverPhone} onChange={(event) => setNewDriverPhone(event.target.value)} />
+                    </Field>
+                    <div className="action-row">
+                      <button type="button" className="success-button" disabled={isSavingDriver} onClick={handleQuickAddDriver}>
+                        {isSavingDriver ? t('management.saving') : t('loanCheckout.saveDriver')}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isSavingDriver}
+                        onClick={() => setIsAddingDriver(false)}
+                      >
+                        {t('management.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="ghost-button add-driver-button" onClick={() => setIsAddingDriver(true)}>
+                    {`+ ${t('loanCheckout.quickAddDriver')}`}
+                  </button>
+                )}
+              </>
             ) : null}
 
             {borrowerType === 'company' ? (
               <>
-                <Field label={t('workflows.fields.company')} error={fieldErrors.company}>
-                  <select value={company} onChange={(event) => setCompany(event.target.value)}>
-                    <option value="">{t('loanCheckout.selectCompany')}</option>
-                    {companies.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                <SearchableSelect
+                  label={t('workflows.fields.company')}
+                  options={companyOptions}
+                  value={company}
+                  onChange={setCompany}
+                  placeholder={t('loanCheckout.searchCompany')}
+                  emptyText={t('loanCheckout.noMatches')}
+                  error={fieldErrors.company}
+                >
                   {companies.length === 0 ? (
                     <small className="hint-text">
                       {t('loanCheckout.noCompanies')} <Link to="/app/partners">{t('navigation.partners')}</Link>
                     </small>
                   ) : null}
-                </Field>
+                </SearchableSelect>
                 <Field label={t('loanCheckout.contactPersonOptional')}>
                   <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
