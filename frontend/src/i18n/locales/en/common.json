@@ -400,6 +400,7 @@
     "damage": {
       "title": "Damage check",
       "hasDamage": "This vehicle has damage",
+      "deliveryQuestion": "Damage on delivery?",
       "description": "Damage description",
       "severity": "Severity",
       "photoLabel": "Photo of the damage",

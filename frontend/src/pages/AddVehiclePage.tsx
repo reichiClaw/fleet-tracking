@@ -328,14 +328,15 @@ export function AddVehiclePage() {
 
           <fieldset className="fieldset-card">
             <legend>{t('addVehicle.damage.title')}</legend>
-            <label className="checkbox-inline">
-              <input
-                type="checkbox"
-                checked={hasDamage}
-                onChange={(event) => {
-                  const next = event.target.checked;
-                  setHasDamage(next);
-                  if (!next) {
+            <span className="field-label">{t('addVehicle.damage.deliveryQuestion')}</span>
+            <div className="radio-group">
+              <label className="radio-inline">
+                <input
+                  type="radio"
+                  name="add-vehicle-has-damage"
+                  checked={!hasDamage}
+                  onChange={() => {
+                    setHasDamage(false);
                     setDamageDescription('');
                     setDamageSeverity('minor');
                     setDamageMedia([]);
@@ -345,11 +346,20 @@ export function AddVehiclePage() {
                       delete rest.damagePhoto;
                       return rest;
                     });
-                  }
-                }}
-              />
-              <span>{t('addVehicle.damage.hasDamage')}</span>
-            </label>
+                  }}
+                />
+                <span>{t('common.no')}</span>
+              </label>
+              <label className="radio-inline">
+                <input
+                  type="radio"
+                  name="add-vehicle-has-damage"
+                  checked={hasDamage}
+                  onChange={() => setHasDamage(true)}
+                />
+                <span>{t('common.yes')}</span>
+              </label>
+            </div>
             {hasDamage ? (
               <>
                 <Field label={t('addVehicle.damage.description')} error={fieldErrors.damageDescription}>
