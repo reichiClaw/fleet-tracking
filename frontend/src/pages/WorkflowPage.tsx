@@ -557,7 +557,6 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
         <fieldset className="fieldset-card">
           <legend>{t('media.title')}</legend>
-          {kind === 'loan-return' ? <p className="hint-text">{t('media.signatureRequired')}</p> : null}
           <MediaUploadField
             mediaType="photo"
             vehicleId={selectedVehicleId}
@@ -568,17 +567,27 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             capture
             onUploaded={addMedia}
           />
-          <SignatureInput
-            ref={signatureRef}
-            vehicleId={selectedVehicleId}
-            loanId={kind === 'loan-return' ? loan : undefined}
-            relatedType="workflow_draft"
-            label={t('media.signatureLabel')}
-            onUploaded={addMedia}
-            onDrawnChange={setSignatureDrawn}
-          />
-          {fieldErrors.signature ? <small className="field-error">{fieldErrors.signature}</small> : null}
-          <p className="hint-text">{t('media.handoffNote')}</p>
+          {/* Signatures are only collected when a third party is involved
+              (loan return). Internal check-in / removal workflows are signed off
+              by recording the acting user on the report instead. */}
+          {kind === 'loan-return' ? (
+            <>
+              <p className="hint-text">{t('media.signatureRequired')}</p>
+              <SignatureInput
+                ref={signatureRef}
+                vehicleId={selectedVehicleId}
+                loanId={loan}
+                relatedType="workflow_draft"
+                label={t('media.signatureLabel')}
+                onUploaded={addMedia}
+                onDrawnChange={setSignatureDrawn}
+              />
+              {fieldErrors.signature ? <small className="field-error">{fieldErrors.signature}</small> : null}
+              <p className="hint-text">{t('media.handoffNote')}</p>
+            </>
+          ) : (
+            <p className="hint-text">{t('media.internalWorkflowNote')}</p>
+          )}
         </fieldset>
 
         <button

@@ -420,6 +420,7 @@
     "clearSignature": "Clear",
     "saveSignature": "Save signature",
     "signatureAutoSave": "The signature is saved automatically when you complete the workflow.",
+    "internalWorkflowNote": "No signature needed — this internal workflow is recorded against your user on the report.",
     "download": "Download",
     "types": {
       "photo": "Photo",

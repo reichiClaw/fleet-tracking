@@ -420,6 +420,7 @@
     "clearSignature": "Leeren",
     "saveSignature": "Unterschrift speichern",
     "signatureAutoSave": "Die Unterschrift wird beim Abschluss des Workflows automatisch gespeichert.",
+    "internalWorkflowNote": "Keine Unterschrift nötig – dieser interne Workflow wird im Bericht Ihrem Benutzer zugeordnet.",
     "download": "Herunterladen",
     "types": {
       "photo": "Foto",

@@ -243,7 +243,13 @@ def _generate_document(
 
     labels = _T[language_code]
     protocol_number = _protocol_number(document_type, record)
-    signature = _signature_reference(document_type=document_type, record=record, labels=labels)
+    # Signatures are only relevant for third-party handovers (loan checkout /
+    # return). Internal check-in / manufacturer-checkout protocols are signed off
+    # by the recorded user instead, so no signature section is rendered.
+    if document_type in {LOAN_CHECKOUT_DOCUMENT, LOAN_RETURN_DOCUMENT}:
+        signature = _signature_reference(document_type=document_type, record=record, labels=labels)
+    else:
+        signature = None
     pdf_bytes = _render_pdf(
         labels=labels,
         title=labels[title_key],
@@ -318,7 +324,7 @@ def _render_pdf(
     borrower: Loan | None,
     notes: str,
     damages: list[DamageReport],
-    signature: str,
+    signature: str | None,
 ) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(buffer, pagesize=A4, title=title)
@@ -357,7 +363,8 @@ def _render_pdf(
     story.extend(_section(labels["notes"], [(labels["notes"], notes or labels["not_available"])], styles))
     damage_rows = _damage_rows(damages, labels)
     story.extend(_section(labels["damage_notes"], damage_rows, styles))
-    story.extend(_section(labels["signature_reference"], [(labels["signature_reference"], signature)], styles))
+    if signature is not None:
+        story.extend(_section(labels["signature_reference"], [(labels["signature_reference"], signature)], styles))
 
     document.build(story)
     return buffer.getvalue()
