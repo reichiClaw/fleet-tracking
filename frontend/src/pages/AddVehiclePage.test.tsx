@@ -19,6 +19,7 @@ function installFetchMock() {
     const url = typeof input === 'string' ? input : input.toString();
     const method = (init?.method ?? 'GET').toUpperCase();
     if (url.includes('/vehicle-categories/')) return jsonResponse(categories);
+    if (url.endsWith('/vehicles/') && method === 'GET') return jsonResponse([]);
     if (url.endsWith('/vehicles/') && method === 'POST') {
       lastCreatePayload = JSON.parse(String(init?.body));
       return jsonResponse({ id: 'veh-9', internal_number: 'FZ-00009', manufacturer: 'Acme', model: 'TH-Z' }, 201);

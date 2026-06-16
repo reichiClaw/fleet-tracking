@@ -369,6 +369,13 @@
     "eyebrow": "Fahrzeugpool",
     "title": "Fahrzeug zum Pool hinzufügen",
     "intro": "Ein neues Fahrzeug anlegen und direkt in den Einsatzpool aufnehmen.",
+    "checkInExisting": {
+      "title": "Angekündigtes Fahrzeug einchecken",
+      "hint": "Bereits importiert oder angekündigt? Hier suchen und einchecken, statt einen neuen Datensatz anzulegen.",
+      "label": "Angekündigte Fahrzeuge",
+      "searchPlaceholder": "Suche nach Name, Typ, Kennzeichen, Seriennr. …",
+      "noMatches": "Keine passenden angekündigten Fahrzeuge"
+    },
     "submit": "Fahrzeug hinzufügen",
     "submitting": "Wird hinzugefügt...",
     "completed": "Fahrzeug zum Pool hinzugefügt",

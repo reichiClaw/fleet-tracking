@@ -369,6 +369,13 @@
     "eyebrow": "Vehicle pool",
     "title": "Add new vehicle to pool",
     "intro": "Create a new vehicle and add it directly to the operational pool.",
+    "checkInExisting": {
+      "title": "Check in an announced vehicle",
+      "hint": "Already imported or announced? Find it here and check it in instead of creating a new record.",
+      "label": "Announced vehicles",
+      "searchPlaceholder": "Search by name, type, plate, serial…",
+      "noMatches": "No announced vehicles match"
+    },
     "submit": "Add vehicle",
     "submitting": "Adding...",
     "completed": "Vehicle added to pool",
