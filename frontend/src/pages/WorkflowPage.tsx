@@ -17,6 +17,7 @@ import {
   listCompanies,
   listDrivers,
   listLoans,
+  listVehicleCategories,
   listVehicles,
   mediaDownloadUrl,
   returnLoan,
@@ -25,11 +26,13 @@ import {
   type Loan,
   type MediaFile,
   type Vehicle,
+  type VehicleCategory,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
+import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 
 export type WorkflowKind = 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
 
@@ -52,6 +55,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,17 +92,19 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextCompanies, nextDrivers, nextLoans] = await Promise.all([
+        const [nextVehicles, nextCompanies, nextDrivers, nextLoans, nextCategories] = await Promise.all([
           listVehicles(),
           listCompanies(),
           listDrivers(),
           listLoans(),
+          listVehicleCategories(),
         ]);
         if (isMounted) {
           setVehicles(nextVehicles);
           setCompanies(nextCompanies);
           setDrivers(nextDrivers);
           setLoans(nextLoans);
+          setCategories(nextCategories);
         }
       } catch (error) {
         if (isMounted) {
@@ -119,6 +125,40 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const activeLoans = useMemo(() => loans.filter((item) => item.status === 'active'), [loans]);
   const selectedLoan = useMemo(() => loans.find((item) => item.id === loan), [loan, loans]);
   const selectedVehicleId = kind === 'loan-return' ? selectedLoan?.vehicle : vehicle;
+
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [categories]);
+
+  // For check-in the user picks from vehicles still awaiting check-in
+  // ("announced"); other workflows can target any vehicle. The search matches
+  // every stored field so a vehicle is easy to find.
+  const vehicleOptions = useMemo<SearchableOption[]>(() => {
+    const source =
+      kind === 'check-in'
+        ? vehicles.filter((item) => item.status === 'announced' || item.id === vehicle)
+        : vehicles;
+    return source.map((item) => {
+      const categoryName =
+        typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
+      const keywords = [
+        item.internal_number,
+        item.manufacturer,
+        item.model,
+        item.license_plate,
+        item.serial_number,
+        item.current_location,
+        categoryName,
+        item.status,
+        t(`status.${item.status}`),
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return { value: item.id, label: displayVehicleName(item), keywords };
+    });
+  }, [vehicles, vehicle, kind, categoryNameById, t]);
   const damageRequiredByStatus = (kind === 'check-in' || kind === 'loan-return') && targetStatus === 'damaged';
   const damageActive = hasDamage || damageRequiredByStatus;
   const currentTitleKey = `workflows.${translationPrefix(kind)}.title`;
@@ -336,19 +376,22 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             </select>
           </Field>
         ) : (
-          <Field label={t('workflows.fields.vehicle')} error={fieldErrors.vehicle}>
-            <select value={vehicle} onChange={(event) => setVehicle(event.target.value)}>
-              <option value="">{t('workflows.placeholders.selectVehicle')}</option>
-              {vehicles.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {displayVehicleName(item)}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SearchableSelect
+            label={t('workflows.fields.vehicle')}
+            options={vehicleOptions}
+            value={vehicle}
+            onChange={setVehicle}
+            placeholder={kind === 'check-in' ? t('workflows.placeholders.searchAnnouncedVehicle') : t('workflows.placeholders.searchVehicle')}
+            emptyText={t('workflows.placeholders.noVehicleMatches')}
+            error={fieldErrors.vehicle}
+          >
+            {kind === 'check-in' && vehicleOptions.length === 0 ? (
+              <small className="hint-text">{t('workflows.checkIn.noAnnounced')}</small>
+            ) : null}
+          </SearchableSelect>
         )}
 
-        {kind === 'loan-checkout' || kind === 'check-in' || kind === 'manufacturer-checkout' ? (
+        {kind === 'loan-checkout' || kind === 'manufacturer-checkout' ? (
           <Field label={t(kind === 'manufacturer-checkout' ? 'workflows.fields.recipientCompany' : 'workflows.fields.company')}>
             <select value={company} onChange={(event) => setCompany(event.target.value)}>
               <option value="">{t('workflows.placeholders.optionalCompany')}</option>

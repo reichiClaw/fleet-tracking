@@ -33,6 +33,7 @@ function installFetchMock() {
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
     const method = (init?.method ?? 'GET').toUpperCase();
+    if (url.includes('/vehicle-categories/') && method === 'GET') return jsonResponse([]);
     if (url.includes('/vehicles/') && method === 'GET') return jsonResponse(vehicles);
     if (url.includes('/companies/') && method === 'GET') return jsonResponse([]);
     if (url.includes('/drivers/') && method === 'GET') return jsonResponse([]);
@@ -76,7 +77,8 @@ describe('WorkflowPage damage handling', () => {
     );
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
-    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'veh-1' } });
+    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
+    fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
 
     await waitFor(() => expect(screen.getByText('Fahrzeug zum Pool hinzugefügt')).toBeInTheDocument());
@@ -92,7 +94,8 @@ describe('WorkflowPage damage handling', () => {
     );
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
-    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'veh-1' } });
+    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
+    fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
     fireEvent.click(screen.getByLabelText('Ja'));
     fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
     fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
