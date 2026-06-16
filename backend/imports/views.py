@@ -8,7 +8,11 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdminRole
 from imports.models import ImportJob
 from imports.serializers import ImportJobSerializer
-from imports.services import commit_vehicle_import_job, create_vehicle_import_job
+from imports.services import (
+    commit_vehicle_import_job,
+    create_vehicle_import_job,
+    revalidate_vehicle_import_job,
+)
 
 
 class ImportJobViewSet(viewsets.ModelViewSet):
@@ -33,6 +37,26 @@ class ImportJobViewSet(viewsets.ModelViewSet):
             request_meta=self._request_meta(request),
         )
         return Response(self.get_serializer(job).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def remap(self, request, pk=None):
+        job = self.get_object()
+        mapping = request.data.get("mapping")
+        if mapping is not None and not isinstance(mapping, dict):
+            return Response(
+                {"detail": _("Mapping must be an object of column to source index.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            job = revalidate_vehicle_import_job(
+                job=job,
+                mapping=mapping,
+                actor=request.user,
+                request_meta=self._request_meta(request),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(job).data)
 
     @action(detail=True, methods=["post"])
     def commit(self, request, pk=None):

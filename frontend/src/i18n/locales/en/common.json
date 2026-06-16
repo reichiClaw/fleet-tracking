@@ -471,6 +471,17 @@
     "templateHint": "Required columns: category, manufacturer, model. Optional: internal_number (auto-generated when blank), serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes. Common German headers (Kategorie, Hersteller, Modell, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Notizen) are recognized; any column you leave out stays blank. Unknown or blank categories are placed in the \"Sonstiges\" category.",
     "validate": "Upload and validate",
     "uploading": "Validating...",
+    "mapping": {
+      "title": "Assign columns",
+      "description": "Match each field to a column from your file. Detected columns are pre-selected — adjust any that are wrong, then re-validate.",
+      "targetColumn": "Field",
+      "sourceColumn": "Column in your file",
+      "notMapped": "— Not in file —",
+      "requiredTag": "required",
+      "sampleLabel": "e.g. {{sample}}",
+      "apply": "Apply mapping & re-validate",
+      "applying": "Re-validating..."
+    },
     "resultTitle": "Validation result",
     "rowSummary": "{{rows}} rows, {{errors}} errors",
     "commit": "Commit import",

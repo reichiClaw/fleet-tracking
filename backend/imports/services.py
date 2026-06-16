@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -160,8 +162,13 @@ def create_vehicle_import_job(*, uploaded_file, actor, request_meta: dict[str, s
     return job
 
 
-def validate_vehicle_workbook(uploaded_file) -> ImportValidationResult:
-    """Validate a vehicle workbook and return normalized rows ready for commit."""
+def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = None) -> ImportValidationResult:
+    """Validate a vehicle workbook and return normalized rows ready for commit.
+
+    When ``mapping`` (a dict of ``{column_key: source_column_index}``) is given,
+    it overrides the automatic header detection so the user can assign columns
+    interactively. Otherwise headers are matched automatically via aliases.
+    """
     filename = uploaded_file.name or ""
     if Path(filename).suffix.lower() not in SUPPORTED_EXTENSIONS:
         return _file_error(_("Only .xlsx or .xlsm files are supported."))
@@ -184,11 +191,26 @@ def validate_vehicle_workbook(uploaded_file) -> ImportValidationResult:
         workbook.close()
         return _file_error(_("The workbook must contain a header row."))
 
-    header_map = _build_header_map(raw_headers)
+    # Peek at the first data row so the mapping UI can show example values, then
+    # put it back so it is still validated below.
+    first_data_row = next(rows, None)
+    if first_data_row is not None:
+        rows = itertools.chain([first_data_row], rows)
+    source_columns = _source_columns(raw_headers, first_data_row or ())
+
+    auto_header_map = _build_header_map(raw_headers)
+    header_map = _header_map_from_mapping(mapping, raw_headers) if mapping is not None else auto_header_map
+
+    def _with_mapping_meta(result: dict[str, Any]) -> dict[str, Any]:
+        result["source_columns"] = source_columns
+        result["suggested_mapping"] = auto_header_map
+        result["mapping"] = header_map
+        return result
+
     header_errors = _validate_headers(header_map)
     if header_errors:
         workbook.close()
-        result = _empty_result()
+        result = _with_mapping_meta(_empty_result())
         result["errors"] = header_errors
         return ImportValidationResult(row_count=0, error_count=len(header_errors), result=result)
 
@@ -247,7 +269,7 @@ def validate_vehicle_workbook(uploaded_file) -> ImportValidationResult:
         error_count += len(errors)
 
     workbook.close()
-    result = _empty_result()
+    result = _with_mapping_meta(_empty_result())
     result["rows"] = parsed_rows
     result["summary"] = {
         "row_count": row_count,
@@ -256,6 +278,42 @@ def validate_vehicle_workbook(uploaded_file) -> ImportValidationResult:
         "update_count": sum(1 for row in parsed_rows if row["action"] == "update" and not row["errors"]),
     }
     return ImportValidationResult(row_count=row_count, error_count=error_count, result=result)
+
+
+@transaction.atomic
+def revalidate_vehicle_import_job(
+    *, job: ImportJob, mapping: dict[str, Any] | None, actor, request_meta: dict[str, str]
+) -> ImportJob:
+    """Re-run validation for an existing job with a user-supplied column mapping."""
+    job = ImportJob.objects.select_for_update().get(pk=job.pk)
+    if job.import_type != ImportJob.ImportType.VEHICLES:
+        raise ValueError(_("Only vehicle import jobs can be remapped by this endpoint."))
+    if job.status == ImportJob.Status.COMMITTED:
+        raise ValueError(_("This import job has already been committed."))
+
+    storage_key = job.source_media.storage_key
+    if not default_storage.exists(storage_key):
+        raise ValueError(_("The original import file is no longer available."))
+
+    with default_storage.open(storage_key, "rb") as source_file:
+        validation = validate_vehicle_workbook(source_file, mapping=mapping)
+
+    job.row_count = validation.row_count
+    job.error_count = validation.error_count
+    job.result = validation.result
+    job.status = ImportJob.Status.FAILED if validation.error_count else ImportJob.Status.VALIDATED
+    job.save(update_fields=["row_count", "error_count", "result", "status", "updated_at"])
+
+    _create_audit_log(
+        actor=actor,
+        action="import.vehicle.remapped",
+        entity_type="import_job",
+        entity_id=job.id,
+        before={},
+        after={"status": job.status, "row_count": job.row_count, "error_count": job.error_count},
+        request_meta=request_meta,
+    )
+    return job
 
 
 @transaction.atomic
@@ -354,10 +412,47 @@ def _empty_result() -> dict[str, Any]:
     return {
         "columns": EXPECTED_COLUMNS,
         "required_columns": REQUIRED_COLUMNS,
+        "source_columns": [],
+        "suggested_mapping": {},
+        "mapping": {},
         "rows": [],
         "errors": [],
         "summary": {"row_count": 0, "error_count": 0, "create_count": 0, "update_count": 0},
     }
+
+
+def _source_columns(raw_headers: tuple[Any, ...], sample_row: tuple[Any, ...]) -> list[dict[str, Any]]:
+    """Describe the spreadsheet's own columns for the interactive mapping UI."""
+    columns: list[dict[str, Any]] = []
+    for index, label in enumerate(raw_headers):
+        if label is None or str(label).strip() == "":
+            continue
+        sample = ""
+        if index < len(sample_row) and sample_row[index] is not None:
+            sample = _clean_text(sample_row[index])
+        columns.append({"index": index, "label": str(label).strip(), "sample": sample})
+    return columns
+
+
+def _header_map_from_mapping(mapping: dict[str, Any] | None, raw_headers: tuple[Any, ...]) -> dict[str, int]:
+    """Build a column->index map from an explicit user-supplied mapping."""
+    header_map: dict[str, int] = {}
+    if not isinstance(mapping, dict):
+        return header_map
+    header_len = len(raw_headers)
+    used_indices: set[int] = set()
+    for column in EXPECTED_COLUMNS:
+        raw_index = mapping.get(column)
+        if raw_index in (None, ""):
+            continue
+        try:
+            index = int(raw_index)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= index < header_len and index not in used_indices:
+            header_map[column] = index
+            used_indices.add(index)
+    return header_map
 
 
 def _file_error(message: str) -> ImportValidationResult:

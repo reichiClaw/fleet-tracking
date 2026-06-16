@@ -471,6 +471,17 @@
     "templateHint": "Pflichtspalten: Kategorie, Hersteller, Modell. Optional: interne Nummer (wird bei leerem Feld automatisch vergeben), Seriennummer, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Lieferant, Notizen. Deutsche und englische Spaltennamen werden erkannt; nicht vorhandene Spalten bleiben leer. Unbekannte oder leere Kategorien werden der Kategorie \"Sonstiges\" zugeordnet.",
     "validate": "Hochladen und validieren",
     "uploading": "Wird validiert...",
+    "mapping": {
+      "title": "Spalten zuordnen",
+      "description": "Ordnen Sie jedem Feld eine Spalte aus Ihrer Datei zu. Erkannte Spalten sind vorausgewählt – passen Sie falsche an und validieren Sie erneut.",
+      "targetColumn": "Feld",
+      "sourceColumn": "Spalte in Ihrer Datei",
+      "notMapped": "— Nicht in Datei —",
+      "requiredTag": "Pflicht",
+      "sampleLabel": "z. B. {{sample}}",
+      "apply": "Zuordnung übernehmen & neu validieren",
+      "applying": "Wird neu validiert..."
+    },
     "resultTitle": "Validierungsergebnis",
     "rowSummary": "{{rows}} Zeilen, {{errors}} Fehler",
     "commit": "Import übernehmen",

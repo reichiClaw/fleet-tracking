@@ -1,21 +1,55 @@
-import { type ChangeEvent, useState } from 'react';
+import { type ChangeEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { commitVehicleImport, uploadVehicleImport, type ImportJob } from '../api/fleet';
+import {
+  commitVehicleImport,
+  remapVehicleImport,
+  uploadVehicleImport,
+  type ImportJob,
+} from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
+
+const FALLBACK_TARGET_COLUMNS = [
+  'internal_number',
+  'category',
+  'manufacturer',
+  'model',
+  'serial_number',
+  'license_plate',
+  'current_odometer_km',
+  'current_operating_hours',
+  'current_location',
+  'supplier',
+  'notes',
+];
 
 export function AdminImportPage() {
   const { i18n, t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRemapping, setIsRemapping] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const active = job?.result?.mapping ?? job?.result?.suggested_mapping;
+    if (!active) {
+      return;
+    }
+    const next: Record<string, string> = {};
+    Object.entries(active).forEach(([column, index]) => {
+      next[column] = String(index);
+    });
+    setMapping(next);
+  }, [job]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     setFile(event.target.files?.[0] ?? null);
     setJob(null);
+    setMapping({});
     setError(null);
   }
 
@@ -32,6 +66,27 @@ export function AdminImportPage() {
       setError(getApiErrorMessage(error, t, t('imports.uploadError')));
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  async function handleApplyMapping() {
+    if (!job) {
+      return;
+    }
+    const numericMapping: Record<string, number> = {};
+    Object.entries(mapping).forEach(([column, value]) => {
+      if (value !== '') {
+        numericMapping[column] = Number(value);
+      }
+    });
+    setIsRemapping(true);
+    setError(null);
+    try {
+      setJob(await remapVehicleImport(job.id, numericMapping));
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('imports.uploadError')));
+    } finally {
+      setIsRemapping(false);
     }
   }
 
@@ -95,6 +150,58 @@ export function AdminImportPage() {
           {isUploading ? t('imports.uploading') : t('imports.validate')}
         </button>
       </section>
+
+      {job?.result?.source_columns?.length && job.status !== 'committed' ? (
+        <section className="content-card form-stack">
+          <h3>{t('imports.mapping.title')}</h3>
+          <p className="hint-text">{t('imports.mapping.description')}</p>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('imports.mapping.targetColumn')}</th>
+                  <th>{t('imports.mapping.sourceColumn')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(job.result.columns ?? FALLBACK_TARGET_COLUMNS).map((column) => {
+                  const isRequired = (job.result?.required_columns ?? []).includes(column);
+                  return (
+                    <tr key={column}>
+                      <td>
+                        <label htmlFor={`map-${column}`}>
+                          {importFieldLabel(column)}
+                          {isRequired ? ` (${t('imports.mapping.requiredTag')})` : ''}
+                        </label>
+                      </td>
+                      <td>
+                        <select
+                          id={`map-${column}`}
+                          value={mapping[column] ?? ''}
+                          onChange={(event) =>
+                            setMapping((current) => ({ ...current, [column]: event.target.value }))
+                          }
+                        >
+                          <option value="">{t('imports.mapping.notMapped')}</option>
+                          {job.result?.source_columns?.map((source) => (
+                            <option key={source.index} value={String(source.index)}>
+                              {source.label}
+                              {source.sample ? ` — ${source.sample}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" disabled={isRemapping} onClick={handleApplyMapping}>
+            {isRemapping ? t('imports.mapping.applying') : t('imports.mapping.apply')}
+          </button>
+        </section>
+      ) : null}
 
       {job ? (
         <section className="content-card">

@@ -246,6 +246,68 @@ class VehicleImportAPITests(TestCase):
         self.assertTrue(any(error.get("field") == "manufacturer" for error in errors))
         self.assertEqual(Vehicle.objects.count(), 0)
 
+    def test_upload_exposes_source_columns_for_interactive_mapping(self):
+        header = ["Marke X", "Modell Y", "Standort Z"]
+        upload_response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload([["Acme", "TH100", "Depot Nord"]], header=header)},
+            format="multipart",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(upload_response.status_code, status.HTTP_201_CREATED)
+        # "Marke X"/"Modell Y" are not recognized automatically, so validation fails.
+        self.assertEqual(upload_response.data["status"], ImportJob.Status.FAILED)
+        result = upload_response.data["result"]
+        labels = [column["label"] for column in result["source_columns"]]
+        self.assertEqual(labels, ["Marke X", "Modell Y", "Standort Z"])
+        self.assertEqual(result["source_columns"][0]["sample"], "Acme")
+
+    def test_remap_lets_user_assign_columns_then_commit(self):
+        header = ["Marke X", "Modell Y", "Standort Z"]
+        upload_response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload([["Acme", "TH100", "Depot Nord"]], header=header)},
+            format="multipart",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+        job_id = upload_response.data["id"]
+        self.assertEqual(upload_response.data["status"], ImportJob.Status.FAILED)
+
+        remap_response = self.client_for(self.admin_user).post(
+            f"/api/v1/imports/{job_id}/remap/",
+            {"mapping": {"manufacturer": 0, "model": 1, "current_location": 2}},
+            format="json",
+        )
+        self.assertEqual(remap_response.status_code, status.HTTP_200_OK, remap_response.data)
+        self.assertEqual(remap_response.data["status"], ImportJob.Status.VALIDATED)
+
+        commit_response = self.client_for(self.admin_user).post(
+            f"/api/v1/imports/{job_id}/commit/",
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, status.HTTP_200_OK, commit_response.data)
+        self.assertEqual(Vehicle.objects.count(), 1)
+        vehicle = Vehicle.objects.get()
+        self.assertEqual(vehicle.manufacturer, "Acme")
+        self.assertEqual(vehicle.model, "TH100")
+        self.assertEqual(vehicle.current_location, "Depot Nord")
+
+    def test_remap_is_admin_only(self):
+        upload_response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload([["VH-1", "Steiger", "Acme", "TH100", "", "", "", "", "", "", ""]])},
+            format="multipart",
+        )
+        job_id = upload_response.data["id"]
+
+        response = self.client_for(self.operations_user).post(
+            f"/api/v1/imports/{job_id}/remap/",
+            {"mapping": {"manufacturer": 2}},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_unknown_category_falls_back_to_sonstiges(self):
         header = ["category", "manufacturer", "model"]
         self.upload_and_commit(

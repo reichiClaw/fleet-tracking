@@ -200,6 +200,12 @@ export type VehicleHistory = {
   media: MediaFile[];
 };
 
+export type ImportSourceColumn = {
+  index: number;
+  label: string;
+  sample?: string;
+};
+
 export type ImportJob = {
   id: string;
   import_type: string;
@@ -214,6 +220,12 @@ export type ImportJob = {
       errors?: Array<{ field: string; message: string }>;
       data?: Record<string, unknown>;
     }>;
+    columns?: string[];
+    required_columns?: string[];
+    source_columns?: ImportSourceColumn[];
+    mapping?: Record<string, number>;
+    suggested_mapping?: Record<string, number>;
+    errors?: Array<{ field?: string; code?: string; message: string }>;
     [key: string]: unknown;
   };
   committed_at?: string | null;
@@ -550,6 +562,10 @@ export async function uploadVehicleImport(file: File) {
   const formData = new FormData();
   formData.append('file', file);
   return apiClient.post<ImportJob>('/imports/vehicles/', formData);
+}
+
+export async function remapVehicleImport(id: string, mapping: Record<string, number>) {
+  return apiClient.post<ImportJob>(`/imports/${id}/remap/`, { mapping });
 }
 
 export async function commitVehicleImport(id: string) {
