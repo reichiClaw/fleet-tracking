@@ -771,6 +771,24 @@ small {
 .partners-search {
   flex: 1 1 16rem;
   min-width: 12rem;
+  min-height: 2.75rem;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.partners-search::placeholder {
+  color: #9aa9ba;
+}
+
+.partners-search:hover {
+  border-color: var(--brand-200);
 }
 
 .partners-toolbar .hint-text {
