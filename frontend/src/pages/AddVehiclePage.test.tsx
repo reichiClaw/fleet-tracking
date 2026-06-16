@@ -86,6 +86,26 @@ describe('AddVehiclePage', () => {
     expect(lastCreatePayload).toBeNull();
   });
 
+  it('blocks adding a damaged vehicle without a damage photo', async () => {
+    render(
+      <MemoryRouter>
+        <AddVehiclePage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
+    fireEvent.change(screen.getByLabelText('Hersteller'), { target: { value: 'Acme' } });
+    fireEvent.change(screen.getByLabelText('Modell'), { target: { value: 'TH-Z' } });
+    fireEvent.click(screen.getByLabelText('Dieses Fahrzeug hat einen Schaden'));
+    fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Kratzer' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug hinzufügen' }));
+
+    expect(
+      await screen.findByText('Bitte fügen Sie mindestens ein Foto des Schadens hinzu.'),
+    ).toBeInTheDocument();
+    expect(lastCreatePayload).toBeNull();
+  });
+
   it('autofills the category when only one is available', async () => {
     render(
       <MemoryRouter>

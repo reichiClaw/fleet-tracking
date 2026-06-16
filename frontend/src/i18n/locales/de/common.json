@@ -376,10 +376,21 @@
       "hours": "Betriebsstunden",
       "notes": "Notizen"
     },
+    "damage": {
+      "title": "Schadensprüfung",
+      "hasDamage": "Dieses Fahrzeug hat einen Schaden",
+      "description": "Schadensbeschreibung",
+      "severity": "Schweregrad",
+      "photoLabel": "Foto des Schadens",
+      "photoRequired": "Vor dem Hinzufügen des Fahrzeugs ist ein Foto des Schadens erforderlich.",
+      "noDamageHint": "Bitte bestätigen Sie vor dem Hinzufügen, ob das Fahrzeug sichtbare Schäden aufweist."
+    },
     "validation": {
       "categoryRequired": "Bitte wählen Sie eine Kategorie aus.",
       "manufacturerRequired": "Bitte geben Sie den Hersteller ein.",
-      "modelRequired": "Bitte geben Sie das Modell ein."
+      "modelRequired": "Bitte geben Sie das Modell ein.",
+      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden.",
+      "damagePhotoRequired": "Bitte fügen Sie mindestens ein Foto des Schadens hinzu."
     }
   },
   "media": {

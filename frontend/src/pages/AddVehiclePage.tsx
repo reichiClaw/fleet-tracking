@@ -3,9 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import {
+  createDamageReport,
   createVehicle,
   listVehicleCategories,
+  updateMedia,
   type CreateVehiclePayload,
+  type DamageSeverity,
+  type MediaFile,
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
@@ -13,9 +17,12 @@ import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { Field } from '../components/Field';
 import { LoadingState } from '../components/LoadingState';
+import { MediaUploadField } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
 
 type FieldErrors = Record<string, string>;
+
+const severityOptions: DamageSeverity[] = ['unknown', 'minor', 'major', 'critical'];
 
 export function AddVehiclePage() {
   const { t } = useTranslation();
@@ -36,6 +43,11 @@ export function AddVehiclePage() {
   const [odometer, setOdometer] = useState('');
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
+
+  const [hasDamage, setHasDamage] = useState(false);
+  const [damageDescription, setDamageDescription] = useState('');
+  const [damageSeverity, setDamageSeverity] = useState<DamageSeverity>('minor');
+  const [damageMedia, setDamageMedia] = useState<MediaFile[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,7 +94,15 @@ export function AddVehiclePage() {
     setOdometer('');
     setHours('');
     setNotes('');
+    setHasDamage(false);
+    setDamageDescription('');
+    setDamageSeverity('minor');
+    setDamageMedia([]);
     setFieldErrors({});
+  }
+
+  function addDamageMedia(media: MediaFile) {
+    setDamageMedia((current) => [...current, media]);
   }
 
   function validate() {
@@ -95,6 +115,14 @@ export function AddVehiclePage() {
     }
     if (!model.trim()) {
       next.model = t('addVehicle.validation.modelRequired');
+    }
+    if (hasDamage) {
+      if (!damageDescription.trim()) {
+        next.damageDescription = t('addVehicle.validation.damageDescriptionRequired');
+      }
+      if (damageMedia.length === 0) {
+        next.damagePhoto = t('addVehicle.validation.damagePhotoRequired');
+      }
     }
     setFieldErrors(next);
     return Object.keys(next).length === 0;
@@ -138,6 +166,24 @@ export function AddVehiclePage() {
         payload.notes = notes.trim();
       }
       const vehicle = await createVehicle(payload);
+      if (hasDamage) {
+        const damage = await createDamageReport({
+          vehicle: vehicle.id,
+          description: damageDescription.trim(),
+          severity: damageSeverity,
+          workflow_phase: 'general',
+        });
+        await Promise.all(
+          damageMedia.map((media) =>
+            updateMedia(media.id, {
+              vehicle: vehicle.id,
+              damage_report: damage.id,
+              related_type: 'damage_report',
+              related_id: damage.id,
+            }),
+          ),
+        );
+      }
       setCreated(vehicle);
       resetForm();
     } catch (submitError) {
@@ -227,6 +273,76 @@ export function AddVehiclePage() {
           <Field label={t('addVehicle.fields.notes')}>
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
+
+          <fieldset className="fieldset-card">
+            <legend>{t('addVehicle.damage.title')}</legend>
+            <label className="checkbox-inline">
+              <input
+                type="checkbox"
+                checked={hasDamage}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setHasDamage(next);
+                  if (!next) {
+                    setDamageDescription('');
+                    setDamageSeverity('minor');
+                    setDamageMedia([]);
+                    setFieldErrors((current) => {
+                      const rest = { ...current };
+                      delete rest.damageDescription;
+                      delete rest.damagePhoto;
+                      return rest;
+                    });
+                  }
+                }}
+              />
+              <span>{t('addVehicle.damage.hasDamage')}</span>
+            </label>
+            {hasDamage ? (
+              <>
+                <Field label={t('addVehicle.damage.description')} error={fieldErrors.damageDescription}>
+                  <textarea
+                    value={damageDescription}
+                    onChange={(event) => setDamageDescription(event.target.value)}
+                  />
+                </Field>
+                <Field label={t('addVehicle.damage.severity')}>
+                  <select
+                    value={damageSeverity}
+                    onChange={(event) => setDamageSeverity(event.target.value as DamageSeverity)}
+                  >
+                    {severityOptions.map((severity) => (
+                      <option key={severity} value={severity}>
+                        {t(`severity.${severity}`)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <MediaUploadField
+                  mediaType="photo"
+                  relatedType="damage_report"
+                  label={t('addVehicle.damage.photoLabel')}
+                  accept="image/*"
+                  capture
+                  onUploaded={addDamageMedia}
+                />
+                {damageMedia.length > 0 ? (
+                  <ul className="media-list">
+                    {damageMedia.map((media) => (
+                      <li key={media.id}>{media.original_filename}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {fieldErrors.damagePhoto ? (
+                  <small className="field-error">{fieldErrors.damagePhoto}</small>
+                ) : (
+                  <p className="hint-text">{t('addVehicle.damage.photoRequired')}</p>
+                )}
+              </>
+            ) : (
+              <p className="hint-text">{t('addVehicle.damage.noDamageHint')}</p>
+            )}
+          </fieldset>
 
           <button type="submit" className="success-button" disabled={isSubmitting}>
             {isSubmitting ? t('addVehicle.submitting') : t('addVehicle.submit')}

@@ -376,10 +376,21 @@
       "hours": "Operating hours",
       "notes": "Notes"
     },
+    "damage": {
+      "title": "Damage check",
+      "hasDamage": "This vehicle has damage",
+      "description": "Damage description",
+      "severity": "Severity",
+      "photoLabel": "Photo of the damage",
+      "photoRequired": "A photo of the damage is required before the vehicle can be added.",
+      "noDamageHint": "Confirm whether the vehicle has any visible damage before adding it."
+    },
     "validation": {
       "categoryRequired": "Please select a category.",
       "manufacturerRequired": "Please enter the manufacturer.",
-      "modelRequired": "Please enter the model."
+      "modelRequired": "Please enter the model.",
+      "damageDescriptionRequired": "Please describe the damage.",
+      "damagePhotoRequired": "Please add at least one photo of the damage."
     }
   },
   "media": {
