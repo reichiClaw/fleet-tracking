@@ -97,7 +97,7 @@ describe('AddVehiclePage', () => {
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Hersteller'), { target: { value: 'Acme' } });
     fireEvent.change(screen.getByLabelText('Modell'), { target: { value: 'TH-Z' } });
-    fireEvent.click(screen.getByLabelText('Dieses Fahrzeug hat einen Schaden'));
+    fireEvent.click(screen.getByLabelText('Ja'));
     fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Kratzer' } });
     fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug hinzufügen' }));
 

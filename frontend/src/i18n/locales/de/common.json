@@ -400,6 +400,7 @@
     "damage": {
       "title": "Schadensprüfung",
       "hasDamage": "Dieses Fahrzeug hat einen Schaden",
+      "deliveryQuestion": "Schaden bei Lieferung?",
       "description": "Schadensbeschreibung",
       "severity": "Schweregrad",
       "photoLabel": "Foto des Schadens",
