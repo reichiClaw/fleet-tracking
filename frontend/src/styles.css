@@ -716,9 +716,13 @@ small {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
 
+/* A <legend> inside a grid/flex <fieldset> is rendered specially by browsers
+   (Chrome sizes it to min-content, so the caption wraps word-by-word even with
+   space). Keeping the fieldset a normal block lets the legend take its full
+   width and only wrap when the text genuinely does not fit; children are spaced
+   with margins instead of a grid gap. */
 .fieldset-card {
-  display: grid;
-  gap: 1rem;
+  display: block;
   min-width: 0;
   margin: 0;
   border: 1px solid var(--border);
@@ -727,18 +731,18 @@ small {
   background: var(--surface-muted);
 }
 
+.fieldset-card > * + * {
+  margin-top: 1rem;
+}
+
 .fieldset-card legend,
 .field-label {
   font-weight: 750;
   padding: 0 0.4rem;
 }
 
-/* Inside a grid/flex fieldset a <legend> shrinks to min-content and wraps the
-   caption word-by-word. Span the full row so it stays on one line when there is
-   space and only wraps when the text genuinely does not fit. */
 .fieldset-card legend {
   width: 100%;
-  grid-column: 1 / -1;
 }
 
 .field-error {
