@@ -323,6 +323,34 @@ class VehicleStatusValidationTests(DomainAPITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_admin_can_update_vehicle_master_data(self):
+        vehicle = Vehicle.objects.create(
+            category=self.category, manufacturer="Acme", model="Old", status=VehicleStatus.AVAILABLE
+        )
+        response = self.client_for(self.admin_user).patch(
+            f"/api/v1/vehicles/{vehicle.id}/",
+            {"manufacturer": "Acme Corp", "model": "New", "current_location": "Depot Nord"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.manufacturer, "Acme Corp")
+        self.assertEqual(vehicle.model, "New")
+        self.assertEqual(vehicle.current_location, "Depot Nord")
+
+    def test_operations_cannot_update_vehicle(self):
+        vehicle = Vehicle.objects.create(
+            category=self.category, manufacturer="Acme", model="Old", status=VehicleStatus.AVAILABLE
+        )
+        response = self.client_for(self.operations_user).patch(
+            f"/api/v1/vehicles/{vehicle.id}/",
+            {"model": "Blocked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_internal_number_is_generated_when_omitted(self):
         response = self.client_for(self.admin_user).post(
             "/api/v1/vehicles/",

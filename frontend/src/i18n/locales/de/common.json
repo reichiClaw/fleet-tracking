@@ -199,7 +199,12 @@
       "eyebrow": "Fahrzeugdetail",
       "description": "Aktuelle Daten, Historie, Medien und Workflow-Aktionen.",
       "loadError": "Das Fahrzeugdetail konnte nicht geladen werden.",
-      "dataTitle": "Fahrzeugdaten"
+      "dataTitle": "Fahrzeugdaten",
+      "edit": "Daten bearbeiten",
+      "save": "Änderungen speichern",
+      "saving": "Wird gespeichert...",
+      "editError": "Das Fahrzeug konnte nicht aktualisiert werden.",
+      "editValidation": "Hersteller und Modell sind erforderlich."
     },
     "history": {
       "loans": "Ausleihhistorie",

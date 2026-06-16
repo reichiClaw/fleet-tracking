@@ -400,6 +400,10 @@ export async function createVehicle(payload: CreateVehiclePayload) {
   return apiClient.post<Vehicle>('/vehicles/', payload as unknown as Record<string, unknown>);
 }
 
+export async function updateVehicle(id: string, payload: Partial<CreateVehiclePayload>) {
+  return apiClient.patch<Vehicle>(`/vehicles/${id}/`, payload as Record<string, unknown>);
+}
+
 export type DamageSeverity = 'unknown' | 'minor' | 'major' | 'critical';
 
 export type CreateDamageReportPayload = {

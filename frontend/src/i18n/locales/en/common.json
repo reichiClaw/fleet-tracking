@@ -199,7 +199,12 @@
       "eyebrow": "Vehicle detail",
       "description": "Current data, history, media, and workflow actions.",
       "loadError": "The vehicle detail could not be loaded.",
-      "dataTitle": "Vehicle data"
+      "dataTitle": "Vehicle data",
+      "edit": "Edit data",
+      "save": "Save changes",
+      "saving": "Saving...",
+      "editError": "The vehicle could not be updated.",
+      "editValidation": "Manufacturer and model are required."
     },
     "history": {
       "loans": "Loan history",
