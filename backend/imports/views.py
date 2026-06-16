@@ -1,5 +1,6 @@
 """Import job metadata and upload/commit API viewsets."""
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -63,8 +64,9 @@ class ImportJobViewSet(viewsets.ModelViewSet):
         job = self.get_object()
         try:
             job = commit_vehicle_import_job(job=job, actor=request.user, request_meta=self._request_meta(request))
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, DjangoValidationError) as exc:
+            message = "; ".join(exc.messages) if isinstance(exc, DjangoValidationError) else str(exc)
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(self.get_serializer(job).data)
 
     def _request_meta(self, request) -> dict[str, str]:

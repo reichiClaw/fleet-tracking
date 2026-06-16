@@ -308,6 +308,26 @@ class VehicleImportAPITests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_overlong_value_is_reported_as_row_error_not_server_error(self):
+        long_manufacturer = "A" * 200
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {
+                "file": self.workbook_upload(
+                    [["VH-1", "Steiger", long_manufacturer, "TH100", "", "", "", "", "", "", ""]]
+                )
+            },
+            format="multipart",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
+        row = response.data["result"]["rows"][0]
+        self.assertEqual({error["field"] for error in row["errors"]}, {"manufacturer"})
+        self.assertIn("at most", row["errors"][0]["message"])
+        self.assertEqual(Vehicle.objects.count(), 0)
+
     def test_unknown_category_falls_back_to_sonstiges(self):
         header = ["category", "manufacturer", "model"]
         self.upload_and_commit(

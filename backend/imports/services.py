@@ -9,8 +9,9 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from openpyxl import load_workbook
@@ -47,6 +48,18 @@ SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
 # Catch-all category used when an imported row references an unknown/inactive
 # category or leaves it blank. Created on demand at commit time.
 FALLBACK_CATEGORY_NAME = "Sonstiges"
+
+# Mirror the Vehicle model field limits so over-long values surface as readable
+# row errors during validation instead of failing the model's full_clean() at
+# commit time.
+_MAX_FIELD_LENGTHS = {
+    "internal_number": 80,
+    "manufacturer": 120,
+    "model": 120,
+    "serial_number": 120,
+    "license_plate": 40,
+    "current_location": 255,
+}
 
 # Accept common German and English header spellings so files do not have to use
 # the exact internal column keys. Keys are the canonical columns; values are the
@@ -359,20 +372,26 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
             "current_location": values.get("current_location", ""),
             "notes": values.get("notes", ""),
         }
-        if vehicle:
-            for field, value in vehicle_values.items():
-                setattr(vehicle, field, value)
-            vehicle.save()
-            updated_count += 1
-            action = "update"
-        else:
-            vehicle = Vehicle.objects.create(
-                internal_number=values["internal_number"],
-                status=VehicleStatus.AVAILABLE,
-                **vehicle_values,
-            )
-            created_count += 1
-            action = "create"
+        try:
+            if vehicle:
+                for field, value in vehicle_values.items():
+                    setattr(vehicle, field, value)
+                vehicle.save()
+                updated_count += 1
+                action = "update"
+            else:
+                vehicle = Vehicle.objects.create(
+                    internal_number=values["internal_number"],
+                    status=VehicleStatus.AVAILABLE,
+                    **vehicle_values,
+                )
+                created_count += 1
+                action = "create"
+        except (DjangoValidationError, IntegrityError) as exc:
+            raise ValueError(
+                _("Row %(row)s could not be imported: %(error)s")
+                % {"row": row["row_number"], "error": _humanize_save_error(exc)}
+            ) from exc
 
         committed_rows.append({"row_number": row["row_number"], "action": action, "vehicle_id": str(vehicle.id)})
         _create_audit_log(
@@ -534,6 +553,17 @@ def _normalize_row(
     for field in REQUIRED_COLUMNS:
         if not normalized[field]:
             errors.append(_field_error(field, "required", _("%(field)s is required.") % {"field": field}))
+
+    for field, limit in _MAX_FIELD_LENGTHS.items():
+        value = normalized.get(field, "")
+        if value and len(value) > limit:
+            errors.append(
+                _field_error(
+                    field,
+                    "too_long",
+                    _("%(field)s must be at most %(limit)d characters.") % {"field": field, "limit": limit},
+                )
+            )
 
     category = category_by_name.get(_normalize_lookup(normalized["category"]))
     if category:
@@ -711,6 +741,22 @@ def _decimal_or_none(value: Any) -> Decimal | None:
 
 def _serializable_values(values: dict[str, Any]) -> dict[str, Any]:
     return {key: (str(value) if isinstance(value, Decimal) else value) for key, value in values.items()}
+
+
+def _humanize_save_error(exc: Exception) -> str:
+    """Turn a model/database save error into a readable, field-aware message."""
+    if isinstance(exc, DjangoValidationError):
+        parts: list[str] = []
+        message_dict = getattr(exc, "message_dict", None)
+        if message_dict:
+            for field, messages in message_dict.items():
+                joined = " ".join(str(message) for message in messages)
+                parts.append(f"{field}: {joined}" if field and field != "__all__" else joined)
+        else:
+            parts.extend(str(message) for message in getattr(exc, "messages", [str(exc)]))
+        return " ".join(part for part in parts if part) or str(exc)
+    # IntegrityError and friends: surface a concise, non-internal message.
+    return _("A database constraint was violated (e.g. a duplicate serial number or license plate).")
 
 
 def _field_error(field: str, code: str, message: str) -> dict[str, str]:

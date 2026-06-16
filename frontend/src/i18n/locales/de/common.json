@@ -484,6 +484,7 @@
     },
     "resultTitle": "Validierungsergebnis",
     "errorsTitle": "Was korrigiert werden muss",
+    "committedSummary": "Import abgeschlossen: {{created}} hinzugefügt, {{updated}} aktualisiert.",
     "rowSummary": "{{rows}} Zeilen, {{errors}} Fehler",
     "commit": "Import übernehmen",
     "committing": "Wird übernommen...",

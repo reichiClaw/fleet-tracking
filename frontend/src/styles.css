@@ -738,6 +738,28 @@ small {
   font-weight: 600;
 }
 
+.success-text {
+  color: var(--success-fg);
+  font-weight: 600;
+}
+
+.import-errors {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--danger-fg);
+  background: var(--danger-bg, #fdecec);
+  border-radius: 6px;
+}
+
+.import-errors h4 {
+  margin: 0 0 0.5rem;
+}
+
+.import-errors ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .media-field,
 .signature-field {
   gap: 0.75rem;

@@ -484,6 +484,7 @@
     },
     "resultTitle": "Validation result",
     "errorsTitle": "What needs to be fixed",
+    "committedSummary": "Import complete: {{created}} added, {{updated}} updated.",
     "rowSummary": "{{rows}} rows, {{errors}} errors",
     "commit": "Commit import",
     "committing": "Committing...",

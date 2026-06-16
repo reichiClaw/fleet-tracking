@@ -226,6 +226,7 @@ export type ImportJob = {
     mapping?: Record<string, number>;
     suggested_mapping?: Record<string, number>;
     errors?: Array<{ field?: string; code?: string; message: string }>;
+    commit?: { created_count?: number; updated_count?: number };
     [key: string]: unknown;
   };
   committed_at?: string | null;

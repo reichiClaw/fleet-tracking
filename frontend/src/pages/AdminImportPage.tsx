@@ -216,6 +216,15 @@ export function AdminImportPage() {
             <strong>{t('imports.rowSummary', { rows: job.row_count, errors: job.error_count })}</strong>
           </div>
 
+          {job.status === 'committed' ? (
+            <p className="success-text">
+              {t('imports.committedSummary', {
+                created: job.result?.commit?.created_count ?? 0,
+                updated: job.result?.commit?.updated_count ?? 0,
+              })}
+            </p>
+          ) : null}
+
           {job.result?.errors?.length ? (
             <div className="import-errors">
               <h4>{t('imports.errorsTitle')}</h4>
