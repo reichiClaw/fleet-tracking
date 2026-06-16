@@ -18,7 +18,7 @@ from audit.models import AuditLog
 from imports.models import ImportJob
 from mediafiles.models import MediaType
 from mediafiles.services import create_media_file_from_upload
-from vehicles.models import Vehicle, VehicleCategory
+from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 
 
 EXPECTED_COLUMNS = [
@@ -216,7 +216,11 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
             updated_count += 1
             action = "update"
         else:
-            vehicle = Vehicle.objects.create(internal_number=values["internal_number"], **vehicle_values)
+            vehicle = Vehicle.objects.create(
+                internal_number=values["internal_number"],
+                status=VehicleStatus.AVAILABLE,
+                **vehicle_values,
+            )
             created_count += 1
             action = "create"
 

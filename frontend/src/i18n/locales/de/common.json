@@ -446,6 +446,7 @@
     "eyebrow": "Admin",
     "title": "Fahrzeugimport",
     "description": "Excel-Datei hochladen, Zeilen validieren und einen fehlerfreien Import übernehmen.",
+    "availabilityHint": "Neu importierte Fahrzeuge werden als verfügbar in den Pool aufgenommen und stehen sofort zur Ausleihe bereit.",
     "fileLabel": "Excel-Datei",
     "templateHint": "Erwartete Spalten: internal_number, category, manufacturer, model, serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes.",
     "validate": "Hochladen und validieren",

@@ -45,7 +45,13 @@ export function AddVehiclePage() {
       try {
         const nextCategories = await listVehicleCategories();
         if (isMounted) {
-          setCategories(nextCategories.filter((item) => item.is_active));
+          const active = nextCategories.filter((item) => item.is_active);
+          setCategories(active);
+          // Autofill the category when there is only one choice so the
+          // operator does not have to pick it manually on every vehicle.
+          if (active.length === 1) {
+            setCategory(active[0].id);
+          }
         }
       } catch (loadError) {
         if (isMounted) {
@@ -66,7 +72,7 @@ export function AddVehiclePage() {
   const canSubmit = useMemo(() => categories.length > 0, [categories]);
 
   function resetForm() {
-    setCategory('');
+    setCategory(categories.length === 1 ? categories[0].id : '');
     setInternalNumber('');
     setManufacturer('');
     setModel('');

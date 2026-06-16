@@ -80,6 +80,7 @@ export function AdminImportPage() {
         <p className="eyebrow">{t('imports.eyebrow')}</p>
         <h2>{t('imports.title')}</h2>
         <p>{t('imports.description')}</p>
+        <p className="hint-text">{t('imports.availabilityHint')}</p>
       </div>
 
       {error ? <ErrorState message={error} /> : null}

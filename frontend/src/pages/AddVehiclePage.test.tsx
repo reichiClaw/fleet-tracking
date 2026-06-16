@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../i18n';
 import { AddVehiclePage } from './AddVehiclePage';
 
-const categories = [{ id: 'cat-1', name: 'Steiger', is_active: true }];
+let categories = [{ id: 'cat-1', name: 'Steiger', is_active: true }];
 
 let lastCreatePayload: Record<string, unknown> | null = null;
 
@@ -33,6 +33,7 @@ describe('AddVehiclePage', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     lastCreatePayload = null;
+    categories = [{ id: 'cat-1', name: 'Steiger', is_active: true }];
     installFetchMock();
     await i18n.changeLanguage('de');
   });
@@ -66,6 +67,10 @@ describe('AddVehiclePage', () => {
   });
 
   it('requires category, manufacturer, and model', async () => {
+    categories = [
+      { id: 'cat-1', name: 'Steiger', is_active: true },
+      { id: 'cat-2', name: 'Stapler', is_active: true },
+    ];
     render(
       <MemoryRouter>
         <AddVehiclePage />
@@ -79,5 +84,16 @@ describe('AddVehiclePage', () => {
     expect(screen.getByText('Bitte geben Sie den Hersteller ein.')).toBeInTheDocument();
     expect(screen.getByText('Bitte geben Sie das Modell ein.')).toBeInTheDocument();
     expect(lastCreatePayload).toBeNull();
+  });
+
+  it('autofills the category when only one is available', async () => {
+    render(
+      <MemoryRouter>
+        <AddVehiclePage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
+    expect((screen.getByLabelText('Kategorie') as HTMLSelectElement).value).toBe('cat-1');
   });
 });

@@ -446,6 +446,7 @@
     "eyebrow": "Admin",
     "title": "Vehicle import",
     "description": "Upload an Excel file, validate rows, then commit a clean import.",
+    "availabilityHint": "Newly imported vehicles are added to the pool as available and ready for loan.",
     "fileLabel": "Excel file",
     "templateHint": "Expected columns: internal_number, category, manufacturer, model, serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes.",
     "validate": "Upload and validate",
