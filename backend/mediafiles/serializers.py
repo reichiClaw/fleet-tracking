@@ -49,6 +49,21 @@ class MediaFileSerializer(serializers.ModelSerializer):
         return reverse("media-file-download", kwargs={"pk": obj.pk}, request=request)
 
 
+class GeneratedDocumentSerializer(MediaFileSerializer):
+    """Document listing for the Reports screen: adds a human vehicle label."""
+
+    vehicle_label = serializers.SerializerMethodField()
+
+    class Meta(MediaFileSerializer.Meta):
+        fields = MediaFileSerializer.Meta.fields + ["vehicle_label"]
+
+    def get_vehicle_label(self, obj):
+        vehicle = obj.vehicle
+        if vehicle is None:
+            return ""
+        return " · ".join(part for part in (vehicle.internal_number, vehicle.manufacturer, vehicle.model) if part)
+
+
 class MediaFileUploadSerializer(MediaFileSerializer):
     file = serializers.FileField(write_only=True)
 

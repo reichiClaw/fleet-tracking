@@ -64,6 +64,12 @@ export function VehicleDetailPage() {
   }, [t, vehicleId]);
 
   const activeLoan = useMemo(() => history?.loans.find((loan) => loan.status === 'active'), [history]);
+  const reports = useMemo(() => (history?.media ?? []).filter((media) => media.media_type === 'pdf'), [history]);
+
+  function reportTypeLabel(relatedType?: string) {
+    const key = `reports.types.${relatedType}`;
+    return relatedType && i18n.exists(key) ? t(key) : t('media.types.pdf');
+  }
 
   function appUrl(path: string) {
     if (typeof window === 'undefined') {
@@ -177,6 +183,30 @@ export function VehicleDetailPage() {
             <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="content-card">
+        <h3>{t('vehicles.history.reports')}</h3>
+        {reports.length ? (
+          <ul className="list-stack list-stack--actions">
+            {reports.map((media) => (
+              <li key={media.id}>
+                <div>
+                  <strong>{reportTypeLabel(media.related_type)}</strong>
+                  <small>
+                    {media.language ? t(`language.options.${media.language}`) : ''}
+                    {media.created_at ? ` · ${new Intl.DateTimeFormat(i18n.language).format(new Date(media.created_at))}` : ''}
+                  </small>
+                </div>
+                <a className="button-link secondary-button" href={mediaDownloadUrl(media)}>
+                  {t('media.download')}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="hint-text">{t('vehicles.history.emptyReports')}</p>
+        )}
       </section>
 
       <HistorySection

@@ -25,6 +25,7 @@
     "dashboard": "Dashboard",
     "vehiclePool": "Vehicle pool",
     "history": "History",
+    "reports": "Reports",
     "qrAccess": "QR access",
     "workflows": "Workflows",
     "loanWorkflows": "Loan workflows",
@@ -193,10 +194,12 @@
       "checkIns": "Check-in protocols",
       "manufacturer": "Manufacturer check-outs",
       "media": "Media",
+      "reports": "Reports",
       "emptyLoans": "No loans recorded.",
       "emptyCheckIns": "No check-in protocols recorded.",
       "emptyManufacturer": "No manufacturer check-outs recorded.",
-      "emptyMedia": "No media uploaded."
+      "emptyMedia": "No media uploaded.",
+      "emptyReports": "No reports generated yet."
     },
     "historyIndex": {
       "eyebrow": "History",
@@ -590,6 +593,39 @@
         "checkIn": "Check in",
         "manufacturerCheckout": "Remove from pool"
       }
+    }
+  },
+  "reports": {
+    "eyebrow": "Documents",
+    "title": "Reports",
+    "description": "Search and download every workflow PDF report. Reports are generated automatically when a workflow is completed.",
+    "loadError": "Reports could not be loaded.",
+    "download": "Download",
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Vehicle, plate, or borrower",
+      "type": "Report type",
+      "allTypes": "All types",
+      "language": "Language",
+      "allLanguages": "All languages",
+      "apply": "Apply filters"
+    },
+    "columns": {
+      "type": "Report",
+      "vehicle": "Vehicle",
+      "language": "Language",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "empty": {
+      "title": "No reports found",
+      "body": "Reports are created automatically when you complete a workflow. Adjust the filters or run a workflow."
+    },
+    "types": {
+      "check_in_protocol_pdf": "Check-in report",
+      "loan_checkout_pdf": "Loan checkout report",
+      "loan_return_pdf": "Loan return report",
+      "manufacturer_checkout_protocol_pdf": "Remove-from-pool report"
     }
   },
   "notFound": {

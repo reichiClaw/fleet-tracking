@@ -438,6 +438,33 @@ export async function generateManufacturerCheckoutPdf(id: string, language: stri
   return apiClient.post<MediaFile>(`/workflows/manufacturer-checkouts/${id}/generate-pdf/`, { language });
 }
 
+export type GeneratedDocument = {
+  id: string;
+  vehicle: string | null;
+  vehicle_label: string;
+  loan: string | null;
+  related_type: string;
+  media_type: MediaType;
+  original_filename: string;
+  language?: string;
+  download_url?: string;
+  created_at?: string;
+};
+
+export type DocumentFilters = {
+  search?: string;
+  vehicle?: string;
+  type?: string;
+  language?: string;
+};
+
+export async function listDocuments(filters: DocumentFilters = {}) {
+  const response = await apiClient.get<GeneratedDocument[] | PaginatedResponse<GeneratedDocument>>(
+    pathWithQuery('/documents/', filters),
+  );
+  return listFromResponse(response);
+}
+
 export async function uploadVehicleImport(file: File) {
   const formData = new FormData();
   formData.append('file', file);

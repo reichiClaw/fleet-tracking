@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
@@ -15,10 +16,27 @@ from audit.models import AuditLog
 from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile
 from vehicles.models import Vehicle, VehicleStatus
+from workflows import pdf
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
 
+logger = logging.getLogger("fleet")
 
-def complete_check_in(*, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None) -> CheckInProtocol:
+
+def _auto_generate_pdf(generator) -> None:
+    """Generate and store a workflow PDF without ever blocking the workflow.
+
+    PDF generation runs in a nested savepoint, so a failure rolls back only the
+    document and leaves the completed workflow intact (it is logged for ops).
+    """
+    try:
+        generator()
+    except Exception:  # noqa: BLE001 - PDF generation must never break the operation
+        logger.warning("Automatic PDF generation failed", exc_info=True)
+
+
+def complete_check_in(
+    *, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None, language: str | None = None
+) -> CheckInProtocol:
     """Create a check-in protocol and update the vehicle in one transaction."""
     request_meta = request_meta or {}
     with transaction.atomic():
@@ -69,6 +87,7 @@ def complete_check_in(*, data: dict[str, Any], actor, request_meta: dict[str, st
             odometer=data.get("odometer_km"),
             operating_hours=data.get("operating_hours"),
         )
+        _auto_generate_pdf(lambda: pdf.generate_check_in_pdf(protocol=protocol, actor=actor, language=language))
         _create_audit_log(
             actor=actor,
             action="workflow.check_in.completed",
@@ -85,7 +104,9 @@ def complete_check_in(*, data: dict[str, Any], actor, request_meta: dict[str, st
         return protocol
 
 
-def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None) -> Loan:
+def complete_loan_checkout(
+    *, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None, language: str | None = None
+) -> Loan:
     """Create an active loan and mark the vehicle loaned atomically."""
     request_meta = request_meta or {}
     with transaction.atomic():
@@ -137,6 +158,7 @@ def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[st
             odometer=data.get("checkout_odometer_km"),
             operating_hours=data.get("checkout_operating_hours"),
         )
+        _auto_generate_pdf(lambda: pdf.generate_loan_checkout_pdf(loan=loan, actor=actor, language=language))
         _create_audit_log(
             actor=actor,
             action="workflow.loan_checkout.completed",
@@ -154,7 +176,7 @@ def complete_loan_checkout(*, data: dict[str, Any], actor, request_meta: dict[st
 
 
 def complete_loan_return(
-    *, loan: Loan, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None
+    *, loan: Loan, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None, language: str | None = None
 ) -> Loan:
     """Close a referenced active loan and update the vehicle atomically."""
     request_meta = request_meta or {}
@@ -204,6 +226,7 @@ def complete_loan_return(
             odometer=data.get("return_odometer_km"),
             operating_hours=data.get("return_operating_hours"),
         )
+        _auto_generate_pdf(lambda: pdf.generate_loan_return_pdf(loan=locked_loan, actor=actor, language=language))
         _create_audit_log(
             actor=actor,
             action="workflow.loan_return.completed",
@@ -221,7 +244,7 @@ def complete_loan_return(
 
 
 def complete_manufacturer_checkout(
-    *, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None
+    *, data: dict[str, Any], actor, request_meta: dict[str, str] | None = None, language: str | None = None
 ) -> ManufacturerCheckOutProtocol:
     """Create a manufacturer/supplier checkout protocol atomically."""
     request_meta = request_meta or {}
@@ -271,6 +294,9 @@ def complete_manufacturer_checkout(
             target_status=VehicleStatus.MANUFACTURER_CHECKOUT,
             odometer=data.get("odometer_km"),
             operating_hours=data.get("operating_hours"),
+        )
+        _auto_generate_pdf(
+            lambda: pdf.generate_manufacturer_checkout_pdf(protocol=protocol, actor=actor, language=language)
         )
         _create_audit_log(
             actor=actor,

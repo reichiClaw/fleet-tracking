@@ -12,6 +12,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { CompanyManagementPage, DriverManagementPage } from '../pages/ManagementPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { QRAccessPage } from '../pages/QRAccessPage';
+import { ReportsPage } from '../pages/ReportsPage';
 import { UserManagementPage } from '../pages/UserManagementPage';
 import { VehicleDetailPage } from '../pages/VehicleDetailPage';
 import { VehicleHistoryPage } from '../pages/VehicleHistoryPage';
@@ -68,6 +69,7 @@ export function AppRoutes() {
         <Route path="vehicles" element={<VehiclePoolPage />} />
         <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
         <Route path="history" element={<VehicleHistoryPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="qr" element={<QRAccessPage />} />
         <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
         <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />

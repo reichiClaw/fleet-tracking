@@ -45,6 +45,7 @@ class LoanViewSet(viewsets.ModelViewSet):
             data=serializer.validated_data,
             actor=request.user,
             request_meta=_request_meta(request),
+            language=_workflow_language(request),
         )
         return Response(LoanSerializer(loan, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
@@ -58,6 +59,7 @@ class LoanViewSet(viewsets.ModelViewSet):
             data=serializer.validated_data,
             actor=request.user,
             request_meta=_request_meta(request),
+            language=_workflow_language(request),
         )
         return Response(LoanSerializer(returned_loan, context={"request": request}).data)
 
@@ -89,6 +91,7 @@ class CheckInProtocolViewSet(viewsets.ModelViewSet):
             data=serializer.validated_data,
             actor=request.user,
             request_meta=_request_meta(request),
+            language=_workflow_language(request),
         )
         return Response(
             CheckInProtocolSerializer(protocol, context={"request": request}).data,
@@ -118,6 +121,7 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
             data=serializer.validated_data,
             actor=request.user,
             request_meta=_request_meta(request),
+            language=_workflow_language(request),
         )
         return Response(
             ManufacturerCheckOutProtocolSerializer(protocol, context={"request": request}).data,
@@ -134,6 +138,12 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
 
 def _pdf_language(request) -> str | None:
     return request.data.get("language") or request.query_params.get("language")
+
+
+def _workflow_language(request) -> str | None:
+    # Auto-generated reports follow the requester's UI language (Accept-Language,
+    # resolved by LocaleMiddleware) so the PDF records de/en correctly.
+    return getattr(request, "LANGUAGE_CODE", None)
 
 
 def _request_meta(request) -> dict[str, str]:

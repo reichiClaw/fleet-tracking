@@ -25,6 +25,7 @@
     "dashboard": "Dashboard",
     "vehiclePool": "Fahrzeugpool",
     "history": "Historie",
+    "reports": "Berichte",
     "qrAccess": "QR-Zugriff",
     "workflows": "Workflows",
     "loanWorkflows": "Ausleihe-Workflows",
@@ -193,10 +194,12 @@
       "checkIns": "Check-in-Protokolle",
       "manufacturer": "Hersteller-Check-outs",
       "media": "Medien",
+      "reports": "Berichte",
       "emptyLoans": "Keine Ausleihen erfasst.",
       "emptyCheckIns": "Keine Check-in-Protokolle erfasst.",
       "emptyManufacturer": "Keine Hersteller-Check-outs erfasst.",
-      "emptyMedia": "Keine Medien hochgeladen."
+      "emptyMedia": "Keine Medien hochgeladen.",
+      "emptyReports": "Noch keine Berichte erstellt."
     },
     "historyIndex": {
       "eyebrow": "Historie",
@@ -590,6 +593,39 @@
         "checkIn": "Einchecken",
         "manufacturerCheckout": "Aus Pool entfernen"
       }
+    }
+  },
+  "reports": {
+    "eyebrow": "Dokumente",
+    "title": "Berichte",
+    "description": "Alle Workflow-PDF-Berichte suchen und herunterladen. Berichte werden beim Abschluss eines Workflows automatisch erstellt.",
+    "loadError": "Berichte konnten nicht geladen werden.",
+    "download": "Herunterladen",
+    "filters": {
+      "search": "Suche",
+      "searchPlaceholder": "Fahrzeug, Kennzeichen oder Entleiher",
+      "type": "Berichtstyp",
+      "allTypes": "Alle Typen",
+      "language": "Sprache",
+      "allLanguages": "Alle Sprachen",
+      "apply": "Filter anwenden"
+    },
+    "columns": {
+      "type": "Bericht",
+      "vehicle": "Fahrzeug",
+      "language": "Sprache",
+      "created": "Erstellt",
+      "actions": "Aktionen"
+    },
+    "empty": {
+      "title": "Keine Berichte gefunden",
+      "body": "Berichte werden beim Abschluss eines Workflows automatisch erstellt. Passen Sie die Filter an oder führen Sie einen Workflow aus."
+    },
+    "types": {
+      "check_in_protocol_pdf": "Check-in-Bericht",
+      "loan_checkout_pdf": "Ausleihe-Bericht",
+      "loan_return_pdf": "Rückgabe-Bericht",
+      "manufacturer_checkout_protocol_pdf": "Aus-Pool-entfernen-Bericht"
     }
   },
   "notFound": {

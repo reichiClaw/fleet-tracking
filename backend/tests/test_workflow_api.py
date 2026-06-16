@@ -27,6 +27,7 @@ def tearDownModule():
     shutil.rmtree(WORKFLOW_MEDIA_ROOT, ignore_errors=True)
 
 
+@override_settings(MEDIA_ROOT=WORKFLOW_MEDIA_ROOT)
 class WorkflowAPITestCase(TestCase):
     def setUp(self):
         user_model = get_user_model()
@@ -88,7 +89,6 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(CheckInProtocol.objects.count(), 1)
         self.assertEqual(DamageReport.objects.count(), 0)
 
-    @override_settings(MEDIA_ROOT=WORKFLOW_MEDIA_ROOT)
     def test_check_in_creates_protocol_damage_media_audit_and_updates_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=10, hours="1.0")
         client = self.api_client()
@@ -116,10 +116,15 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(str(vehicle.current_operating_hours), "2.5")
         self.assertEqual(CheckInProtocol.objects.count(), 1)
         self.assertEqual(DamageReport.objects.count(), 1)
-        self.assertEqual(MediaFile.objects.count(), 1)
-        attached = MediaFile.objects.get()
+        # The uploaded photo plus the auto-generated check-in PDF.
+        self.assertEqual(MediaFile.objects.filter(media_type=MediaType.PHOTO).count(), 1)
+        attached = MediaFile.objects.get(media_type=MediaType.PHOTO)
         self.assertEqual(attached.vehicle, vehicle)
         self.assertEqual(attached.related_type, "check_in_protocol")
+        pdf_doc = MediaFile.objects.get(media_type=MediaType.PDF)
+        self.assertEqual(pdf_doc.related_type, "check_in_protocol_pdf")
+        self.assertEqual(pdf_doc.vehicle, vehicle)
+        self.assertEqual(CheckInProtocol.objects.get().pdf_media_id, pdf_doc.id)
         self.assertTrue(AuditLog.objects.filter(action="workflow.check_in.completed").exists())
 
     def test_check_in_rejects_decreasing_odometer_atomically(self):
@@ -138,7 +143,6 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
 
 
 class LoanWorkflowTests(WorkflowAPITestCase):
-    @override_settings(MEDIA_ROOT=WORKFLOW_MEDIA_ROOT)
     def test_loan_checkout_creates_active_loan_and_marks_vehicle_loaned(self):
         vehicle = self.vehicle(status_value=VehicleStatus.CHECKED_IN, odometer=100, hours="10.0")
         client = self.api_client()
@@ -168,7 +172,14 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
         self.assertEqual(vehicle.current_odometer_km, 120)
         self.assertTrue(AuditLog.objects.filter(action="workflow.loan_checkout.completed").exists())
-        self.assertEqual(MediaFile.objects.get().loan, loan)
+        self.assertEqual(MediaFile.objects.get(media_type=MediaType.SIGNATURE).loan, loan)
+        # A loan-checkout PDF report is generated and linked automatically.
+        pdf_doc = MediaFile.objects.get(media_type=MediaType.PDF)
+        self.assertEqual(pdf_doc.related_type, "loan_checkout_pdf")
+        self.assertEqual(pdf_doc.loan, loan)
+        loan.refresh_from_db()
+        self.assertEqual(loan.checkout_pdf_media_id, pdf_doc.id)
+        self.assertIn(loan.checkout_pdf_language, {"de", "en"})
 
     def test_loan_checkout_rejects_unavailable_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
@@ -290,6 +301,37 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         vehicle.refresh_from_db()
         self.assertEqual(loan.status, LoanStatus.ACTIVE)
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
+
+class GeneratedReportsTests(WorkflowAPITestCase):
+    def _results(self, response):
+        return response.data["results"] if isinstance(response.data, dict) else response.data
+
+    def test_workflow_report_is_listed_and_searchable(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+        client = self.api_client()
+        checkout = client.post(
+            "/api/v1/loans/",
+            {
+                "vehicle": str(vehicle.id),
+                "borrower_name": "Searchable Borrower",
+                "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(checkout.status_code, status.HTTP_201_CREATED, checkout.data)
+
+        listed = self._results(client.get("/api/v1/documents/"))
+        self.assertTrue(any(doc["related_type"] == "loan_checkout_pdf" for doc in listed))
+        self.assertTrue(all(doc.get("download_url") for doc in listed))
+        self.assertTrue(all("vehicle_label" in doc for doc in listed))
+
+        by_search = self._results(client.get("/api/v1/documents/?search=Acme"))
+        self.assertGreaterEqual(len(by_search), 1)
+        self.assertTrue(all("Acme" in doc["vehicle_label"] for doc in by_search))
+
+        by_type = self._results(client.get("/api/v1/documents/?type=loan_return_pdf"))
+        self.assertEqual(by_type, [])
 
 
 class ManufacturerCheckoutWorkflowTests(WorkflowAPITestCase):
