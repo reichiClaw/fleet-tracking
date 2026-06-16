@@ -387,6 +387,24 @@ export async function createVehicle(payload: CreateVehiclePayload) {
   return apiClient.post<Vehicle>('/vehicles/', payload as unknown as Record<string, unknown>);
 }
 
+export type DamageSeverity = 'unknown' | 'minor' | 'major' | 'critical';
+
+export type CreateDamageReportPayload = {
+  vehicle: string;
+  description: string;
+  severity?: DamageSeverity;
+  workflow_phase?: string;
+  discovered_at?: string;
+};
+
+export async function createDamageReport(payload: CreateDamageReportPayload) {
+  return apiClient.post<DamageReport>('/damage-reports/', payload as unknown as Record<string, unknown>);
+}
+
+export async function updateMedia(id: string, payload: Partial<MediaFile>) {
+  return apiClient.patch<MediaFile>(`/media/${id}/`, payload as Record<string, unknown>);
+}
+
 export async function resolveVehicleQrCode(qrCode: string) {
   return apiClient.get<VehicleQrResolution>(`/vehicles/qr/${encodeURIComponent(qrCode)}/`);
 }
