@@ -17,8 +17,7 @@ const navigationItems: NavigationItem[] = [
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
   { key: 'loanWorkflows', to: '/app/workflows/loans', translationKey: 'navigation.loanWorkflows', roles: ['admin', 'operations'] },
   { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'drivers', to: '/app/drivers', translationKey: 'navigation.drivers', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'companies', to: '/app/companies', translationKey: 'navigation.companies', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
   { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
   {
     key: 'manufacturerWorkflows',
@@ -76,6 +75,14 @@ function NavIcon({ name }: { name: string }) {
       <>
         <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16" />
         <path d="M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3" />
+      </>
+    ),
+    partners: (
+      <>
+        <path d="M3 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15" />
+        <path d="M7 9h2M7 13h2" />
+        <circle cx="17" cy="11" r="2.2" />
+        <path d="M13.5 21a3.5 3.5 0 0 1 7 0" />
       </>
     ),
     imports: (
