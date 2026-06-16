@@ -598,7 +598,11 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           className={kind === 'check-in' ? 'success-button' : kind === 'manufacturer-checkout' ? 'danger-button' : undefined}
           disabled={isSubmitting}
         >
-          {isSubmitting ? t('workflows.submitting') : t('workflows.submit')}
+          {isSubmitting
+            ? t('workflows.submitting')
+            : kind === 'check-in'
+              ? t('workflows.checkIn.submit')
+              : t('workflows.submit')}
         </button>
       </form>
     </section>
