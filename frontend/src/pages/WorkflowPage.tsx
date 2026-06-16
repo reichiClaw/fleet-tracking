@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -31,7 +31,7 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
+import { MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 
 export type WorkflowKind = 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
@@ -65,6 +65,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
   const [hasSignature, setHasSignature] = useState(false);
+  const [signatureDrawn, setSignatureDrawn] = useState(false);
+  const signatureRef = useRef<SignatureInputHandle>(null);
 
   const initialVehicle = searchParams.get('vehicle') ?? '';
   const initialLoan = searchParams.get('loan') ?? '';
@@ -211,8 +213,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       nextErrors.damagePhoto = t('workflows.validation.damagePhotoRequired');
     }
 
-    // Every loan return must be signed off.
-    if (kind === 'loan-return' && !hasSignature) {
+    // Every loan return must be signed off (drawn signature or uploaded image).
+    if (kind === 'loan-return' && !hasSignature && !signatureDrawn) {
       nextErrors.signature = t('workflows.validation.signatureRequired');
     }
 
@@ -233,7 +235,18 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      // Capture the drawn signature (if any) at submit time so it is saved
+      // automatically without a separate "save" step.
+      let signatureMediaId: string | null = null;
+      try {
+        const signature = await signatureRef.current?.commit();
+        signatureMediaId = signature?.id ?? null;
+      } catch (signatureError) {
+        setError(getApiErrorMessage(signatureError, t, t('media.uploadError')));
+        setIsSubmitting(false);
+        return;
+      }
+      const payload = buildPayload(signatureMediaId ? [signatureMediaId] : []);
       if (kind === 'check-in') {
         const protocol = await createCheckIn(payload);
         setResult({
@@ -274,9 +287,9 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     }
   }
 
-  function buildPayload() {
+  function buildPayload(extraMediaIds: string[] = []) {
     const payload: Record<string, unknown> = {
-      media_file_ids: mediaFileIds,
+      media_file_ids: [...mediaFileIds, ...extraMediaIds],
     };
 
     if (kind !== 'loan-return') {
@@ -556,11 +569,13 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             onUploaded={addMedia}
           />
           <SignatureInput
+            ref={signatureRef}
             vehicleId={selectedVehicleId}
             loanId={kind === 'loan-return' ? loan : undefined}
             relatedType="workflow_draft"
             label={t('media.signatureLabel')}
             onUploaded={addMedia}
+            onDrawnChange={setSignatureDrawn}
           />
           {fieldErrors.signature ? <small className="field-error">{fieldErrors.signature}</small> : null}
           <p className="hint-text">{t('media.handoffNote')}</p>

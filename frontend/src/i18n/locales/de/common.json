@@ -419,6 +419,7 @@
     "uploaded": "Hochgeladen: {{name}}",
     "clearSignature": "Leeren",
     "saveSignature": "Unterschrift speichern",
+    "signatureAutoSave": "Die Unterschrift wird beim Abschluss des Workflows automatisch gespeichert.",
     "download": "Herunterladen",
     "types": {
       "photo": "Foto",

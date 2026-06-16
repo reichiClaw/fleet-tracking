@@ -1,4 +1,11 @@
-import { type ChangeEvent, type PointerEvent, useRef, useState } from 'react';
+import {
+  type ChangeEvent,
+  type PointerEvent,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getApiErrorMessage } from '../api/errors';
@@ -79,15 +86,29 @@ export function MediaUploadField({
 
 type SignatureInputProps = Omit<MediaUploadFieldProps, 'mediaType' | 'label' | 'accept' | 'capture'> & {
   label: string;
+  /** Notifies the parent whether a signature has been drawn (for validation). */
+  onDrawnChange?: (hasDrawing: boolean) => void;
 };
 
-export function SignatureInput(props: SignatureInputProps) {
+/** Imperative handle: the parent calls `commit()` on submit to upload the drawn signature. */
+export type SignatureInputHandle = {
+  commit: () => Promise<MediaFile | null>;
+  hasDrawing: () => boolean;
+};
+
+export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputProps>(function SignatureInput(
+  props,
+  ref,
+) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [hasDrawing, setHasDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  // Cache the uploaded signature so retrying a failed submit does not create
+  // duplicate signature files; reset whenever the drawing changes or is cleared.
+  const committedRef = useRef<MediaFile | null>(null);
+  const changedSinceCommitRef = useRef(false);
 
   function pointerPosition(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -99,6 +120,14 @@ export function SignatureInput(props: SignatureInputProps) {
       x: ((event.clientX - rect.left) / rect.width) * canvas.width,
       y: ((event.clientY - rect.top) / rect.height) * canvas.height,
     };
+  }
+
+  function markDrawn() {
+    changedSinceCommitRef.current = true;
+    if (!hasDrawing) {
+      setHasDrawing(true);
+      props.onDrawnChange?.(true);
+    }
   }
 
   function beginDrawing(event: PointerEvent<HTMLCanvasElement>) {
@@ -114,6 +143,7 @@ export function SignatureInput(props: SignatureInputProps) {
     context.beginPath();
     context.moveTo(x, y);
     setIsDrawing(true);
+    markDrawn();
     canvas.setPointerCapture(event.pointerId);
   }
 
@@ -140,37 +170,44 @@ export function SignatureInput(props: SignatureInputProps) {
     if (canvas && context) {
       context.clearRect(0, 0, canvas.width, canvas.height);
     }
-    setUploadedName(null);
+    setHasDrawing(false);
+    committedRef.current = null;
+    changedSinceCommitRef.current = false;
+    setError(null);
+    props.onDrawnChange?.(false);
   }
 
-  async function uploadSignature() {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    setIsUploading(true);
-    setError(null);
-    try {
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) {
-        throw new Error('signature');
-      }
-      const file = new File([blob], 'signature.png', { type: 'image/png' });
-      const media = await uploadMedia(file, {
-        media_type: 'signature',
-        vehicle: props.vehicleId,
-        loan: props.loanId,
-        related_type: props.relatedType,
-        related_id: props.relatedId,
-      });
-      setUploadedName(media.original_filename || file.name);
-      props.onUploaded(media);
-    } catch (error) {
-      setError(getApiErrorMessage(error, t, t('media.uploadError')));
-    } finally {
-      setIsUploading(false);
-    }
-  }
+  useImperativeHandle(
+    ref,
+    () => ({
+      hasDrawing: () => hasDrawing,
+      async commit() {
+        const canvas = canvasRef.current;
+        if (!canvas || !hasDrawing) {
+          return null;
+        }
+        if (committedRef.current && !changedSinceCommitRef.current) {
+          return committedRef.current;
+        }
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) {
+          return null;
+        }
+        const file = new File([blob], 'signature.png', { type: 'image/png' });
+        const media = await uploadMedia(file, {
+          media_type: 'signature',
+          vehicle: props.vehicleId,
+          loan: props.loanId,
+          related_type: props.relatedType,
+          related_id: props.relatedId,
+        });
+        committedRef.current = media;
+        changedSinceCommitRef.current = false;
+        return media;
+      },
+    }),
+    [hasDrawing, props.vehicleId, props.loanId, props.relatedType, props.relatedId],
+  );
 
   return (
     <div className="signature-field">
@@ -190,13 +227,10 @@ export function SignatureInput(props: SignatureInputProps) {
         <button className="secondary-button" type="button" onClick={clearSignature}>
           {t('media.clearSignature')}
         </button>
-        <button type="button" disabled={isUploading} onClick={uploadSignature}>
-          {isUploading ? t('media.uploading') : t('media.saveSignature')}
-        </button>
       </div>
+      <p className="hint-text">{t('media.signatureAutoSave')}</p>
       <MediaUploadField {...props} mediaType="signature" accept="image/*" label={t('media.signatureFallback')} />
-      {uploadedName ? <p className="hint-text">{t('media.uploaded', { name: uploadedName })}</p> : null}
       {error ? <ErrorState message={error} /> : null}
     </div>
   );
-}
+});

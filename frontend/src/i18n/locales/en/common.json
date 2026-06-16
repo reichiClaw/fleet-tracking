@@ -419,6 +419,7 @@
     "uploaded": "Uploaded: {{name}}",
     "clearSignature": "Clear",
     "saveSignature": "Save signature",
+    "signatureAutoSave": "The signature is saved automatically when you complete the workflow.",
     "download": "Download",
     "types": {
       "photo": "Photo",

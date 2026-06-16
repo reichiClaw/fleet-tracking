@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -24,7 +24,7 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField, SignatureInput } from '../components/MediaUploadField';
+import { MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 
 type BorrowerType = 'driver' | 'company' | 'other';
@@ -69,6 +69,7 @@ export function LoanCheckoutPage() {
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
+  const signatureRef = useRef<SignatureInputHandle>(null);
 
   const [result, setResult] = useState<{ id: string; detail: string } | null>(null);
   const [generatedPdf, setGeneratedPdf] = useState<MediaFile | null>(null);
@@ -254,13 +255,23 @@ export function LoanCheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      // Save the drawn signature (if any) automatically on submit.
+      let signatureMediaId: string | null = null;
+      try {
+        const signature = await signatureRef.current?.commit();
+        signatureMediaId = signature?.id ?? null;
+      } catch (signatureError) {
+        setError(getApiErrorMessage(signatureError, t, t('media.uploadError')));
+        setIsSubmitting(false);
+        return;
+      }
       const borrower = resolveBorrower();
       const payload: Record<string, unknown> = {
         vehicle,
         borrower_name: borrower.name,
         borrower_phone: borrower.phone,
         expected_return_at: new Date(expectedReturnAt).toISOString(),
-        media_file_ids: mediaFileIds,
+        media_file_ids: signatureMediaId ? [...mediaFileIds, signatureMediaId] : mediaFileIds,
       };
       if (borrowerType === 'driver') {
         payload.driver = driver;
@@ -482,6 +493,7 @@ export function LoanCheckoutPage() {
               onUploaded={addMedia}
             />
             <SignatureInput
+              ref={signatureRef}
               vehicleId={vehicle || undefined}
               relatedType="workflow_draft"
               label={t('media.signatureLabel')}
