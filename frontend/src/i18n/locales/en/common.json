@@ -491,7 +491,7 @@
     "eyebrow": "Admin",
     "title": "Vehicle import",
     "description": "Upload an Excel file, validate rows, then commit a clean import.",
-    "availabilityHint": "Newly imported vehicles are added to the pool as available and ready for loan.",
+    "availabilityHint": "Imported vehicles start in the \"announced\" state. Check each one in (Check-in workflow) to add it to the pool and make it available for loan.",
     "fileLabel": "Excel file",
     "templateHint": "Required columns: category, manufacturer, model. Optional: internal_number (auto-generated when blank), serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes. Common German headers (Kategorie, Hersteller, Modell, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Notizen) are recognized; any column you leave out stays blank. Unknown or blank categories are placed in the \"Sonstiges\" category.",
     "validate": "Upload and validate",

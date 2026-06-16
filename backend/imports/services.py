@@ -21,7 +21,7 @@ from audit.models import AuditLog
 from imports.models import ImportJob
 from mediafiles.models import MediaType
 from mediafiles.services import create_media_file_from_upload
-from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
+from vehicles.models import Vehicle, VehicleCategory
 
 
 EXPECTED_COLUMNS = [
@@ -380,9 +380,11 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
                 updated_count += 1
                 action = "update"
             else:
+                # Imported vehicles start in the default "announced" state. They
+                # only become available after the check-in workflow records a
+                # check-in protocol for them.
                 vehicle = Vehicle.objects.create(
                     internal_number=values["internal_number"],
-                    status=VehicleStatus.AVAILABLE,
                     **vehicle_values,
                 )
                 created_count += 1

@@ -491,7 +491,7 @@
     "eyebrow": "Admin",
     "title": "Fahrzeugimport",
     "description": "Excel-Datei hochladen, Zeilen validieren und einen fehlerfreien Import übernehmen.",
-    "availabilityHint": "Neu importierte Fahrzeuge werden als verfügbar in den Pool aufgenommen und stehen sofort zur Ausleihe bereit.",
+    "availabilityHint": "Importierte Fahrzeuge starten im Status \"Angekündigt\". Checken Sie jedes Fahrzeug ein (Check-in-Workflow), damit es in den Pool aufgenommen und zur Ausleihe verfügbar wird.",
     "fileLabel": "Excel-Datei",
     "templateHint": "Pflichtspalten: Kategorie, Hersteller, Modell. Optional: interne Nummer (wird bei leerem Feld automatisch vergeben), Seriennummer, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Lieferant, Notizen. Deutsche und englische Spaltennamen werden erkannt; nicht vorhandene Spalten bleiben leer. Unbekannte oder leere Kategorien werden der Kategorie \"Sonstiges\" zugeordnet.",
     "validate": "Hochladen und validieren",
