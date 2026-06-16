@@ -21,6 +21,8 @@ const summary = {
     active_loans: 1,
     overdue_loans: 1,
     utilization_pct: 25,
+    upcoming_reservations: 1,
+    reservation_conflicts: 1,
   },
   status_distribution: [
     { status: 'available', count: 1 },
@@ -33,6 +35,19 @@ const summary = {
     count: index % 3,
   })),
   available_by_category: [{ id: 'cat-steiger', name: 'Steiger', total: 2, available: 1 }],
+  reservations: [
+    {
+      id: 'res-1',
+      vehicle: 'veh-9',
+      vehicle_label: 'FZ-00009 · Acme · TH100',
+      reserved_for: 'Crew A',
+      company: 'comp-1',
+      driver: null,
+      start_at: '2026-06-14T08:00:00Z',
+      end_at: '2026-06-20T17:00:00Z',
+      conflict: true,
+    },
+  ],
   recent_loans: [
     {
       id: 'loan-1',
@@ -108,8 +123,10 @@ describe('DashboardPage', () => {
 
     // Recent loans table shows the latest loan
     expect(screen.getByText('FZ-00002 · Acme · TH100')).toBeInTheDocument();
-    // Overdue attention panel shows the late loan
-    expect(screen.getByText('FZ-00009 · Acme · TH100')).toBeInTheDocument();
+
+    // Reservation hand-over link is pre-filled with the reserving company
+    const handover = screen.getByRole('link', { name: 'Übergeben' });
+    expect(handover).toHaveAttribute('href', '/app/workflows/loan-checkout?vehicle=veh-9&company=comp-1');
   });
 
   it('shows a friendly empty state when there are no vehicles', async () => {

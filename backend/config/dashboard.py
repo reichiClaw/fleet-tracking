@@ -17,9 +17,27 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
-from workflows.models import Loan, LoanStatus
+from workflows.models import Loan, LoanStatus, Reservation, ReservationStatus
 
 CHECKOUT_SERIES_DAYS = 14
+
+
+def _reservation_party(reservation: Reservation) -> str:
+    if reservation.company_id and reservation.company:
+        return reservation.company.name
+    if reservation.driver_id and reservation.driver:
+        return f"{reservation.driver.first_name} {reservation.driver.last_name}".strip()
+    return reservation.reserved_for or ""
+
+
+def _loan_party_differs(loan: Loan, reservation: Reservation) -> bool:
+    """True when the vehicle's active loan is held by someone other than the reserver."""
+    if reservation.company_id or reservation.driver_id:
+        return loan.company_id != reservation.company_id or loan.driver_id != reservation.driver_id
+    if reservation.reserved_for:
+        return (loan.borrower_name or "").strip().lower() != reservation.reserved_for.strip().lower()
+    # Reservation has no party info but the vehicle is already loaned out.
+    return True
 
 
 def _vehicle_label(vehicle: Vehicle) -> str:
@@ -115,6 +133,50 @@ class DashboardSummaryView(APIView):
             for vehicle in Vehicle.objects.filter(status=VehicleStatus.DAMAGED).order_by("internal_number")[:5]
         ]
 
+        # Reservations: upcoming bookings + conflicts (reserved vehicle currently
+        # loaned to a different party while the reservation window is active).
+        upcoming_reservations = list(
+            Reservation.objects.select_related("vehicle", "company", "driver")
+            .filter(status=ReservationStatus.ACTIVE, end_at__gte=now)
+            .order_by("start_at")[:6]
+        )
+        due_reservations = list(
+            Reservation.objects.select_related("company", "driver")
+            .filter(status=ReservationStatus.ACTIVE, start_at__lte=now, end_at__gte=now)
+        )
+        upcoming_count = Reservation.objects.filter(status=ReservationStatus.ACTIVE, end_at__gte=now).count()
+
+        reservation_vehicle_ids = {res.vehicle_id for res in upcoming_reservations} | {
+            res.vehicle_id for res in due_reservations
+        }
+        active_loans_by_vehicle = {
+            loan.vehicle_id: loan
+            for loan in Loan.objects.select_related("driver", "company").filter(
+                vehicle_id__in=reservation_vehicle_ids, status=LoanStatus.ACTIVE
+            )
+        }
+
+        def reservation_conflict(reservation: Reservation) -> bool:
+            loan = active_loans_by_vehicle.get(reservation.vehicle_id)
+            return bool(reservation.start_at <= now and loan and _loan_party_differs(loan, reservation))
+
+        conflict_count = sum(1 for reservation in due_reservations if reservation_conflict(reservation))
+
+        reservations_payload = [
+            {
+                "id": str(reservation.id),
+                "vehicle": str(reservation.vehicle_id),
+                "vehicle_label": _vehicle_label(reservation.vehicle),
+                "reserved_for": _reservation_party(reservation),
+                "company": str(reservation.company_id) if reservation.company_id else None,
+                "driver": str(reservation.driver_id) if reservation.driver_id else None,
+                "start_at": reservation.start_at.isoformat(),
+                "end_at": reservation.end_at.isoformat(),
+                "conflict": reservation_conflict(reservation),
+            }
+            for reservation in upcoming_reservations
+        ]
+
         distribution_order = [
             VehicleStatus.AVAILABLE,
             VehicleStatus.LOANED,
@@ -143,6 +205,8 @@ class DashboardSummaryView(APIView):
                     "active_loans": active_loans,
                     "overdue_loans": overdue_qs.count(),
                     "utilization_pct": utilization,
+                    "upcoming_reservations": upcoming_count,
+                    "reservation_conflicts": conflict_count,
                 },
                 "status_distribution": [
                     {"status": status_value, "count": status_counts[status_value]}
@@ -151,6 +215,7 @@ class DashboardSummaryView(APIView):
                 ],
                 "checkouts_series": checkouts_series,
                 "available_by_category": available_by_category,
+                "reservations": reservations_payload,
                 "recent_loans": recent_loans,
                 "attention": {
                     "overdue_loans": overdue_loans_list,

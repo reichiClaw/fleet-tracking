@@ -46,11 +46,18 @@ export function LoanCheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  // Pre-fill from a reservation hand-over link
+  // (?vehicle=&driver=|company=|reserved=) so the borrower is set automatically.
+  const presetDriver = searchParams.get('driver') ?? '';
+  const presetCompany = searchParams.get('company') ?? '';
+  const presetReserved = searchParams.get('reserved') ?? '';
+  const presetBorrowerType: BorrowerType = presetDriver ? 'driver' : presetCompany ? 'company' : presetReserved ? 'other' : 'driver';
+
   const [vehicle, setVehicle] = useState(searchParams.get('vehicle') ?? '');
-  const [borrowerType, setBorrowerType] = useState<BorrowerType>('driver');
-  const [driver, setDriver] = useState('');
-  const [company, setCompany] = useState('');
-  const [borrowerName, setBorrowerName] = useState('');
+  const [borrowerType, setBorrowerType] = useState<BorrowerType>(presetBorrowerType);
+  const [driver, setDriver] = useState(presetDriver);
+  const [company, setCompany] = useState(presetCompany);
+  const [borrowerName, setBorrowerName] = useState(presetReserved);
   const [borrowerPhone, setBorrowerPhone] = useState('');
   const [expectedReturnAt, setExpectedReturnAt] = useState(defaultReturnDate());
   const [odometer, setOdometer] = useState('');

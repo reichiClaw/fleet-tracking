@@ -116,6 +116,14 @@
     "attention": {
       "title": "Braucht Aufmerksamkeit"
     },
+    "reservations": {
+      "title": "Reservierungen",
+      "subtitle": "Anstehende Buchungen – Fahrzeug an die reservierende Partei übergeben.",
+      "empty": "Keine anstehenden Reservierungen.",
+      "handover": "Übergeben",
+      "overdue": "Überfällig – an andere Partei ausgeliehen",
+      "conflicts": "{{count}} Konflikt(e)"
+    },
     "overdue": {
       "title": "Überfällige Rückgaben",
       "empty": "Alle Ausleihen sind im Zeitplan.",

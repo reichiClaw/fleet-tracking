@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
-from workflows.models import Loan, LoanStatus
+from workflows.models import Loan, LoanStatus, Reservation, ReservationStatus
 
 SUMMARY_URL = "/api/v1/dashboard/summary/"
 
@@ -86,3 +86,30 @@ class DashboardSummaryTests(TestCase):
         # availability is unused here but ensures the recent-loans shape is present
         self.assertEqual(response.data["recent_loans"][0]["vehicle_label"], "FZ-2 · Acme · TH100")
         self.assertEqual(available.status, VehicleStatus.AVAILABLE)
+
+    def test_summary_flags_reservation_conflict_when_loaned_to_another_party(self):
+        now = timezone.now()
+        vehicle = self.make_vehicle(status_value=VehicleStatus.LOANED, number="FZ-RES")
+        Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Someone Else",
+            expected_return_at=now + timedelta(days=1),
+            status=LoanStatus.ACTIVE,
+            created_by=self.user,
+        )
+        Reservation.objects.create(
+            vehicle=vehicle,
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(days=2),
+            reserved_for="Crew A",
+            status=ReservationStatus.ACTIVE,
+            created_by=self.user,
+        )
+
+        response = self.client_for(self.user).get(SUMMARY_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["totals"]["upcoming_reservations"], 1)
+        self.assertEqual(response.data["totals"]["reservation_conflicts"], 1)
+        self.assertEqual(len(response.data["reservations"]), 1)
+        self.assertTrue(response.data["reservations"][0]["conflict"])
+        self.assertEqual(response.data["reservations"][0]["reserved_for"], "Crew A")

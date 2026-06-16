@@ -250,6 +250,20 @@ export type DashboardTotals = {
   active_loans: number;
   overdue_loans: number;
   utilization_pct: number;
+  upcoming_reservations: number;
+  reservation_conflicts: number;
+};
+
+export type DashboardReservation = {
+  id: string;
+  vehicle: string;
+  vehicle_label: string;
+  reserved_for: string;
+  company: string | null;
+  driver: string | null;
+  start_at: string;
+  end_at: string;
+  conflict: boolean;
 };
 
 export type DashboardSummary = {
@@ -258,6 +272,7 @@ export type DashboardSummary = {
   status_distribution: { status: VehicleStatus; count: number }[];
   checkouts_series: { date: string; count: number }[];
   available_by_category: { id: string; name: string; total: number; available: number }[];
+  reservations: DashboardReservation[];
   recent_loans: {
     id: string;
     vehicle_label: string;

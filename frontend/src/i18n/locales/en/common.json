@@ -116,6 +116,14 @@
     "attention": {
       "title": "Needs attention"
     },
+    "reservations": {
+      "title": "Reservations",
+      "subtitle": "Upcoming bookings — hand a vehicle over to the party that reserved it.",
+      "empty": "No upcoming reservations.",
+      "handover": "Hand over",
+      "overdue": "Overdue — loaned to someone else",
+      "conflicts": "{{count}} conflict(s)"
+    },
     "overdue": {
       "title": "Overdue returns",
       "empty": "All loans are on time.",

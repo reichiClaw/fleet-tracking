@@ -100,6 +100,18 @@ function KpiCard({
   );
 }
 
+function reservationHandoverHref(reservation: { vehicle: string; driver: string | null; company: string | null; reserved_for: string }) {
+  const params = new URLSearchParams({ vehicle: reservation.vehicle });
+  if (reservation.driver) {
+    params.set('driver', reservation.driver);
+  } else if (reservation.company) {
+    params.set('company', reservation.company);
+  } else if (reservation.reserved_for) {
+    params.set('reserved', reservation.reserved_for);
+  }
+  return `/app/workflows/loan-checkout?${params.toString()}`;
+}
+
 function TrendBadge({ direction, label }: { direction: 'up' | 'down' | 'flat'; label: string }) {
   const arrow = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '■';
   return (
@@ -355,6 +367,43 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="content-card">
+        <div className="card-title-row">
+          <div>
+            <h3>{t('dashboard.reservations.title')}</h3>
+            <p className="hint-text">{t('dashboard.reservations.subtitle')}</p>
+          </div>
+          {totals.reservation_conflicts > 0 ? (
+            <span className="status-badge status-badge--damaged">
+              {t('dashboard.reservations.conflicts', { count: totals.reservation_conflicts })}
+            </span>
+          ) : null}
+        </div>
+        {(data.reservations ?? []).length ? (
+          <ul className="list-stack list-stack--actions">
+            {(data.reservations ?? []).map((reservation) => (
+              <li key={reservation.id}>
+                <div>
+                  <strong>{reservation.reserved_for || t('common.unknown')}</strong>
+                  <small>
+                    {reservation.vehicle_label} · {shortDateFormatter.format(new Date(reservation.start_at))} –{' '}
+                    {shortDateFormatter.format(new Date(reservation.end_at))}
+                  </small>
+                </div>
+                {reservation.conflict ? (
+                  <span className="status-badge status-badge--damaged">{t('dashboard.reservations.overdue')}</span>
+                ) : null}
+                <Link className="button-link success-button" to={reservationHandoverHref(reservation)}>
+                  {t('dashboard.reservations.handover')}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="hint-text">{t('dashboard.reservations.empty')}</p>
+        )}
       </section>
 
       <section className="content-card">
