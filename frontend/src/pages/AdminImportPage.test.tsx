@@ -105,4 +105,20 @@ describe('AdminImportPage interactive mapping', () => {
     });
     expect(lastRemapBody).toEqual({ mapping: { manufacturer: 0, model: 1 } });
   });
+
+  it('shows the validation errors when the import fails', async () => {
+    render(
+      <MemoryRouter>
+        <AdminImportPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Excel-Datei'), {
+      target: { files: [new File(['x'], 'fleet.xlsx')] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Hochladen und validieren' }));
+
+    expect(await screen.findByText('Was korrigiert werden muss')).toBeInTheDocument();
+    expect(screen.getByText(/manufacturer is required\./)).toBeInTheDocument();
+  });
 });

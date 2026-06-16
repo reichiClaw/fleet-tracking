@@ -483,6 +483,7 @@
       "applying": "Re-validating..."
     },
     "resultTitle": "Validation result",
+    "errorsTitle": "What needs to be fixed",
     "rowSummary": "{{rows}} rows, {{errors}} errors",
     "commit": "Commit import",
     "committing": "Committing...",

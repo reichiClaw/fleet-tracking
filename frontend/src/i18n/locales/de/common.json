@@ -483,6 +483,7 @@
       "applying": "Wird neu validiert..."
     },
     "resultTitle": "Validierungsergebnis",
+    "errorsTitle": "Was korrigiert werden muss",
     "rowSummary": "{{rows}} Zeilen, {{errors}} Fehler",
     "commit": "Import übernehmen",
     "committing": "Wird übernommen...",

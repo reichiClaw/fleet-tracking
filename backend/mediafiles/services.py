@@ -31,9 +31,17 @@ _ALLOWED_UPLOADS = {
     },
     MediaType.IMPORT: {
         "extensions": {".xlsx", ".xlsm"},
+        # Browsers and operating systems are inconsistent about the content type
+        # they attach to .xlsx uploads (often a generic octet-stream or zip). The
+        # ZIP magic-byte prefix is verified separately, so we accept the common
+        # generic types here instead of rejecting otherwise-valid spreadsheets.
         "content_types": {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.ms-excel.sheet.macroEnabled.12",
+            "application/vnd.ms-excel",
+            "application/octet-stream",
+            "application/zip",
+            "application/x-zip-compressed",
         },
     },
 }

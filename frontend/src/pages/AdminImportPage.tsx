@@ -125,7 +125,10 @@ export function AdminImportPage() {
     return i18n.exists(key) ? t(key) : field;
   }
 
-  function importErrorLabel(errorItem: { field: string; message: string }) {
+  function importErrorLabel(errorItem: { field?: string; message: string }) {
+    if (!errorItem.field) {
+      return errorItem.message;
+    }
     return t('imports.errorFormat', { field: importFieldLabel(errorItem.field), message: errorItem.message });
   }
 
@@ -143,7 +146,7 @@ export function AdminImportPage() {
       <section className="content-card form-stack">
         <label>
           <span>{t('imports.fileLabel')}</span>
-          <input accept=".xlsx,.xls" type="file" onChange={handleFileChange} />
+          <input accept=".xlsx,.xlsm" type="file" onChange={handleFileChange} />
         </label>
         <p className="hint-text">{t('imports.templateHint')}</p>
         <button type="button" disabled={isUploading} onClick={handleUpload}>
@@ -212,6 +215,19 @@ export function AdminImportPage() {
             </div>
             <strong>{t('imports.rowSummary', { rows: job.row_count, errors: job.error_count })}</strong>
           </div>
+
+          {job.result?.errors?.length ? (
+            <div className="import-errors">
+              <h4>{t('imports.errorsTitle')}</h4>
+              <ul>
+                {job.result.errors.map((errorItem, index) => (
+                  <li key={`${errorItem.field ?? 'file'}-${index}`} className="field-error">
+                    {importErrorLabel(errorItem)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {job.result?.rows?.length ? (
             <div className="table-scroll">
