@@ -94,7 +94,7 @@
       "action": "Add a vehicle"
     },
     "kpis": {
-      "fleet": { "label": "Fleet size", "helper": "{{count}} operational" },
+      "fleet": { "label": "Fleet size", "helper": "{{count}} archived" },
       "available": { "label": "Available", "helper": "Ready to loan" },
       "loaned": { "label": "On loan", "helper": "{{pct}}% utilization" },
       "maintenance": { "label": "In maintenance", "helper": "Currently being serviced" },

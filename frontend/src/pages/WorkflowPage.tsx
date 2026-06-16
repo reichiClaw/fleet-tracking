@@ -136,10 +136,15 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   // ("announced"); other workflows can target any vehicle. The search matches
   // every stored field so a vehicle is easy to find.
   const vehicleOptions = useMemo<SearchableOption[]>(() => {
-    const source =
-      kind === 'check-in'
-        ? vehicles.filter((item) => item.status === 'announced' || item.id === vehicle)
-        : vehicles;
+    let source = vehicles;
+    if (kind === 'check-in') {
+      source = vehicles.filter((item) => item.status === 'announced' || item.id === vehicle);
+    } else if (kind === 'manufacturer-checkout') {
+      // Only vehicles still in the fleet can be removed; already-removed,
+      // loaned, or not-yet-checked-in vehicles are not eligible.
+      const eligible = new Set(['available', 'checked_in', 'maintenance', 'damaged', 'reserved']);
+      source = vehicles.filter((item) => eligible.has(item.status) || item.id === vehicle);
+    }
     return source.map((item) => {
       const categoryName =
         typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
@@ -391,8 +396,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           </SearchableSelect>
         )}
 
-        {kind === 'loan-checkout' || kind === 'manufacturer-checkout' ? (
-          <Field label={t(kind === 'manufacturer-checkout' ? 'workflows.fields.recipientCompany' : 'workflows.fields.company')}>
+        {kind === 'loan-checkout' ? (
+          <Field label={t('workflows.fields.company')}>
             <select value={company} onChange={(event) => setCompany(event.target.value)}>
               <option value="">{t('workflows.placeholders.optionalCompany')}</option>
               {companies.map((item) => (

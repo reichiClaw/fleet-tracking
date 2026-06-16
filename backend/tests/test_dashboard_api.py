@@ -38,6 +38,26 @@ class DashboardSummaryTests(TestCase):
         response = APIClient().get(SUMMARY_URL)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_manufacturer_checkout_and_archived_excluded_from_fleet(self):
+        self.make_vehicle(status_value=VehicleStatus.AVAILABLE, number="FZ-1")
+        self.make_vehicle(status_value=VehicleStatus.MANUFACTURER_CHECKOUT, number="FZ-2")
+        self.make_vehicle(status_value=VehicleStatus.ARCHIVED, number="FZ-3")
+
+        response = self.client_for(self.user).get(SUMMARY_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        totals = response.data["totals"]
+
+        # Only the available vehicle is part of the fleet total / operational count.
+        self.assertEqual(totals["vehicles"], 1)
+        self.assertEqual(totals["operational"], 1)
+
+        # The status chart and category totals must not include removed vehicles.
+        chart_statuses = {row["status"] for row in response.data["status_distribution"]}
+        self.assertNotIn(VehicleStatus.MANUFACTURER_CHECKOUT, chart_statuses)
+        self.assertNotIn(VehicleStatus.ARCHIVED, chart_statuses)
+        categories = {row["name"]: row for row in response.data["available_by_category"]}
+        self.assertEqual(categories["Steiger"]["total"], 1)
+
     def test_summary_on_empty_database_returns_zeroed_metrics(self):
         response = self.client_for(self.user).get(SUMMARY_URL)
 

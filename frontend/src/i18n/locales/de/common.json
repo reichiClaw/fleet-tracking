@@ -94,7 +94,7 @@
       "action": "Fahrzeug hinzufügen"
     },
     "kpis": {
-      "fleet": { "label": "Fuhrparkgröße", "helper": "{{count}} im Einsatz" },
+      "fleet": { "label": "Fuhrparkgröße", "helper": "{{count}} archiviert" },
       "available": { "label": "Verfügbar", "helper": "Bereit zur Ausleihe" },
       "loaned": { "label": "Ausgeliehen", "helper": "{{pct}}% Auslastung" },
       "maintenance": { "label": "In Wartung", "helper": "Wird gerade gewartet" },

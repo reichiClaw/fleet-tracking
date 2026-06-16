@@ -268,7 +268,7 @@ export function DashboardPage() {
       />
 
       <div className="kpi-grid">
-        <KpiCard tone="brand" icon="fleet" label={t('dashboard.kpis.fleet.label')} value={totals.vehicles} helper={t('dashboard.kpis.fleet.helper', { count: totals.operational })} />
+        <KpiCard tone="brand" icon="fleet" label={t('dashboard.kpis.fleet.label')} value={totals.vehicles} helper={t('dashboard.kpis.fleet.helper', { count: totals.manufacturer_checkout + totals.archived })} />
         <KpiCard tone="ok" icon="available" label={t('dashboard.kpis.available.label')} value={totals.available} helper={t('dashboard.kpis.available.helper')} />
         <KpiCard tone="warn" icon="loaned" label={t('dashboard.kpis.loaned.label')} value={totals.loaned} helper={t('dashboard.kpis.loaned.helper', { pct: totals.utilization_pct })} />
         <KpiCard tone="info" icon="maintenance" label={t('dashboard.kpis.maintenance.label')} value={totals.maintenance} helper={t('dashboard.kpis.maintenance.helper')} />

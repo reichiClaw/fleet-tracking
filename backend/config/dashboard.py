@@ -68,8 +68,12 @@ class DashboardSummaryView(APIView):
         def count_for(status_value: str) -> int:
             return status_counts.get(status_value, 0)
 
-        total_vehicles = sum(status_counts.values())
-        operational = total_vehicles - count_for(VehicleStatus.ARCHIVED) - count_for(VehicleStatus.MANUFACTURER_CHECKOUT)
+        # Vehicles handed back to the manufacturer or archived have left the
+        # fleet. They live only in the Archive and must not count towards the
+        # fleet total, the status chart, or per-category totals.
+        removed = count_for(VehicleStatus.ARCHIVED) + count_for(VehicleStatus.MANUFACTURER_CHECKOUT)
+        fleet_total = sum(status_counts.values()) - removed
+        operational = fleet_total
         loaned = count_for(VehicleStatus.LOANED)
         utilization = round((loaned / operational) * 100) if operational else 0
 
@@ -96,7 +100,12 @@ class DashboardSummaryView(APIView):
         category_rows = (
             VehicleCategory.objects.filter(is_active=True)
             .annotate(
-                total=Count("vehicles"),
+                total=Count(
+                    "vehicles",
+                    filter=~Q(
+                        vehicles__status__in=[VehicleStatus.ARCHIVED, VehicleStatus.MANUFACTURER_CHECKOUT]
+                    ),
+                ),
                 available=Count("vehicles", filter=Q(vehicles__status=VehicleStatus.AVAILABLE)),
             )
             .order_by("name")
@@ -177,23 +186,23 @@ class DashboardSummaryView(APIView):
             for reservation in upcoming_reservations
         ]
 
+        # The status chart reflects the active fleet only; removed vehicles
+        # (manufacturer checkout / archived) are intentionally excluded.
         distribution_order = [
             VehicleStatus.AVAILABLE,
             VehicleStatus.LOANED,
             VehicleStatus.MAINTENANCE,
             VehicleStatus.DAMAGED,
-            VehicleStatus.MANUFACTURER_CHECKOUT,
             VehicleStatus.ANNOUNCED,
             VehicleStatus.CHECKED_IN,
             VehicleStatus.RESERVED,
-            VehicleStatus.ARCHIVED,
         ]
 
         return Response(
             {
                 "generated_at": now.isoformat(),
                 "totals": {
-                    "vehicles": total_vehicles,
+                    "vehicles": fleet_total,
                     "operational": operational,
                     "available": count_for(VehicleStatus.AVAILABLE),
                     "loaned": loaned,
