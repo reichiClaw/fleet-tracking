@@ -303,7 +303,8 @@
       "borrowerRequired": "Select a driver or enter a borrower name.",
       "phoneRequired": "Please enter a borrower phone number.",
       "expectedReturnRequired": "Please choose an expected return date.",
-      "damageDescriptionRequired": "Please describe the damage."
+      "damageDescriptionRequired": "Please describe the damage.",
+      "signatureRequired": "A signature is required to complete the return."
     },
     "damage": {
       "title": "Damage report",
@@ -385,6 +386,7 @@
     "title": "Photos and signatures",
     "photoLabel": "Photo upload or camera",
     "signatureLabel": "Signature",
+    "signatureRequired": "A signature is required for every loan return — draw or upload one below.",
     "signatureFallback": "Upload signature image",
     "handoffNote": "Signatures can be drawn on the canvas or uploaded as an image; uploaded media is attached when the workflow is submitted.",
     "uploading": "Uploading...",

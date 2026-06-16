@@ -63,8 +63,6 @@ export function LoanCheckoutPage() {
   const [odometer, setOdometer] = useState('');
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
-  const [showDetails, setShowDetails] = useState(false);
-  const [showHandover, setShowHandover] = useState(false);
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
 
   const [result, setResult] = useState<{ id: string; detail: string } | null>(null);
@@ -324,10 +322,8 @@ export function LoanCheckoutPage() {
             <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
           </Field>
 
-          <button type="button" className="disclosure" onClick={() => setShowDetails((value) => !value)}>
-            {showDetails ? '▾' : '▸'} {t('loanCheckout.moreDetails')}
-          </button>
-          {showDetails ? (
+          <fieldset className="fieldset-card">
+            <legend>{t('loanCheckout.moreDetails')}</legend>
             <div className="form-grid form-grid--two">
               <Field label={t('workflows.fields.checkoutOdometer')}>
                 <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
@@ -341,31 +337,27 @@ export function LoanCheckoutPage() {
                 </Field>
               </div>
             </div>
-          ) : null}
+          </fieldset>
 
-          <button type="button" className="disclosure" onClick={() => setShowHandover((value) => !value)}>
-            {showHandover ? '▾' : '▸'} {t('loanCheckout.documentHandover')}
-          </button>
-          {showHandover ? (
-            <fieldset className="fieldset-card">
-              <MediaUploadField
-                mediaType="photo"
-                vehicleId={vehicle || undefined}
-                relatedType="workflow_draft"
-                label={t('media.photoLabel')}
-                accept="image/*"
-                capture
-                onUploaded={addMedia}
-              />
-              <SignatureInput
-                vehicleId={vehicle || undefined}
-                relatedType="workflow_draft"
-                label={t('media.signatureLabel')}
-                onUploaded={addMedia}
-              />
-              <p className="hint-text">{t('media.handoffNote')}</p>
-            </fieldset>
-          ) : null}
+          <fieldset className="fieldset-card">
+            <legend>{t('loanCheckout.documentHandover')}</legend>
+            <MediaUploadField
+              mediaType="photo"
+              vehicleId={vehicle || undefined}
+              relatedType="workflow_draft"
+              label={t('media.photoLabel')}
+              accept="image/*"
+              capture
+              onUploaded={addMedia}
+            />
+            <SignatureInput
+              vehicleId={vehicle || undefined}
+              relatedType="workflow_draft"
+              label={t('media.signatureLabel')}
+              onUploaded={addMedia}
+            />
+            <p className="hint-text">{t('media.handoffNote')}</p>
+          </fieldset>
 
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? t('workflows.submitting') : t('loanCheckout.submit')}

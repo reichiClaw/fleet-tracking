@@ -303,7 +303,8 @@
       "borrowerRequired": "Wählen Sie einen Fahrer aus oder geben Sie einen Entleiher ein.",
       "phoneRequired": "Bitte geben Sie eine Telefonnummer des Entleihers ein.",
       "expectedReturnRequired": "Bitte wählen Sie eine erwartete Rückgabe.",
-      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden."
+      "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden.",
+      "signatureRequired": "Für den Abschluss der Rückgabe ist eine Unterschrift erforderlich."
     },
     "damage": {
       "title": "Schadensmeldung",
@@ -385,6 +386,7 @@
     "title": "Fotos und Unterschriften",
     "photoLabel": "Foto hochladen oder Kamera",
     "signatureLabel": "Unterschrift",
+    "signatureRequired": "Für jede Ausleihe-Rückgabe ist eine Unterschrift erforderlich – unten zeichnen oder hochladen.",
     "signatureFallback": "Unterschrift als Bild hochladen",
     "handoffNote": "Unterschriften können im Canvas gezeichnet oder als Bild hochgeladen werden; hochgeladene Medien werden beim Absenden dem Workflow zugeordnet.",
     "uploading": "Wird hochgeladen...",
