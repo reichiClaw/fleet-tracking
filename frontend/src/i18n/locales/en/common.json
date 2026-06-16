@@ -415,6 +415,10 @@
     "saving": "Saving...",
     "addCompany": "Add company",
     "addDriver": "Add driver",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "inactiveBadge": "Inactive",
     "validation": {
       "nameRequired": "Please enter a company name.",
       "driverNameRequired": "Please enter first and last name."
@@ -441,7 +445,10 @@
       "lastName": "Last name",
       "company": "Company",
       "noCompany": "No company",
-      "licenseClasses": "License classes"
+      "licenseClasses": "License classes",
+      "address": "Address",
+      "notes": "Notes",
+      "active": "Active"
     }
   },
   "imports": {

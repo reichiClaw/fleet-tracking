@@ -413,6 +413,10 @@ export async function createCompany(payload: Partial<Company>) {
   return apiClient.post<Company>('/companies/', payload as Record<string, unknown>);
 }
 
+export async function updateCompany(id: string, payload: Partial<Company>) {
+  return apiClient.patch<Company>(`/companies/${id}/`, payload as Record<string, unknown>);
+}
+
 export async function listDrivers() {
   const response = await apiClient.get<Driver[] | PaginatedResponse<Driver>>('/drivers/');
   return listFromResponse(response);
@@ -420,6 +424,10 @@ export async function listDrivers() {
 
 export async function createDriver(payload: Partial<Driver>) {
   return apiClient.post<Driver>('/drivers/', payload as Record<string, unknown>);
+}
+
+export async function updateDriver(id: string, payload: Partial<Driver>) {
+  return apiClient.patch<Driver>(`/drivers/${id}/`, payload as Record<string, unknown>);
 }
 
 export async function listLoans() {

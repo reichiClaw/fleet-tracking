@@ -415,6 +415,10 @@
     "saving": "Wird gespeichert...",
     "addCompany": "Firma hinzufügen",
     "addDriver": "Fahrer hinzufügen",
+    "edit": "Bearbeiten",
+    "cancel": "Abbrechen",
+    "save": "Änderungen speichern",
+    "inactiveBadge": "Inaktiv",
     "validation": {
       "nameRequired": "Bitte geben Sie einen Firmennamen ein.",
       "driverNameRequired": "Bitte geben Sie Vor- und Nachnamen ein."
@@ -441,7 +445,10 @@
       "lastName": "Nachname",
       "company": "Firma",
       "noCompany": "Keine Firma",
-      "licenseClasses": "Führerscheinklassen"
+      "licenseClasses": "Führerscheinklassen",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "active": "Aktiv"
     }
   },
   "imports": {
