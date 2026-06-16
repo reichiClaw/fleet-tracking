@@ -36,10 +36,15 @@ EXPECTED_COLUMNS = [
 ]
 # Only the data we cannot derive is required. ``internal_number`` is optional:
 # when the column is missing or a cell is blank the fleet number is generated
-# automatically (e.g. FZ-00001). Any expected column missing from the file is
-# simply treated as blank for every row.
-REQUIRED_COLUMNS = ["category", "manufacturer", "model"]
+# automatically (e.g. FZ-00001). ``category`` is optional too: unknown or blank
+# categories fall back to the catch-all category below. Any expected column
+# missing from the file is simply treated as blank for every row.
+REQUIRED_COLUMNS = ["manufacturer", "model"]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
+
+# Catch-all category used when an imported row references an unknown/inactive
+# category or leaves it blank. Created on demand at commit time.
+FALLBACK_CATEGORY_NAME = "Sonstiges"
 
 # Accept common German and English header spellings so files do not have to use
 # the exact internal column keys. Keys are the canonical columns; values are the
@@ -268,9 +273,20 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
     updated_count = 0
     committed_rows: list[dict[str, Any]] = []
 
+    fallback_category: VehicleCategory | None = None
+
     for row in job.result.get("rows", []):
         values = row["values"]
-        category = VehicleCategory.objects.get(pk=values["category_id"])
+        category_id = values.get("category_id")
+        if category_id:
+            category = VehicleCategory.objects.get(pk=category_id)
+        else:
+            if fallback_category is None:
+                fallback_category, _created = VehicleCategory.objects.get_or_create(
+                    name=FALLBACK_CATEGORY_NAME,
+                    defaults={"is_active": True},
+                )
+            category = fallback_category
         vehicle = Vehicle.objects.filter(internal_number=values["internal_number"]).first()
         before = _vehicle_snapshot(vehicle) if vehicle else {}
 
@@ -425,16 +441,12 @@ def _normalize_row(
             errors.append(_field_error(field, "required", _("%(field)s is required.") % {"field": field}))
 
     category = category_by_name.get(_normalize_lookup(normalized["category"]))
-    if normalized["category"] and not category:
-        errors.append(
-            _field_error(
-                "category",
-                "unknown_category",
-                _("Unknown or inactive vehicle category: %(category)s.") % {"category": normalized["category"]},
-            )
-        )
-    elif category:
+    if category:
         normalized["category_id"] = str(category.id)
+    else:
+        # Unknown or blank category: route the vehicle into the catch-all
+        # category at commit time instead of failing the row.
+        normalized["category_fallback"] = True
 
     normalized["current_odometer_km"] = _non_negative_int(
         values["current_odometer_km"],

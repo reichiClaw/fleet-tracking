@@ -164,7 +164,7 @@ class VehicleImportAPITests(TestCase):
             "/api/v1/imports/vehicles/",
             {
                 "file": self.workbook_upload(
-                    [["VH-001", "Missing Category", "Acme", "TH100", "", "", -1, "", "", "", ""]]
+                    [["VH-001", "Steiger", "Acme", "TH100", "", "", -1, "", "", "", ""]]
                 )
             },
             format="multipart",
@@ -176,8 +176,7 @@ class VehicleImportAPITests(TestCase):
         self.assertGreater(response.data["error_count"], 0)
         row = response.data["result"]["rows"][0]
         self.assertEqual(row["row_number"], 2)
-        self.assertEqual({error["field"] for error in row["errors"]}, {"category", "current_odometer_km"})
-        self.assertIn("Unknown or inactive vehicle category", row["errors"][0]["message"])
+        self.assertEqual({error["field"] for error in row["errors"]}, {"current_odometer_km"})
         self.assertEqual(Vehicle.objects.count(), 0)
 
     def test_invalid_vehicle_import_cannot_partially_commit_valid_rows(self):
@@ -187,7 +186,7 @@ class VehicleImportAPITests(TestCase):
                 "file": self.workbook_upload(
                     [
                         ["VH-001", "Steiger", "Acme", "TH100", "", "", 1, "", "", "", ""],
-                        ["VH-002", "Missing Category", "Acme", "TH200", "", "", 2, "", "", "", ""],
+                        ["VH-002", "Steiger", "", "TH200", "", "", 2, "", "", "", ""],
                     ]
                 )
             },
@@ -236,7 +235,7 @@ class VehicleImportAPITests(TestCase):
     def test_import_still_requires_core_columns(self):
         response = self.client_for(self.admin_user).post(
             "/api/v1/imports/vehicles/",
-            {"file": self.workbook_upload([["Acme", "TH100"]], header=["manufacturer", "model"])},
+            {"file": self.workbook_upload([["TH100"]], header=["model"])},
             format="multipart",
             HTTP_ACCEPT_LANGUAGE="en",
         )
@@ -244,6 +243,22 @@ class VehicleImportAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
         errors = response.data["result"]["errors"]
-        self.assertTrue(any(error.get("field") == "category" for error in errors))
+        self.assertTrue(any(error.get("field") == "manufacturer" for error in errors))
         self.assertEqual(Vehicle.objects.count(), 0)
+
+    def test_unknown_category_falls_back_to_sonstiges(self):
+        header = ["category", "manufacturer", "model"]
+        self.upload_and_commit(
+            [
+                ["Unbekannt", "Acme", "TH100"],
+                ["", "Acme", "TH200"],
+            ],
+            header=header,
+        )
+
+        fallback = VehicleCategory.objects.get(name="Sonstiges")
+        self.assertTrue(fallback.is_active)
+        self.assertEqual(Vehicle.objects.filter(category=fallback).count(), 2)
+        # The catch-all category is reused, not duplicated, across rows.
+        self.assertEqual(VehicleCategory.objects.filter(name="Sonstiges").count(), 1)
 
