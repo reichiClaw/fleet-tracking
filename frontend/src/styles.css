@@ -1451,6 +1451,25 @@ tbody tr:hover td {
   accent-color: var(--brand-600);
 }
 
+.radio-group {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.radio-inline input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--brand-600);
+}
+
 /* ==========================================================================
    Dashboard
    ========================================================================== */

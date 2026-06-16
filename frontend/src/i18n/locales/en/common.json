@@ -6,7 +6,9 @@
   },
   "common": {
     "notAvailable": "Not available",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "yes": "Yes",
+    "no": "No"
   },
   "language": {
     "label": "Language",
@@ -305,6 +307,7 @@
       "phoneRequired": "Please enter a borrower phone number.",
       "expectedReturnRequired": "Please choose an expected return date.",
       "damageDescriptionRequired": "Please describe the damage.",
+      "damagePhotoRequired": "Please add at least one photo of the damage.",
       "signatureRequired": "A signature is required to complete the return."
     },
     "damage": {
@@ -312,6 +315,11 @@
       "description": "Damage description",
       "severity": "Severity",
       "hasDamage": "Damage occurred",
+      "deliveryQuestion": "Damage on delivery?",
+      "occurredQuestion": "Damage occurred?",
+      "photoLabel": "Photo of the damage",
+      "photoRequired": "At least one photo of the damage is required.",
+      "photoCount": "{{count}} photo(s) added",
       "optionalHint": "No damage to report.",
       "requiredForDamagedStatus": "Damage details are required when target status is set to damaged."
     }
