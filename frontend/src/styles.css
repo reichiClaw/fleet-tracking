@@ -507,6 +507,68 @@ small {
   box-shadow: var(--shadow-sm);
 }
 
+/* Settings submenu group: spans the full nav width and stacks its items. */
+.nav-group {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.nav-group__toggle {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 3rem;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 0.7rem 0.9rem;
+  color: var(--text-soft);
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.nav-group__toggle:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.nav-group__toggle.is-active {
+  color: var(--text);
+}
+
+.nav-group__caret {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--transition);
+}
+
+.nav-group.is-open .nav-group__caret {
+  transform: rotate(180deg);
+}
+
+.nav-group__items {
+  display: grid;
+  gap: 0.4rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+  margin-left: 0.4rem;
+}
+
+.nav-group__items a {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .nav-icon {
   width: 1.15rem;
   height: 1.15rem;

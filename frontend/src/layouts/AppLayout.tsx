@@ -18,16 +18,20 @@ const navigationItems: NavigationItem[] = [
   { key: 'loanWorkflows', to: '/app/workflows/loans', translationKey: 'navigation.loanWorkflows', roles: ['admin', 'operations'] },
   { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
   { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
+];
+
+// Grouped under a "Settings" submenu at the bottom of the navigation.
+const settingsNavItems: NavigationItem[] = [
   { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
+  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
   {
     key: 'manufacturerWorkflows',
     to: '/app/workflows/manufacturer',
     translationKey: 'navigation.manufacturerWorkflows',
     roles: ['admin', 'operations'],
   },
-  { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
 ];
 
@@ -100,6 +104,12 @@ function NavIcon({ name }: { name: string }) {
         <path d="M9 12h6" />
       </>
     ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </>
+    ),
     reports: (
       <>
         <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
@@ -128,11 +138,22 @@ export function AppLayout() {
   const location = useLocation();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
+  const visibleSettings = settingsNavItems.filter((item) => user && item.roles.includes(user.role));
   const roleLabel = user ? t(`roles.${user.role}`) : '';
+
+  const isSettingsActive = visibleSettings.some((item) => location.pathname.startsWith(item.to));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
 
   useEffect(() => {
     setIsQuickActionsOpen(false);
   }, [location.pathname]);
+
+  // Keep the Settings group expanded while one of its pages is active.
+  useEffect(() => {
+    if (isSettingsActive) {
+      setIsSettingsOpen(true);
+    }
+  }, [isSettingsActive]);
 
   return (
     <div className="app-shell">
@@ -184,6 +205,32 @@ export function AppLayout() {
                 {t(item.translationKey)}
               </NavLink>
             ))}
+            {visibleSettings.length ? (
+              <div className={`nav-group${isSettingsOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className={`nav-group__toggle${isSettingsActive ? ' is-active' : ''}`}
+                  aria-expanded={isSettingsOpen}
+                  onClick={() => setIsSettingsOpen((open) => !open)}
+                >
+                  <NavIcon name="settings" />
+                  {t('navigation.settings')}
+                  <svg className="nav-group__caret" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {isSettingsOpen ? (
+                  <div className="nav-group__items">
+                    {visibleSettings.map((item) => (
+                      <NavLink key={item.key} to={item.to} end={item.to === '/app'}>
+                        <NavIcon name={item.key} />
+                        {t(item.translationKey)}
+                      </NavLink>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </nav>
         </aside>
 

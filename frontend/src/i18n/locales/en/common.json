@@ -38,6 +38,7 @@
     "archive": "Archive",
     "imports": "Imports",
     "users": "Users",
+    "settings": "Settings",
     "logout": "Log out"
   },
   "layout": {

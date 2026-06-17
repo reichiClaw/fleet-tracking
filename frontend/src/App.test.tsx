@@ -46,8 +46,11 @@ describe('App smoke flow', () => {
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Historie' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ausleihe-Workflows' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Fahrzeuge hinzufügen/entfernen' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'QR-Zugriff' })).toBeInTheDocument();
+
+    // Admin functions are grouped under the Settings submenu.
+    fireEvent.click(screen.getByRole('button', { name: 'Einstellungen' }));
+    expect(await screen.findByRole('link', { name: 'Fahrzeuge hinzufügen/entfernen' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Importe' })).toBeInTheDocument();
   });
 
