@@ -263,6 +263,7 @@
       "title": "Fahrzeug zum Pool hinzufügen",
       "description": "Fahrzeug in den Einsatzpool aufnehmen: Ankunftszustand erfassen und verfügbar, beschädigt oder in Wartung setzen.",
       "submit": "Fahrzeug einchecken",
+      "poolAction": "In den Pool einchecken",
       "completed": "Fahrzeug zum Pool hinzugefügt",
       "noAnnounced": "Keine Fahrzeuge warten auf den Check-in. Bitte zuerst Fahrzeuge importieren oder anlegen."
     },

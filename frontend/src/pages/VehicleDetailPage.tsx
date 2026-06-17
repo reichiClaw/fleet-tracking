@@ -283,9 +283,11 @@ export function VehicleDetailPage() {
       </div>
 
       <div className="action-row action-row--wrap">
-        <Link className="button-link success-button" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
-          {t('workflows.checkIn.title')}
-        </Link>
+        {vehicle.status === 'announced' ? (
+          <Link className="button-link success-button" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
+            {t('workflows.checkIn.poolAction')}
+          </Link>
+        ) : null}
         <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
           {t('workflows.loanCheckout.title')}
         </Link>

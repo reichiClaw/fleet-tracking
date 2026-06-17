@@ -263,6 +263,7 @@
       "title": "Add new vehicle to pool",
       "description": "Add a vehicle to the operational pool: record its arrival condition and set it available, damaged, or in maintenance.",
       "submit": "Check in vehicle",
+      "poolAction": "Check in to pool",
       "completed": "Vehicle added to pool",
       "noAnnounced": "No vehicles are awaiting check-in. Import or add vehicles first."
     },
