@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   createCompany,
   createDriver,
+  deleteCompany,
   displayDriverName,
   listCompanies,
   listDrivers,
@@ -186,9 +187,27 @@ function GroupCard({
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const isIndependent = company === null;
   const title = isIndependent ? t('partners.independentTitle') : company.name;
+
+  async function handleDelete() {
+    if (isIndependent) {
+      return;
+    }
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteCompany(company.id);
+      await onChanged();
+    } catch (error) {
+      setDeleteError(getApiErrorMessage(error, t, t('partners.deleteError')));
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <article className="group-card">
@@ -212,12 +231,45 @@ function GroupCard({
         <div className="group-card__header-actions">
           <span className="driver-count">{t('partners.driverCount', { count: drivers.length })}</span>
           {!isIndependent && canEdit ? (
-            <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
-              {isEditing ? t('management.cancel') : t('management.edit')}
-            </button>
+            <>
+              <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
+                {isEditing ? t('management.cancel') : t('management.edit')}
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={isDeleting}
+                onClick={() => setIsConfirmingDelete(true)}
+              >
+                {t('partners.delete')}
+              </button>
+            </>
           ) : null}
         </div>
       </header>
+
+      {!isIndependent && isConfirmingDelete ? (
+        <div className="quick-add quick-add--danger">
+          <p className="field-error">{t('partners.deleteWarning', { company: title })}</p>
+          {deleteError ? <ErrorState message={deleteError} /> : null}
+          <div className="action-row">
+            <button type="button" className="danger-button" disabled={isDeleting} onClick={handleDelete}>
+              {isDeleting ? t('partners.deleting') : t('partners.confirmDelete')}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={isDeleting}
+              onClick={() => {
+                setIsConfirmingDelete(false);
+                setDeleteError(null);
+              }}
+            >
+              {t('management.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {!isIndependent && isEditing ? (
         <CompanyForm

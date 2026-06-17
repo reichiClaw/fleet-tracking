@@ -452,6 +452,10 @@ export async function updateCompany(id: string, payload: Partial<Company>) {
   return apiClient.patch<Company>(`/companies/${id}/`, payload as Record<string, unknown>);
 }
 
+export async function deleteCompany(id: string) {
+  return apiClient.delete<void>(`/companies/${id}/`);
+}
+
 export async function listDrivers() {
   const response = await apiClient.get<Driver[] | PaginatedResponse<Driver>>('/drivers/');
   return listFromResponse(response);

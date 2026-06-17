@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from audit.models import AuditLog
+from drivers.models import Driver
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import Loan
@@ -96,6 +97,27 @@ class DomainPermissionTests(DomainAPITestCase):
 
         self.assertEqual(operations_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(readonly_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_deleting_company_also_removes_its_drivers(self):
+        company = Company.objects.create(name="DelCo", company_type="subcontractor")
+        other = Company.objects.create(name="KeepCo", company_type="supplier")
+        d1 = Driver.objects.create(first_name="A", last_name="One", company=company)
+        d2 = Driver.objects.create(first_name="B", last_name="Two", company=company)
+        keep = Driver.objects.create(first_name="C", last_name="Three", company=other)
+
+        response = self.client_for(self.admin_user).delete(f"/api/v1/companies/{company.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Company.objects.filter(id=company.id).exists())
+        self.assertEqual(Driver.objects.filter(id__in=[d1.id, d2.id]).count(), 0)
+        self.assertTrue(Driver.objects.filter(id=keep.id).exists())
+        self.assertTrue(AuditLog.objects.filter(action="company.deleted", entity_id=company.id).exists())
+
+    def test_operations_cannot_delete_company(self):
+        company = Company.objects.create(name="DelCo", company_type="subcontractor")
+        response = self.client_for(self.operations_user).delete(f"/api/v1/companies/{company.id}/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Company.objects.filter(id=company.id).exists())
 
     def test_audit_log_is_admin_read_only(self):
         AuditLog.objects.create(actor=self.admin_user, action="vehicle.created", entity_type="vehicle")

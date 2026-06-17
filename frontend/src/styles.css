@@ -1615,6 +1615,12 @@ tbody tr:hover td {
   background: var(--surface-muted, #f6f8fb);
 }
 
+.quick-add--danger {
+  border-style: solid;
+  border-color: var(--danger-fg);
+  background: var(--danger-bg, #ffe2e2);
+}
+
 .radio-group {
   display: flex;
   gap: 1.25rem;

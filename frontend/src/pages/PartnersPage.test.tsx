@@ -47,6 +47,12 @@ function installFetchMock() {
       companies = [...companies, created];
       return jsonResponse(created, 201);
     }
+    const companyDetail = url.match(/\/companies\/([^/]+)\/$/);
+    if (companyDetail && method === 'DELETE') {
+      companies = companies.filter((company) => company.id !== companyDetail[1]);
+      drivers = drivers.filter((driver) => driver.company !== companyDetail[1]);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
     if (url.endsWith('/drivers/') && method === 'POST') {
       lastDriverPost = body;
       const created = { id: `d-${drivers.length + 1}`, is_active: true, ...body };
@@ -93,6 +99,16 @@ describe('PartnersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Firma hinzufügen' }));
 
     expect(await screen.findByText('Globex')).toBeInTheDocument();
+  });
+
+  it('deletes a company after confirmation', async () => {
+    renderPage();
+
+    const card = (await screen.findByText('Acme')).closest('article') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Löschen' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Ja, Firma und Fahrer löschen' }));
+
+    await waitFor(() => expect(screen.queryByText('Acme')).not.toBeInTheDocument());
   });
 
   it('adds a driver inside a company group', async () => {
