@@ -288,9 +288,11 @@ export function VehicleDetailPage() {
             {t('workflows.checkIn.poolAction')}
           </Link>
         ) : null}
-        <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
-          {t('workflows.loanCheckout.title')}
-        </Link>
+        {vehicle.status === 'available' ? (
+          <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
+            {t('workflows.loanCheckout.title')}
+          </Link>
+        ) : null}
         {activeLoan ? (
           <Link className="button-link" to={`/app/workflows/loan-return?loan=${activeLoan.id}`}>
             {t('workflows.loanReturn.title')}
