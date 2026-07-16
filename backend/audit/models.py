@@ -30,3 +30,6 @@ class AuditLog(TimeStampedUUIDModel):
         if self.pk and type(self).objects.filter(pk=self.pk).exists():
             raise ValidationError(_("Audit logs are immutable."))
         return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError(_("Audit logs are immutable."))

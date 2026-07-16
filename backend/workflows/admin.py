@@ -2,11 +2,12 @@
 
 from django.contrib import admin
 
+from audit.admin_mixins import ImmutableAdminMixin
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
 
 
 @admin.register(Loan)
-class LoanAdmin(admin.ModelAdmin):
+class LoanAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = (
         "vehicle",
         "company",
@@ -25,7 +26,7 @@ class LoanAdmin(admin.ModelAdmin):
 
 
 @admin.register(CheckInProtocol)
-class CheckInProtocolAdmin(admin.ModelAdmin):
+class CheckInProtocolAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = ("vehicle", "performed_by", "performed_at", "supplier_company", "odometer_km", "operating_hours")
     list_filter = ("performed_at", "supplier_company")
     search_fields = ("vehicle__internal_number", "condition_notes", "supplier_company__name", "performed_by__username")
@@ -35,7 +36,7 @@ class CheckInProtocolAdmin(admin.ModelAdmin):
 
 
 @admin.register(ManufacturerCheckOutProtocol)
-class ManufacturerCheckOutProtocolAdmin(admin.ModelAdmin):
+class ManufacturerCheckOutProtocolAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = ("vehicle", "performed_by", "performed_at", "recipient_company", "odometer_km", "operating_hours")
     list_filter = ("performed_at", "recipient_company")
     search_fields = ("vehicle__internal_number", "condition_notes", "recipient_company__name", "performed_by__username")

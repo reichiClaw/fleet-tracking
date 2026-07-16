@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 
 from audit.models import AuditLog
 from drivers.models import Driver
+from damages.models import DamageReport
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import Loan
@@ -98,7 +99,7 @@ class DomainPermissionTests(DomainAPITestCase):
         self.assertEqual(operations_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(readonly_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_admin_deleting_company_also_removes_its_drivers(self):
+    def test_company_delete_is_disabled_and_history_is_preserved(self):
         company = Company.objects.create(name="DelCo", company_type="subcontractor")
         other = Company.objects.create(name="KeepCo", company_type="supplier")
         d1 = Driver.objects.create(first_name="A", last_name="One", company=company)
@@ -107,17 +108,27 @@ class DomainPermissionTests(DomainAPITestCase):
 
         response = self.client_for(self.admin_user).delete(f"/api/v1/companies/{company.id}/")
 
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Company.objects.filter(id=company.id).exists())
-        self.assertEqual(Driver.objects.filter(id__in=[d1.id, d2.id]).count(), 0)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertTrue(Company.objects.filter(id=company.id).exists())
+        self.assertEqual(Driver.objects.filter(id__in=[d1.id, d2.id]).count(), 2)
         self.assertTrue(Driver.objects.filter(id=keep.id).exists())
-        self.assertTrue(AuditLog.objects.filter(action="company.deleted", entity_id=company.id).exists())
 
     def test_operations_cannot_delete_company(self):
         company = Company.objects.create(name="DelCo", company_type="subcontractor")
         response = self.client_for(self.operations_user).delete(f"/api/v1/companies/{company.id}/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Company.objects.filter(id=company.id).exists())
+
+    def test_deactivate_preserves_company_and_drivers_and_is_audited(self):
+        company = Company.objects.create(name="ArchiveCo", company_type="subcontractor")
+        driver = Driver.objects.create(first_name="A", last_name="Driver", company=company)
+        response = self.client_for(self.admin_user).post(f"/api/v1/companies/{company.id}/deactivate/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        company.refresh_from_db()
+        self.assertFalse(company.is_active)
+        self.assertTrue(Driver.objects.filter(pk=driver.id).exists())
+        self.assertTrue(AuditLog.objects.filter(action="company.deactivated", entity_id=company.id).exists())
 
     def test_audit_log_is_admin_read_only(self):
         AuditLog.objects.create(actor=self.admin_user, action="vehicle.created", entity_type="vehicle")
@@ -372,6 +383,42 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_vehicle_archive_preserves_record_and_is_audited(self):
+        vehicle = Vehicle.objects.create(
+            category=self.category,
+            manufacturer="Acme",
+            model="Returned",
+            status=VehicleStatus.MANUFACTURER_CHECKOUT,
+        )
+        response = self.client_for(self.admin_user).post(f"/api/v1/vehicles/{vehicle.id}/archive/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.ARCHIVED)
+        self.assertIsNotNone(vehicle.archived_at)
+        self.assertTrue(AuditLog.objects.filter(action="vehicle.archived", entity_id=vehicle.id).exists())
+
+    def test_damage_resolution_is_explicit_and_direct_timestamp_is_rejected(self):
+        damage = DamageReport.objects.create(
+            vehicle=self.vehicle,
+            description="Scratch",
+            created_by=self.operations_user,
+        )
+        direct = self.client_for(self.operations_user).patch(
+            f"/api/v1/damage-reports/{damage.id}/",
+            {"resolved_at": timezone.now().isoformat()},
+            format="json",
+        )
+        resolved = self.client_for(self.operations_user).post(
+            f"/api/v1/damage-reports/{damage.id}/resolve/",
+            {"resolution_notes": "Inspected and repaired"},
+            format="json",
+        )
+        self.assertEqual(direct.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resolved.status_code, status.HTTP_200_OK)
+        damage.refresh_from_db()
+        self.assertEqual(damage.resolved_by, self.operations_user)
+        self.assertEqual(damage.resolution_notes, "Inspected and repaired")
 
     def test_internal_number_is_generated_when_omitted(self):
         response = self.client_for(self.admin_user).post(

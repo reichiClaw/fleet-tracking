@@ -2,11 +2,12 @@
 
 from django.contrib import admin
 
+from audit.admin_mixins import ImmutableAdminMixin
 from imports.models import ImportJob
 
 
 @admin.register(ImportJob)
-class ImportJobAdmin(admin.ModelAdmin):
+class ImportJobAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = (
         "import_type",
         "status",

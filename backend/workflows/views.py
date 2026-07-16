@@ -3,8 +3,11 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils.translation import gettext as _
 
 from accounts.permissions import AuthenticatedReadAdminOperationsWriteNoDelete
+from audit.services import audit_event
+from config.request import request_metadata
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol, Reservation, ReservationStatus
 from workflows.serializers import (
     CheckInProtocolSerializer,
@@ -45,7 +48,7 @@ class LoanViewSet(viewsets.ModelViewSet):
         loan = complete_loan_checkout(
             data=serializer.validated_data,
             actor=request.user,
-            request_meta=_request_meta(request),
+            request_meta=request_metadata(request),
             language=_workflow_language(request),
         )
         return Response(LoanSerializer(loan, context={"request": request}).data, status=status.HTTP_201_CREATED)
@@ -59,7 +62,7 @@ class LoanViewSet(viewsets.ModelViewSet):
             loan=loan,
             data=serializer.validated_data,
             actor=request.user,
-            request_meta=_request_meta(request),
+            request_meta=request_metadata(request),
             language=_workflow_language(request),
         )
         return Response(LoanSerializer(returned_loan, context={"request": request}).data)
@@ -67,14 +70,20 @@ class LoanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="generate-checkout-pdf")
     def generate_checkout_pdf(self, request, pk=None):
         media = generate_loan_checkout_pdf(
-            loan=self.get_object(), actor=request.user, language=_pdf_language(request)
+            loan=self.get_object(),
+            actor=request.user,
+            language=_pdf_language(request),
+            request_meta=request_metadata(request),
         )
         return Response(MediaFileSerializer(media, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="generate-return-pdf")
     def generate_return_pdf(self, request, pk=None):
         media = generate_loan_return_pdf(
-            loan=self.get_object(), actor=request.user, language=_pdf_language(request)
+            loan=self.get_object(),
+            actor=request.user,
+            language=_pdf_language(request),
+            request_meta=request_metadata(request),
         )
         return Response(MediaFileSerializer(media, context={"request": request}).data)
 
@@ -91,18 +100,22 @@ class CheckInProtocolViewSet(viewsets.ModelViewSet):
         protocol = complete_check_in(
             data=serializer.validated_data,
             actor=request.user,
-            request_meta=_request_meta(request),
+            request_meta=request_metadata(request),
             language=_workflow_language(request),
+            idempotency_key=_idempotency_key(request),
         )
         return Response(
             CheckInProtocolSerializer(protocol, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_200_OK if getattr(protocol, "_idempotent_replay", False) else status.HTTP_201_CREATED,
         )
 
     @action(detail=True, methods=["post"], url_path="generate-pdf")
     def generate_pdf(self, request, pk=None):
         media = generate_check_in_pdf(
-            protocol=self.get_object(), actor=request.user, language=_pdf_language(request)
+            protocol=self.get_object(),
+            actor=request.user,
+            language=_pdf_language(request),
+            request_meta=request_metadata(request),
         )
         return Response(MediaFileSerializer(media, context={"request": request}).data)
 
@@ -121,7 +134,7 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
         protocol = complete_manufacturer_checkout(
             data=serializer.validated_data,
             actor=request.user,
-            request_meta=_request_meta(request),
+            request_meta=request_metadata(request),
             language=_workflow_language(request),
         )
         return Response(
@@ -132,7 +145,10 @@ class ManufacturerCheckOutProtocolViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="generate-pdf")
     def generate_pdf(self, request, pk=None):
         media = generate_manufacturer_checkout_pdf(
-            protocol=self.get_object(), actor=request.user, language=_pdf_language(request)
+            protocol=self.get_object(),
+            actor=request.user,
+            language=_pdf_language(request),
+            request_meta=request_metadata(request),
         )
         return Response(MediaFileSerializer(media, context={"request": request}).data)
 
@@ -154,13 +170,55 @@ class ReservationViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        from django.db import transaction
+        from rest_framework import serializers as drf_serializers
+        from vehicles.models import Vehicle
+
+        with transaction.atomic():
+            # PostgreSQL row locks serialize all reservation writers for one
+            # vehicle without relying on SQLite-incompatible exclusion ranges.
+            vehicle = Vehicle.objects.select_for_update().get(pk=serializer.validated_data["vehicle"].pk)
+            start = serializer.validated_data["start_at"]
+            end = serializer.validated_data["end_at"]
+            if Reservation.objects.select_for_update().filter(
+                vehicle=vehicle,
+                status=ReservationStatus.ACTIVE,
+                start_at__lt=end,
+                end_at__gt=start,
+            ).exists():
+                raise drf_serializers.ValidationError(
+                    {"start_at": _("This vehicle already has an active reservation that overlaps this period.")}
+                )
+            reservation = serializer.save(vehicle=vehicle, created_by=self.request.user)
+            audit_event(
+                actor=self.request.user,
+                action="reservation.created",
+                entity_type="reservation",
+                entity_id=reservation.id,
+                after={
+                    "vehicle_id": str(vehicle.id),
+                    "start_at": reservation.start_at.isoformat(),
+                    "end_at": reservation.end_at.isoformat(),
+                    "status": reservation.status,
+                },
+                request_meta=request_metadata(self.request),
+            )
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         reservation = self.get_object()
+        before = {"status": reservation.status}
         reservation.status = ReservationStatus.CANCELLED
         reservation.save(update_fields=["status", "updated_at"])
+        audit_event(
+            actor=request.user,
+            action="reservation.cancelled",
+            entity_type="reservation",
+            entity_id=reservation.id,
+            before=before,
+            after={"status": reservation.status},
+            request_meta=request_metadata(request),
+        )
         return Response(self.get_serializer(reservation).data)
 
 
@@ -174,12 +232,10 @@ def _workflow_language(request) -> str | None:
     return getattr(request, "LANGUAGE_CODE", None)
 
 
-def _request_meta(request) -> dict[str, str]:
-    # Prefer the client IP forwarded by the reverse proxy (Nginx/Caddy set
-    # X-Forwarded-For); fall back to the direct peer address.
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    ip_address = forwarded_for.split(",", 1)[0].strip() or request.META.get("REMOTE_ADDR", "")
-    return {
-        "ip_address": ip_address,
-        "user_agent": request.META.get("HTTP_USER_AGENT", ""),
-    }
+def _idempotency_key(request) -> str | None:
+    from rest_framework import serializers
+
+    value = request.headers.get("Idempotency-Key", "").strip()
+    if len(value) > 128:
+        raise serializers.ValidationError({"idempotency_key": _("Idempotency key is too long.")})
+    return value or None

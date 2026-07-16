@@ -7,7 +7,7 @@ import string
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -25,17 +25,34 @@ def generate_vehicle_qr_code() -> str:
 INTERNAL_NUMBER_PREFIX = "FZ-"
 
 
+@transaction.atomic
 def generate_internal_number() -> str:
-    """Return the next sequential internal fleet number, e.g. FZ-00001."""
-    highest = 0
-    existing = Vehicle.objects.filter(internal_number__startswith=INTERNAL_NUMBER_PREFIX).values_list(
-        "internal_number", flat=True
+    """Allocate a sequential fleet number under a database row lock."""
+
+    sequence, created = VehicleNumberSequence.objects.select_for_update().get_or_create(
+        name="fleet",
+        defaults={"next_value": _next_existing_internal_number()},
     )
-    for number in existing:
+    if not created:
+        sequence = VehicleNumberSequence.objects.select_for_update().get(pk=sequence.pk)
+    while True:
+        value = sequence.next_value
+        sequence.next_value += 1
+        sequence.save(update_fields=["next_value"])
+        candidate = f"{INTERNAL_NUMBER_PREFIX}{value:05d}"
+        if not Vehicle.objects.filter(internal_number=candidate).exists():
+            return candidate
+
+
+def _next_existing_internal_number() -> int:
+    highest = 0
+    for number in Vehicle.objects.filter(internal_number__startswith=INTERNAL_NUMBER_PREFIX).values_list(
+        "internal_number", flat=True
+    ):
         suffix = number[len(INTERNAL_NUMBER_PREFIX) :]
         if suffix.isdigit():
             highest = max(highest, int(suffix))
-    return f"{INTERNAL_NUMBER_PREFIX}{highest + 1:05d}"
+    return highest + 1
 
 
 class VehicleStatus(models.TextChoices):
@@ -87,6 +104,13 @@ class VehicleCategory(TimeStampedUUIDModel):
         return self.name
 
 
+class VehicleNumberSequence(models.Model):
+    """Singleton row used to serialize generated internal-number allocation."""
+
+    name = models.CharField(max_length=32, primary_key=True)
+    next_value = models.PositiveBigIntegerField(default=1)
+
+
 class Vehicle(TimeStampedUUIDModel):
     internal_number = models.CharField(max_length=80, unique=True, blank=True)
     qr_code = models.CharField(max_length=24, unique=True, default=generate_vehicle_qr_code, editable=False)
@@ -107,6 +131,11 @@ class Vehicle(TimeStampedUUIDModel):
 
     class Meta:
         ordering = ["internal_number"]
+        indexes = [
+            models.Index(fields=["status", "-updated_at"], name="vehicle_status_updated_idx"),
+            models.Index(fields=["category", "status"], name="vehicle_category_status_idx"),
+            models.Index(fields=["archived_at"], name="vehicle_archived_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["serial_number"],

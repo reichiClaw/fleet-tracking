@@ -5,7 +5,6 @@ from rest_framework import serializers
 
 from damages.models import DamageSeverity
 from drivers.models import Driver
-from mediafiles.models import MediaFile
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol, Reservation, ReservationStatus
@@ -34,6 +33,10 @@ class LoanSerializer(serializers.ModelSerializer):
             "return_pdf_media",
             "checkout_pdf_language",
             "return_pdf_language",
+            "checkout_snapshot",
+            "return_snapshot",
+            "checkout_pdf_generation_error",
+            "return_pdf_generation_error",
             "created_by",
             "returned_by",
             "created_at",
@@ -43,6 +46,10 @@ class LoanSerializer(serializers.ModelSerializer):
             "id",
             "checkout_pdf_media",
             "return_pdf_media",
+            "checkout_snapshot",
+            "return_snapshot",
+            "checkout_pdf_generation_error",
+            "return_pdf_generation_error",
             "created_by",
             "returned_by",
             "created_at",
@@ -103,6 +110,13 @@ class ReservationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"driver": _("Please select a driver from the database for the reservation.")}
             )
+        if not driver.is_active:
+            raise serializers.ValidationError({"driver": _("The selected driver is inactive.")})
+        company = attrs.get("company", getattr(instance, "company", None))
+        if company is not None and not company.is_active:
+            raise serializers.ValidationError({"company": _("The selected company is inactive.")})
+        if driver.company_id and company is not None and driver.company_id != company.id:
+            raise serializers.ValidationError({"company": _("The driver does not belong to the selected company.")})
         if not attrs.get("reserved_for") and not getattr(instance, "reserved_for", ""):
             attrs["reserved_for"] = str(driver)
         if start and end and end <= start:
@@ -129,11 +143,11 @@ class DamageReportInputSerializer(serializers.Serializer):
     discovered_at = serializers.DateTimeField(required=False)
     # Media is uploaded first via the media endpoint, then attached here by id so
     # every attached file has real stored bytes and a working download URL.
-    media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
+    media_file_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
 
 class WorkflowMediaMixin(serializers.Serializer):
-    media_file_ids = serializers.PrimaryKeyRelatedField(queryset=MediaFile.objects.all(), many=True, required=False)
+    media_file_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
 
 class CheckInWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer):
@@ -148,6 +162,15 @@ class CheckInWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer):
         required=False,
     )
     damage_reports = DamageReportInputSerializer(many=True, required=False)
+
+    def validate_supplier_company(self, company):
+        if company is None:
+            return company
+        if not company.is_active:
+            raise serializers.ValidationError(_("The selected company is inactive."))
+        if company.company_type not in {Company.CompanyType.SUPPLIER, Company.CompanyType.MANUFACTURER}:
+            raise serializers.ValidationError(_("Check-in requires an active supplier or manufacturer."))
+        return company
 
 
 class LoanCheckoutWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer):
@@ -165,10 +188,34 @@ class LoanCheckoutWorkflowSerializer(WorkflowMediaMixin, serializers.Serializer)
     damage_reports = DamageReportInputSerializer(many=True, required=False)
 
     def validate(self, attrs):
-        if attrs.get("driver") is None and not attrs.get("borrower_name"):
-            raise serializers.ValidationError(
-                {"borrower_name": _("Borrower name is required when no driver is selected.")}
-            )
+        driver = attrs.get("driver")
+        company = attrs.get("company")
+        if driver and company is None and driver.company_id:
+            company = driver.company
+            attrs["company"] = company
+        borrower_name = (attrs.get("borrower_name") or (str(driver) if driver else "")).strip()
+        borrower_phone = (attrs.get("borrower_phone") or (driver.phone if driver else "")).strip()
+        errors = {}
+        if not borrower_name:
+            errors["borrower_name"] = _("Borrower name is required.")
+        if not borrower_phone:
+            errors["borrower_phone"] = _("Borrower phone is required.")
+        if driver and not driver.is_active:
+            errors["driver"] = _("The selected driver is inactive.")
+        if company and not company.is_active:
+            errors["company"] = _("The selected company is inactive.")
+        if company and company.company_type not in {Company.CompanyType.SUBCONTRACTOR, Company.CompanyType.INTERNAL}:
+            errors["company"] = _("A loan requires an active subcontractor or internal company.")
+        if driver and driver.company_id and company and driver.company_id != company.id:
+            errors["company"] = _("The driver does not belong to the selected company.")
+        from django.utils import timezone
+
+        if attrs.get("expected_return_at") and attrs["expected_return_at"] <= timezone.now():
+            errors["expected_return_at"] = _("Expected return must be after checkout.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        attrs["borrower_name"] = borrower_name
+        attrs["borrower_phone"] = borrower_phone
         return attrs
 
 
@@ -193,6 +240,15 @@ class ManufacturerCheckOutWorkflowSerializer(WorkflowMediaMixin, serializers.Ser
     condition_notes = serializers.CharField(required=False, allow_blank=True)
     damage_reports = DamageReportInputSerializer(many=True, required=False)
 
+    def validate_recipient_company(self, company):
+        if company is None:
+            return company
+        if not company.is_active:
+            raise serializers.ValidationError(_("The selected company is inactive."))
+        if company.company_type not in {Company.CompanyType.MANUFACTURER, Company.CompanyType.SUPPLIER}:
+            raise serializers.ValidationError(_("Manufacturer check-out requires a manufacturer or supplier."))
+        return company
+
 
 class CheckInProtocolSerializer(serializers.ModelSerializer):
     class Meta:
@@ -206,12 +262,23 @@ class CheckInProtocolSerializer(serializers.ModelSerializer):
             "odometer_km",
             "operating_hours",
             "condition_notes",
+            "snapshot",
             "pdf_media",
             "pdf_language",
+            "pdf_generation_error",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "performed_by", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "performed_by",
+            "snapshot",
+            "pdf_media",
+            "pdf_language",
+            "pdf_generation_error",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class ManufacturerCheckOutProtocolSerializer(serializers.ModelSerializer):
@@ -226,9 +293,20 @@ class ManufacturerCheckOutProtocolSerializer(serializers.ModelSerializer):
             "odometer_km",
             "operating_hours",
             "condition_notes",
+            "snapshot",
             "pdf_media",
             "pdf_language",
+            "pdf_generation_error",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "performed_by", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "performed_by",
+            "snapshot",
+            "pdf_media",
+            "pdf_language",
+            "pdf_generation_error",
+            "created_at",
+            "updated_at",
+        ]

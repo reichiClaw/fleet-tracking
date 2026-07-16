@@ -2,6 +2,7 @@
 
 import logging
 
+from django.core.files.storage import default_storage
 from django.db import connection
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
@@ -43,4 +44,16 @@ def readiness(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    return Response({"status": "ok", "database": "ok"})
+    try:
+        # ``exists`` performs a harmless metadata request for local, SFTP, and
+        # S3 storage and therefore verifies that the configured backend is
+        # reachable without creating probe files.
+        default_storage.exists(".fleet-readiness-probe")
+    except Exception:  # pragma: no cover - depends on external media storage
+        logger.exception("Readiness check failed: media storage unavailable")
+        return Response(
+            {"status": "unavailable", "database": "ok", "media": "down"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    return Response({"status": "ok", "database": "ok", "media": "ok"})

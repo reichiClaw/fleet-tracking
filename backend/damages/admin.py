@@ -2,11 +2,12 @@
 
 from django.contrib import admin
 
+from audit.admin_mixins import ImmutableAdminMixin
 from damages.models import DamageReport
 
 
 @admin.register(DamageReport)
-class DamageReportAdmin(admin.ModelAdmin):
+class DamageReportAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = ("vehicle", "severity", "workflow_phase", "loan", "discovered_at", "resolved_at", "created_by")
     list_filter = ("severity", "workflow_phase", "discovered_at", "resolved_at")
     search_fields = ("vehicle__internal_number", "description", "created_by__username")

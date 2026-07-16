@@ -3,24 +3,26 @@
 from __future__ import annotations
 
 import itertools
+import json
+import zipfile
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 
-from audit.models import AuditLog
+from audit.services import audit_event
 from imports.models import ImportJob
 from mediafiles.models import MediaType
-from mediafiles.services import create_media_file_from_upload
+from mediafiles.services import attach_media_files, create_media_file_from_upload
 from vehicles.models import Vehicle, VehicleCategory
 
 
@@ -59,6 +61,9 @@ _MAX_FIELD_LENGTHS = {
     "serial_number": 120,
     "license_plate": 40,
     "current_location": 255,
+    "category": 255,
+    "supplier": 255,
+    "notes": 5000,
 }
 
 # Accept common German and English header spellings so files do not have to use
@@ -148,12 +153,21 @@ def create_vehicle_import_job(*, uploaded_file, actor, request_meta: dict[str, s
         uploaded_file=uploaded_file,
         actor=actor,
         media_type=MediaType.IMPORT,
-        related_type="vehicle_import",
+        request_meta=request_meta,
     )
     job = ImportJob.objects.create(
         import_type=ImportJob.ImportType.VEHICLES,
         source_media=source_media,
         created_by=actor,
+    )
+    attach_media_files(
+        media_files=[source_media.id],
+        actor=actor,
+        vehicle=None,
+        related_type="vehicle_import",
+        related_id=job.id,
+        allowed_types={MediaType.IMPORT},
+        request_meta=request_meta,
     )
 
     validation = validate_vehicle_workbook(uploaded_file)
@@ -187,8 +201,12 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
         return _file_error(_("Only .xlsx or .xlsm files are supported."))
 
     try:
-        workbook = load_workbook(BytesIO(uploaded_file.read()), read_only=True, data_only=True)
-    except (InvalidFileException, OSError, ValueError):
+        content = uploaded_file.read()
+        zip_error = _validate_workbook_archive(content)
+        if zip_error:
+            return _file_error(zip_error)
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except Exception:  # noqa: BLE001 - malformed ZIP/XML can raise parser-specific exceptions
         return _file_error(_("The uploaded Excel file could not be read."))
     finally:
         try:
@@ -197,12 +215,30 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
             pass
 
     worksheet = workbook.active
+    if worksheet.max_column > int(settings.MAX_IMPORT_COLUMNS):
+        workbook.close()
+        return _file_error(
+            _("The workbook exceeds the maximum of %(count)d columns.")
+            % {"count": settings.MAX_IMPORT_COLUMNS}
+        )
+    if worksheet.max_row > int(settings.MAX_IMPORT_ROWS) + 1:
+        workbook.close()
+        return _file_error(
+            _("The workbook exceeds the maximum of %(count)d data rows.")
+            % {"count": settings.MAX_IMPORT_ROWS}
+        )
     rows = worksheet.iter_rows(values_only=True)
     try:
         raw_headers = next(rows)
     except StopIteration:
         workbook.close()
         return _file_error(_("The workbook must contain a header row."))
+    if len(raw_headers) > int(settings.MAX_IMPORT_COLUMNS):
+        workbook.close()
+        return _file_error(
+            _("The workbook exceeds the maximum of %(count)d columns.")
+            % {"count": settings.MAX_IMPORT_COLUMNS}
+        )
 
     # Peek at the first data row so the mapping UI can show example values, then
     # put it back so it is still validated below.
@@ -254,6 +290,25 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
         values = _row_values(raw_row, header_map)
         if _is_empty_row(values):
             continue
+        if row_count >= int(settings.MAX_IMPORT_ROWS):
+            parsed_rows.append(
+                {
+                    "row_number": row_number,
+                    "action": "error",
+                    "values": {},
+                    "errors": [
+                        {
+                            "code": "row_limit",
+                            "message": str(
+                                _("The workbook exceeds the maximum of %(count)d data rows.")
+                                % {"count": settings.MAX_IMPORT_ROWS}
+                            ),
+                        }
+                    ],
+                }
+            )
+            error_count += 1
+            break
 
         row_count += 1
         normalized_values, errors = _normalize_row(values, category_by_name)
@@ -269,8 +324,6 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
                 seen_license_plates,
             )
         )
-        errors.extend(_validate_reading_decreases(normalized_values, vehicle_by_internal))
-
         parsed_rows.append(
             {
                 "row_number": row_number,
@@ -290,6 +343,9 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
         "create_count": sum(1 for row in parsed_rows if row["action"] == "create" and not row["errors"]),
         "update_count": sum(1 for row in parsed_rows if row["action"] == "update" and not row["errors"]),
     }
+    max_result_size = int(settings.MAX_IMPORT_RESULT_SIZE_MB) * 1024 * 1024
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_result_size:
+        return _file_error(_("The import validation result is too large."))
     return ImportValidationResult(row_count=row_count, error_count=error_count, result=result)
 
 
@@ -345,36 +401,99 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
     committed_rows: list[dict[str, Any]] = []
 
     fallback_category: VehicleCategory | None = None
+    rows = list(job.result.get("rows", []))
+    target_numbers = {
+        row.get("values", {}).get("internal_number")
+        for row in rows
+        if row.get("values", {}).get("internal_number")
+    }
+    locked_vehicles = {
+        vehicle.internal_number: vehicle
+        for vehicle in Vehicle.objects.select_for_update().filter(internal_number__in=target_numbers)
+    }
+    unique_values = {
+        field: {
+            row.get("values", {}).get(field)
+            for row in rows
+            if row.get("values", {}).get(field)
+        }
+        for field in ("serial_number", "license_plate")
+    }
+    list(
+        Vehicle.objects.select_for_update()
+        .filter(
+            models.Q(serial_number__in=unique_values["serial_number"])
+            | models.Q(license_plate__in=unique_values["license_plate"])
+        )
+        .only("id")
+    )
 
-    for row in job.result.get("rows", []):
+    for row in rows:
         values = row["values"]
         category_id = values.get("category_id")
         if category_id:
-            category = VehicleCategory.objects.get(pk=category_id)
+            category = VehicleCategory.objects.filter(pk=category_id, is_active=True).first()
+            if category is None:
+                raise ValueError(
+                    _("Row %(row)s references an inactive or missing category.") % {"row": row["row_number"]}
+                )
         else:
             if fallback_category is None:
                 fallback_category, _created = VehicleCategory.objects.get_or_create(
                     name=FALLBACK_CATEGORY_NAME,
                     defaults={"is_active": True},
                 )
+                if _created:
+                    audit_event(
+                        actor=actor,
+                        action="vehicle_category.created",
+                        entity_type="vehicle_category",
+                        entity_id=fallback_category.id,
+                        after={"name": fallback_category.name, "is_active": True},
+                        request_meta=request_meta,
+                    )
+                if not fallback_category.is_active:
+                    fallback_category.is_active = True
+                    fallback_category.save(update_fields=["is_active", "updated_at"])
+                    audit_event(
+                        actor=actor,
+                        action="vehicle_category.reactivated",
+                        entity_type="vehicle_category",
+                        entity_id=fallback_category.id,
+                        before={"is_active": False},
+                        after={"is_active": True},
+                        request_meta=request_meta,
+                    )
             category = fallback_category
-        vehicle = Vehicle.objects.filter(internal_number=values["internal_number"]).first()
+        internal_number = values.get("internal_number", "")
+        vehicle = locked_vehicles.get(internal_number)
+        if row.get("action") == "create" and internal_number and vehicle is not None:
+            raise ValueError(
+                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
+            )
+        if row.get("action") == "update" and vehicle is None:
+            raise ValueError(
+                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
+            )
         before = _vehicle_snapshot(vehicle) if vehicle else {}
 
-        vehicle_values = {
+        import_owned_values = {
             "category": category,
             "manufacturer": values["manufacturer"],
             "model": values["model"],
             "serial_number": values.get("serial_number", ""),
             "license_plate": values.get("license_plate", ""),
-            "current_odometer_km": values.get("current_odometer_km"),
-            "current_operating_hours": _decimal_or_none(values.get("current_operating_hours")),
             "current_location": values.get("current_location", ""),
             "notes": values.get("notes", ""),
         }
+        create_values = {
+            **import_owned_values,
+            "current_odometer_km": values.get("current_odometer_km"),
+            "current_operating_hours": _decimal_or_none(values.get("current_operating_hours")),
+        }
         try:
             if vehicle:
-                for field, value in vehicle_values.items():
+                for field, value in import_owned_values.items():
                     setattr(vehicle, field, value)
                 vehicle.save()
                 updated_count += 1
@@ -384,8 +503,8 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
                 # only become available after the check-in workflow records a
                 # check-in protocol for them.
                 vehicle = Vehicle.objects.create(
-                    internal_number=values["internal_number"],
-                    **vehicle_values,
+                    internal_number=internal_number,
+                    **create_values,
                 )
                 created_count += 1
                 action = "create"
@@ -481,6 +600,26 @@ def _file_error(message: str) -> ImportValidationResult:
     result["errors"] = [{"code": "invalid_file", "message": str(message)}]
     result["summary"]["error_count"] = 1
     return ImportValidationResult(row_count=0, error_count=1, result=result)
+
+
+def _validate_workbook_archive(content: bytes) -> str | None:
+    try:
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            entries = archive.infolist()
+            if len(entries) > int(settings.MAX_IMPORT_ZIP_ENTRIES):
+                return str(_("The workbook ZIP archive contains too many entries."))
+            uncompressed = sum(entry.file_size for entry in entries)
+            max_size = int(settings.MAX_IMPORT_UNCOMPRESSED_SIZE_MB) * 1024 * 1024
+            if uncompressed > max_size:
+                return str(_("The workbook ZIP archive expands beyond the allowed size."))
+            for entry in entries:
+                if entry.compress_size == 0 and entry.file_size > 0:
+                    return str(_("The workbook ZIP archive contains an invalid compressed entry."))
+                if entry.compress_size and entry.file_size / entry.compress_size > 1000:
+                    return str(_("The workbook ZIP archive has an unsafe compression ratio."))
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return str(_("The uploaded Excel file is not a valid ZIP workbook."))
+    return None
 
 
 def _normalize_header(value: Any) -> str:
@@ -796,13 +935,12 @@ def _create_audit_log(
     after: dict[str, Any],
     request_meta: dict[str, str],
 ) -> None:
-    AuditLog.objects.create(
+    audit_event(
         actor=actor,
         action=action,
         entity_type=entity_type,
         entity_id=entity_id,
         before=before,
         after=after,
-        ip_address=request_meta.get("ip_address") or None,
-        user_agent=request_meta.get("user_agent", ""),
+        request_meta=request_meta,
     )

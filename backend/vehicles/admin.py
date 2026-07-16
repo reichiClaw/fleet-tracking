@@ -2,11 +2,13 @@
 
 from django.contrib import admin
 
+from audit.admin_mixins import AuditedAdminMixin
 from vehicles.models import Vehicle, VehicleCategory
 
 
 @admin.register(VehicleCategory)
-class VehicleCategoryAdmin(admin.ModelAdmin):
+class VehicleCategoryAdmin(AuditedAdminMixin, admin.ModelAdmin):
+    audit_entity_type = "vehicle_category"
     list_display = ("name", "is_active", "created_at", "updated_at")
     list_filter = ("is_active", "created_at")
     search_fields = ("name", "description")
@@ -14,7 +16,7 @@ class VehicleCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Vehicle)
-class VehicleAdmin(admin.ModelAdmin):
+class VehicleAdmin(AuditedAdminMixin, admin.ModelAdmin):
     list_display = (
         "internal_number",
         "category",

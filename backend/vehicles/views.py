@@ -17,10 +17,15 @@ from accounts.permissions import (
     IsAdminRole,
     VehiclePermission,
 )
+from audit.mixins import AuditedModelViewSetMixin
+from audit.services import audit_event
+from config.request import request_metadata
 from damages.serializers import DamageReportSerializer
 from mediafiles.serializers import MediaFileSerializer
+from mediafiles.views import media_queryset_for_user
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
-from vehicles.serializers import VehicleCategorySerializer, VehicleSerializer
+from vehicles.serializers import VehicleCategorySerializer, VehicleCreationSerializer, VehicleSerializer
+from vehicles.services import create_vehicle_with_condition
 from workflows.models import LoanStatus
 from workflows.serializers import (
     CheckInProtocolSerializer,
@@ -30,23 +35,54 @@ from workflows.serializers import (
 )
 
 
-class VehicleCategoryViewSet(viewsets.ModelViewSet):
+class VehicleCategoryViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = VehicleCategory.objects.all().order_by("name")
     serializer_class = VehicleCategorySerializer
     permission_classes = [AuthenticatedReadAdminWrite]
+    audit_entity_type = "vehicle_category"
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminRole])
     def deactivate(self, request, pk=None):
         category = self.get_object()
+        before = self._audit_snapshot(category)
         category.is_active = False
         category.save(update_fields=["is_active", "updated_at"])
+        audit_event(
+            actor=request.user,
+            action="vehicle_category.deactivated",
+            entity_type="vehicle_category",
+            entity_id=category.id,
+            before=before,
+            after=self._audit_snapshot(category),
+            request_meta=request_metadata(request),
+        )
         return Response(self.get_serializer(category).data)
 
 
-class VehicleViewSet(viewsets.ModelViewSet):
+class VehicleViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.select_related("category").all().order_by("internal_number")
     serializer_class = VehicleSerializer
     permission_classes = [VehiclePermission]
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return VehicleCreationSerializer
+        return VehicleSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        vehicle = create_vehicle_with_condition(
+            data=serializer.validated_data,
+            actor=request.user,
+            request_meta=request_metadata(request),
+        )
+        return Response(
+            VehicleSerializer(vehicle, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -72,15 +108,26 @@ class VehicleViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAdminRole])
     def archive(self, request, pk=None):
         vehicle = self.get_object()
+        before = self._audit_snapshot(vehicle)
         serializer = self.get_serializer(vehicle, data={"status": VehicleStatus.ARCHIVED}, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(archived_at=timezone.now())
+        audit_event(
+            actor=request.user,
+            action="vehicle.archived",
+            entity_type="vehicle",
+            entity_id=vehicle.id,
+            before=before,
+            after=self._audit_snapshot(vehicle),
+            request_meta=request_metadata(request),
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="schedule-manufacturer-return", permission_classes=[AuthenticatedReadAdminOperationsWriteNoDelete])
     def schedule_manufacturer_return(self, request, pk=None):
         """Set or clear the date by which the vehicle must be sent back to the manufacturer."""
         vehicle = self.get_object()
+        before = {"manufacturer_return_due": vehicle.manufacturer_return_due.isoformat() if vehicle.manufacturer_return_due else None}
         raw = request.data.get("manufacturer_return_due")
         if raw in (None, ""):
             vehicle.manufacturer_return_due = None
@@ -90,6 +137,19 @@ class VehicleViewSet(viewsets.ModelViewSet):
                 raise serializers.ValidationError({"manufacturer_return_due": "Enter a valid date (YYYY-MM-DD)."})
             vehicle.manufacturer_return_due = parsed
         vehicle.save(update_fields=["manufacturer_return_due", "updated_at"])
+        audit_event(
+            actor=request.user,
+            action="vehicle.manufacturer_return_scheduled",
+            entity_type="vehicle",
+            entity_id=vehicle.id,
+            before=before,
+            after={
+                "manufacturer_return_due": (
+                    vehicle.manufacturer_return_due.isoformat() if vehicle.manufacturer_return_due else None
+                )
+            },
+            request_meta=request_metadata(request),
+        )
         return Response(VehicleSerializer(vehicle, context={"request": request}).data)
 
     @action(detail=True, methods=["get"])
@@ -106,14 +166,24 @@ class VehicleViewSet(viewsets.ModelViewSet):
                     vehicle.manufacturer_checkout_protocols.all().order_by("-performed_at"), many=True
                 ).data,
                 "damages": DamageReportSerializer(vehicle.damage_reports.all().order_by("-discovered_at"), many=True).data,
-                "media": MediaFileSerializer(vehicle.media_files.all().order_by("-created_at"), many=True).data,
+                "media": MediaFileSerializer(
+                    media_queryset_for_user(request.user, vehicle.media_files.all()).order_by("-created_at"),
+                    many=True,
+                    context={"request": request},
+                ).data,
             }
         )
 
     @action(detail=True, methods=["get"])
     def media(self, request, pk=None):
         vehicle = self.get_object()
-        return Response(MediaFileSerializer(vehicle.media_files.all().order_by("-created_at"), many=True).data)
+        return Response(
+            MediaFileSerializer(
+                media_queryset_for_user(request.user, vehicle.media_files.all()).order_by("-created_at"),
+                many=True,
+                context={"request": request},
+            ).data
+        )
 
     @action(detail=False, methods=["get"], url_path=r"qr/(?P<qr_code>[^/.]+)")
     def qr(self, request, qr_code=None):

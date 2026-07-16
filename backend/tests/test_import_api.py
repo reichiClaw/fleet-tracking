@@ -100,6 +100,18 @@ class VehicleImportAPITests(TestCase):
         self.assertEqual(ImportJob.objects.count(), 0)
         self.assertEqual(Vehicle.objects.count(), 0)
 
+    def test_import_source_media_is_hidden_from_operations(self):
+        upload = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {"file": self.workbook_upload([["VH-001", "Steiger", "Acme", "TH100"]])},
+            format="multipart",
+        )
+        self.assertEqual(upload.status_code, status.HTTP_201_CREATED)
+        response = self.client_for(self.operations_user).get(
+            f"/api/v1/media/{upload.data['source_media']}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_valid_vehicle_import_validates_then_commits_create_and_update(self):
         existing = Vehicle.objects.create(
             internal_number="VH-001",
@@ -151,7 +163,9 @@ class VehicleImportAPITests(TestCase):
         created = Vehicle.objects.get(internal_number="VH-002")
         self.assertEqual(existing.manufacturer, "Acme")
         self.assertEqual(existing.model, "TH110")
-        self.assertEqual(existing.current_odometer_km, 15)
+        # Operational readings on existing vehicles are workflow-owned and are
+        # intentionally not overwritten by a delayed import commit.
+        self.assertEqual(existing.current_odometer_km, 10)
         self.assertEqual(created.status, VehicleStatus.ANNOUNCED)
         self.assertEqual(existing.status, VehicleStatus.ANNOUNCED)
         self.assertEqual(created.current_location, "Depot")
@@ -343,4 +357,39 @@ class VehicleImportAPITests(TestCase):
         self.assertEqual(Vehicle.objects.filter(category=fallback).count(), 2)
         # The catch-all category is reused, not duplicated, across rows.
         self.assertEqual(VehicleCategory.objects.filter(name="Sonstiges").count(), 1)
+
+    def test_malformed_zip_is_recorded_as_failed_validation(self):
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {
+                "file": SimpleUploadedFile(
+                    "broken.xlsx",
+                    b"PK\x03\x04not-a-valid-workbook",
+                    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
+        self.assertEqual(response.data["error_count"], 1)
+        self.assertEqual(Vehicle.objects.count(), 0)
+
+    @override_settings(MAX_IMPORT_ROWS=1)
+    def test_workbook_row_limit_is_enforced(self):
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/imports/vehicles/",
+            {
+                "file": self.workbook_upload(
+                    [
+                        ["VH-001", "Steiger", "Acme", "One"],
+                        ["VH-002", "Steiger", "Acme", "Two"],
+                    ]
+                )
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
+        self.assertEqual(Vehicle.objects.count(), 0)
 

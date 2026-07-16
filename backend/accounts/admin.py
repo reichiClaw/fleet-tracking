@@ -4,10 +4,11 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from accounts.models import User
+from audit.admin_mixins import AuditedAdminMixin
 
 
 @admin.register(User)
-class UserAdmin(DjangoUserAdmin):
+class UserAdmin(AuditedAdminMixin, DjangoUserAdmin):
     fieldsets = DjangoUserAdmin.fieldsets + (("Fleet role", {"fields": ("full_name", "role")}),)
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (("Fleet role", {"fields": ("full_name", "role", "email")}),)
     list_display = ("username", "email", "full_name", "role", "is_active", "is_staff", "last_login")

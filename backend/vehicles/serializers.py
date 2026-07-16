@@ -88,3 +88,29 @@ class VehicleSerializer(serializers.ModelSerializer):
             ):
                 raise serializers.ValidationError({"current_operating_hours": "Operating hours must not decrease."})
         return attrs
+
+
+class InitialDamageSerializer(serializers.Serializer):
+    description = serializers.CharField()
+    severity = serializers.ChoiceField(choices=["minor", "major", "critical", "unknown"], required=False)
+    media_file_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
+
+
+class VehicleCreationSerializer(VehicleSerializer):
+    media_file_ids = serializers.ListField(child=serializers.UUIDField(), required=False, write_only=True)
+    initial_damage_reports = InitialDamageSerializer(many=True, required=False, write_only=True)
+
+    class Meta(VehicleSerializer.Meta):
+        fields = VehicleSerializer.Meta.fields + ["media_file_ids", "initial_damage_reports"]
+
+    def validate_category(self, category):
+        if not category.is_active:
+            raise serializers.ValidationError(_("The selected vehicle category is inactive."))
+        return category
+
+    def validate_status(self, value):
+        if value not in {VehicleStatus.ANNOUNCED, VehicleStatus.AVAILABLE}:
+            raise serializers.ValidationError(
+                _("New vehicles may only start as announced or available; damage is derived from initial reports.")
+            )
+        return value
