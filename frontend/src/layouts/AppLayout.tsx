@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -19,19 +19,20 @@ const navigationItems: NavigationItem[] = [
   { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
   { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
   { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
-];
-
-// Grouped under a "Settings" submenu at the bottom of the navigation.
-const settingsNavItems: NavigationItem[] = [
-  { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
-  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
   { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
   {
     key: 'manufacturerWorkflows',
     to: '/app/workflows/manufacturer',
     translationKey: 'navigation.manufacturerWorkflows',
     roles: ['admin', 'operations'],
   },
+];
+
+// Grouped under a "Settings" submenu at the bottom of the navigation.
+const settingsNavItems: NavigationItem[] = [
+  { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
+  { key: 'categories', to: '/app/categories', translationKey: 'navigation.categories', roles: ['admin'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
 ];
 
@@ -137,6 +138,11 @@ export function AppLayout() {
   const { t } = useTranslation();
   const location = useLocation();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const mobileNavButtonRef = useRef<HTMLButtonElement>(null);
+  const quickActionsButtonRef = useRef<HTMLButtonElement>(null);
+  const quickActionsMenuRef = useRef<HTMLDivElement>(null);
   const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
   const visibleSettings = settingsNavItems.filter((item) => user && item.roles.includes(user.role));
   const roleLabel = user ? t(`roles.${user.role}`) : '';
@@ -146,7 +152,58 @@ export function AppLayout() {
 
   useEffect(() => {
     setIsQuickActionsOpen(false);
+    setIsMobileNavOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+    mobileNavRef.current?.querySelector<HTMLElement>('a, button')?.focus();
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMobileNavOpen(false);
+        mobileNavButtonRef.current?.focus();
+      } else if (event.key === 'Tab') {
+        const focusable = Array.from(
+          mobileNavRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [],
+        );
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileNavOpen]);
+
+  useEffect(() => {
+    if (!isQuickActionsOpen) return;
+    quickActionsMenuRef.current?.querySelector<HTMLElement>('select, button')?.focus();
+    function close(event?: Event) {
+      if (event && (
+        quickActionsMenuRef.current?.contains(event.target as Node) ||
+        quickActionsButtonRef.current?.contains(event.target as Node)
+      )) return;
+      setIsQuickActionsOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsQuickActionsOpen(false);
+        quickActionsButtonRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('mousedown', close);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('mousedown', close);
+    };
+  }, [isQuickActionsOpen]);
 
   // Keep the Settings group expanded while one of its pages is active.
   useEffect(() => {
@@ -157,7 +214,19 @@ export function AppLayout() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">{t('layout.skipToContent')}</a>
       <header className="top-bar">
+        <button
+          ref={mobileNavButtonRef}
+          className="secondary-button mobile-nav-trigger"
+          type="button"
+          aria-expanded={isMobileNavOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMobileNavOpen((open) => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span className="visually-hidden">{t('layout.navigationMenu')}</span>
+        </button>
         <div>
           <p className="eyebrow">{t('app.subtitle')}</p>
           <h1>{t('app.name')}</h1>
@@ -176,17 +245,24 @@ export function AppLayout() {
               </button>
             </div>
             <button
+              ref={quickActionsButtonRef}
               className="secondary-button top-bar__menu-trigger"
               type="button"
               aria-label={t('layout.quickActions')}
               aria-expanded={isQuickActionsOpen}
+              aria-controls="quick-actions-menu"
               onClick={() => setIsQuickActionsOpen((current) => !current)}
             >
               <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
+            <div
+              ref={quickActionsMenuRef}
+              id="quick-actions-menu"
+              className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}
+              aria-hidden={!isQuickActionsOpen}
+            >
               <LanguageSelector />
               <button className="secondary-button" type="button" onClick={() => void logout()}>
                 {t('navigation.logout')}
@@ -197,8 +273,19 @@ export function AppLayout() {
       </header>
 
       <div className="shell-body">
-        <aside className="side-nav" aria-label={t('navigation.primaryLabel')}>
-          <nav>
+        {isMobileNavOpen ? (
+          <button
+            className="nav-backdrop"
+            type="button"
+            aria-label={t('common.close')}
+            onClick={() => {
+              setIsMobileNavOpen(false);
+              mobileNavButtonRef.current?.focus();
+            }}
+          />
+        ) : null}
+        <aside ref={mobileNavRef} className={`side-nav${isMobileNavOpen ? ' is-open' : ''}`} aria-label={t('navigation.primaryLabel')}>
+          <nav id="primary-navigation">
             {visibleItems.map((item) => (
               <NavLink key={item.key} to={item.to} end={item.to === '/app'}>
                 <NavIcon name={item.key} />
@@ -234,7 +321,7 @@ export function AppLayout() {
           </nav>
         </aside>
 
-        <main className="content-panel">
+        <main id="main-content" className="content-panel" tabIndex={-1}>
           <Outlet />
         </main>
       </div>

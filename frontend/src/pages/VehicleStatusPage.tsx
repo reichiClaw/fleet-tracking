@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import {
   getPublicVehicleStatus,
@@ -50,6 +50,7 @@ export function vehicleStatusActions(status: string, vehicleId: string, activeLo
 export function VehicleStatusPage() {
   const { qrCode } = useParams();
   const { t } = useTranslation();
+  const location = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<PublicVehicleStatus | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
@@ -177,7 +178,11 @@ export function VehicleStatusPage() {
             ) : (
               <div className="page-stack">
                 <p className="hint-text">{t('qr.status.signedOutHint')}</p>
-                <Link className="button-link" to="/login">
+                <Link
+                  className="button-link"
+                  to="/login"
+                  state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+                >
                   {t('qr.status.signIn')}
                 </Link>
               </div>

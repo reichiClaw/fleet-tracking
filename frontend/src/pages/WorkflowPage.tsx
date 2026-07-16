@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { Field } from '../components/Field';
+import { FormErrorSummary } from '../components/FormErrorSummary';
 
 import {
   createCheckIn,
@@ -31,8 +32,16 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
+import {
+  markMediaAttached,
+  MediaUploadField,
+  SignatureInput,
+  type SignatureInputHandle,
+} from '../components/MediaUploadField';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
+import { MANUFACTURER_CHECKOUT_STATUSES } from '../utils/capabilities';
+import { isValidPhone, localDateTimeToIso } from '../utils/format';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 export type WorkflowKind = 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
 
@@ -43,6 +52,7 @@ type WorkflowResult = {
   titleKey: string;
   detail: string;
   pdfAction?: () => Promise<MediaFile>;
+  automaticPdfError?: string;
 };
 
 const targetStatuses = ['available', 'damaged', 'maintenance'] as const;
@@ -64,7 +74,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
-  const [hasSignature, setHasSignature] = useState(false);
+  const [generalPhotoIds, setGeneralPhotoIds] = useState<string[]>([]);
+  const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
   const [signatureDrawn, setSignatureDrawn] = useState(false);
   const signatureRef = useRef<SignatureInputHandle>(null);
 
@@ -87,6 +98,10 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [damageDescription, setDamageDescription] = useState('');
   const [damageSeverity, setDamageSeverity] = useState('minor');
   const [damagePhotoIds, setDamagePhotoIds] = useState<string[]>([]);
+  useDirtyFormWarning(
+    !result && Boolean(vehicle || loan || company || driver || borrowerName || borrowerPhone || odometer || hours || notes || hasDamage || mediaFileIds.length || damagePhotoIds.length),
+    t('forms.unsaved'),
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -107,6 +122,26 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           setDrivers(nextDrivers);
           setLoans(nextLoans);
           setCategories(nextCategories);
+          const presetVehicle = searchParams.get('vehicle');
+          if (presetVehicle) {
+            const selected = nextVehicles.find((item) => item.id === presetVehicle);
+            const valid =
+              (kind === 'check-in' && selected?.status === 'announced') ||
+              (kind === 'manufacturer-checkout' &&
+                selected &&
+                MANUFACTURER_CHECKOUT_STATUSES.has(selected.status) &&
+                !nextLoans.some((item) => item.vehicle === selected.id && item.status === 'active')) ||
+              kind === 'loan-checkout';
+            if (!valid) {
+              setVehicle('');
+              setError(t('workflows.validation.vehicleNotEligible'));
+            }
+          }
+          const presetLoan = searchParams.get('loan');
+          if (kind === 'loan-return' && presetLoan && nextLoans.find((item) => item.id === presetLoan)?.status !== 'active') {
+            setLoan('');
+            setError(t('workflows.validation.loanNotEligible'));
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -125,6 +160,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   }, [t]);
 
   const activeLoans = useMemo(() => loans.filter((item) => item.status === 'active'), [loans]);
+  const activeLoanVehicleIds = useMemo(() => new Set(activeLoans.map((item) => item.vehicle)), [activeLoans]);
   const selectedLoan = useMemo(() => loans.find((item) => item.id === loan), [loan, loans]);
   const selectedVehicleId = kind === 'loan-return' ? selectedLoan?.vehicle : vehicle;
 
@@ -140,12 +176,13 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const vehicleOptions = useMemo<SearchableOption[]>(() => {
     let source = vehicles;
     if (kind === 'check-in') {
-      source = vehicles.filter((item) => item.status === 'announced' || item.id === vehicle);
+      source = vehicles.filter((item) => item.status === 'announced');
     } else if (kind === 'manufacturer-checkout') {
       // Only vehicles still in the fleet can be removed; already-removed,
       // loaned, or not-yet-checked-in vehicles are not eligible.
-      const eligible = new Set(['available', 'checked_in', 'maintenance', 'damaged', 'reserved']);
-      source = vehicles.filter((item) => eligible.has(item.status) || item.id === vehicle);
+      source = vehicles.filter(
+        (item) => MANUFACTURER_CHECKOUT_STATUSES.has(item.status) && !activeLoanVehicleIds.has(item.id),
+      );
     }
     return source.map((item) => {
       const categoryName =
@@ -165,16 +202,29 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         .join(' ');
       return { value: item.id, label: displayVehicleName(item), keywords };
     });
-  }, [vehicles, vehicle, kind, categoryNameById, t]);
+  }, [activeLoanVehicleIds, vehicles, kind, categoryNameById, t]);
   const damageRequiredByStatus = (kind === 'check-in' || kind === 'loan-return') && targetStatus === 'damaged';
   const damageActive = hasDamage || damageRequiredByStatus;
   const currentTitleKey = `workflows.${translationPrefix(kind)}.title`;
   const language = i18n.language.startsWith('de') ? 'de' : 'en';
+  const workflowCompanies = companies.filter((item) => {
+    if (!item.is_active) return false;
+    if (kind === 'check-in' || kind === 'manufacturer-checkout') {
+      return item.company_type === 'supplier' || item.company_type === 'manufacturer';
+    }
+    if (kind === 'loan-checkout') {
+      return item.company_type === 'subcontractor' || item.company_type === 'internal';
+    }
+    return true;
+  });
 
   function addMedia(media: MediaFile) {
     setMediaFileIds((current) => [...current, media.id]);
+    if (media.media_type === 'photo') {
+      setGeneralPhotoIds((current) => [...current, media.id]);
+    }
     if (media.media_type === 'signature') {
-      setHasSignature(true);
+      setSignatureMediaIds((current) => [...current, media.id]);
     }
   }
 
@@ -191,6 +241,25 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     } else if (!vehicle) {
       nextErrors.vehicle = t('workflows.validation.vehicleRequired');
     }
+    const selectedVehicle = vehicles.find((item) => item.id === selectedVehicleId);
+    if (kind === 'check-in' && vehicle && selectedVehicle?.status !== 'announced') {
+      nextErrors.vehicle = t('workflows.validation.vehicleNotEligible');
+    }
+    if (
+      kind === 'manufacturer-checkout' &&
+      vehicle &&
+      (!selectedVehicle ||
+        !MANUFACTURER_CHECKOUT_STATUSES.has(selectedVehicle.status) ||
+        activeLoanVehicleIds.has(selectedVehicle.id))
+    ) {
+      nextErrors.vehicle = t('workflows.validation.vehicleNotEligible');
+    }
+    if (kind === 'loan-return' && loan && selectedLoan?.status !== 'active') {
+      nextErrors.loan = t('workflows.validation.loanNotEligible');
+    }
+
+    if (kind === 'check-in' && !company) nextErrors.company = t('workflows.validation.supplierRequired');
+    if (kind === 'manufacturer-checkout' && !company) nextErrors.company = t('workflows.validation.recipientRequired');
 
     if (kind === 'loan-checkout') {
       if (!driver && !borrowerName.trim()) {
@@ -198,10 +267,15 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       }
       if (!borrowerPhone.trim()) {
         nextErrors.borrowerPhone = t('workflows.validation.phoneRequired');
+      } else if (!isValidPhone(borrowerPhone)) {
+        nextErrors.borrowerPhone = t('workflows.validation.phoneInvalid');
       }
       if (!expectedReturnAt) {
         nextErrors.expectedReturnAt = t('workflows.validation.expectedReturnRequired');
+      } else if (!localDateTimeToIso(expectedReturnAt) || new Date(expectedReturnAt).getTime() <= Date.now()) {
+        nextErrors.expectedReturnAt = t('workflows.validation.expectedReturnFuture');
       }
+      if (signatureMediaIds.length === 0 && !signatureDrawn) nextErrors.signature = t('workflows.validation.checkoutSignatureRequired');
     }
 
     if (damageActive && !damageDescription.trim()) {
@@ -213,9 +287,27 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       nextErrors.damagePhoto = t('workflows.validation.damagePhotoRequired');
     }
 
-    // Every loan return must be signed off (drawn signature or uploaded image).
-    if (kind === 'loan-return' && !hasSignature && !signatureDrawn) {
-      nextErrors.signature = t('workflows.validation.signatureRequired');
+    if (kind === 'check-in' && generalPhotoIds.length === 0) {
+      nextErrors.generalPhoto = t('workflows.validation.generalPhotoRequired');
+    }
+    if (kind === 'check-in' || kind === 'manufacturer-checkout') {
+      const performed = localDateTimeToIso(performedAt);
+      if (!performed || new Date(performed).getTime() > Date.now()) {
+        nextErrors.performedAt = t('workflows.validation.futureTimestamp');
+      }
+    }
+    if (kind === 'loan-return' && actualReturnAt) {
+      const actual = new Date(actualReturnAt).getTime();
+      const checkout = selectedLoan?.created_at ? new Date(selectedLoan.created_at).getTime() : 0;
+      if (!Number.isFinite(actual) || actual < checkout || actual > Date.now()) {
+        nextErrors.actualReturnAt = t('workflows.validation.returnChronology');
+      }
+    }
+    if (selectedVehicle?.current_odometer_km != null && odometer && Number(odometer) < selectedVehicle.current_odometer_km) {
+      nextErrors.odometer = t('workflows.validation.odometerDecrease');
+    }
+    if (selectedVehicle?.current_operating_hours != null && hours && Number(hours) < Number(selectedVehicle.current_operating_hours)) {
+      nextErrors.hours = t('workflows.validation.hoursDecrease');
     }
 
     setFieldErrors(nextErrors);
@@ -224,6 +316,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setResult(null);
     setGeneratedPdf(null);
@@ -254,6 +347,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           titleKey: 'workflows.checkIn.completed',
           detail: displayVehicleName(vehicles.find((item) => item.id === protocol.vehicle)) || protocol.vehicle,
           pdfAction: () => generateCheckInPdf(protocol.id, language),
+          automaticPdfError: protocol.pdf_generation_error,
         });
       } else if (kind === 'loan-checkout') {
         const nextLoan = await createLoanCheckout(payload);
@@ -262,6 +356,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           titleKey: 'workflows.loanCheckout.completed',
           detail: nextLoan.borrower_name || borrowerName || t('common.unknown'),
           pdfAction: () => generateLoanCheckoutPdf(nextLoan.id, language),
+          automaticPdfError: nextLoan.checkout_pdf_generation_error,
         });
       } else if (kind === 'loan-return') {
         const returned = await returnLoan(loan, payload);
@@ -270,6 +365,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           titleKey: 'workflows.loanReturn.completed',
           detail: returned.borrower_name || t('common.unknown'),
           pdfAction: () => generateLoanReturnPdf(returned.id, language),
+          automaticPdfError: returned.return_pdf_generation_error,
         });
       } else {
         const protocol = await createManufacturerCheckout(payload);
@@ -278,8 +374,13 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           titleKey: 'workflows.manufacturerCheckout.completed',
           detail: displayVehicleName(vehicles.find((item) => item.id === protocol.vehicle)) || protocol.vehicle,
           pdfAction: () => generateManufacturerCheckoutPdf(protocol.id, language),
+          automaticPdfError: protocol.pdf_generation_error,
         });
       }
+      markMediaAttached([
+        ...((payload.media_file_ids as string[]) ?? []),
+        ...damagePhotoIds,
+      ]);
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('workflows.submitError')));
     } finally {
@@ -296,7 +397,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       payload.vehicle = vehicle;
     }
     if (kind === 'check-in') {
-      assignIfPresent(payload, 'performed_at', toIso(performedAt));
+      assignIfPresent(payload, 'performed_at', localDateTimeToIso(performedAt));
       assignIfPresent(payload, 'supplier_company', company);
       assignIfPresent(payload, 'odometer_km', toNumber(odometer));
       assignIfPresent(payload, 'operating_hours', hours);
@@ -308,20 +409,20 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       assignIfPresent(payload, 'driver', driver);
       assignIfPresent(payload, 'borrower_name', borrowerName.trim());
       payload.borrower_phone = borrowerPhone.trim();
-      payload.expected_return_at = toIso(expectedReturnAt) ?? expectedReturnAt;
+      payload.expected_return_at = localDateTimeToIso(expectedReturnAt) ?? expectedReturnAt;
       assignIfPresent(payload, 'checkout_odometer_km', toNumber(odometer));
       assignIfPresent(payload, 'checkout_operating_hours', hours);
       assignIfPresent(payload, 'checkout_notes', notes.trim());
     }
     if (kind === 'loan-return') {
-      assignIfPresent(payload, 'actual_return_at', toIso(actualReturnAt));
+      assignIfPresent(payload, 'actual_return_at', localDateTimeToIso(actualReturnAt));
       assignIfPresent(payload, 'return_odometer_km', toNumber(odometer));
       assignIfPresent(payload, 'return_operating_hours', hours);
       assignIfPresent(payload, 'return_notes', notes.trim());
       assignIfPresent(payload, 'target_status', targetStatus);
     }
     if (kind === 'manufacturer-checkout') {
-      assignIfPresent(payload, 'performed_at', toIso(performedAt));
+      assignIfPresent(payload, 'performed_at', localDateTimeToIso(performedAt));
       assignIfPresent(payload, 'recipient_company', company);
       assignIfPresent(payload, 'odometer_km', toNumber(odometer));
       assignIfPresent(payload, 'operating_hours', hours);
@@ -364,9 +465,12 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       {error ? <ErrorState message={error} /> : null}
       {pdfError ? <ErrorState message={pdfError} /> : null}
       {result ? (
-        <article className="content-card success-card">
-          <h3>{t(result.titleKey)}</h3>
+        <article className="content-card success-card" role="status" aria-live="polite">
+          <h3 tabIndex={-1} autoFocus>{t(result.titleKey)}</h3>
           <p>{result.detail}</p>
+          {result.automaticPdfError ? (
+            <p className="field-error">{t('pdf.automaticError', { error: result.automaticPdfError })}</p>
+          ) : null}
           <div className="action-row">
             {result.pdfAction ? (
               <button type="button" onClick={handleGeneratePdf}>
@@ -381,10 +485,11 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         </article>
       ) : null}
 
-      <form className="content-card form-stack" onSubmit={handleSubmit}>
+      {!result ? <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
+        <FormErrorSummary errors={fieldErrors} />
         {kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.loan')} error={fieldErrors.loan}>
-            <select value={loan} onChange={(event) => setLoan(event.target.value)}>
+          <Field label={t('workflows.fields.loan')} error={fieldErrors.loan} required>
+            <select required value={loan} onChange={(event) => setLoan(event.target.value)}>
               <option value="">{t('workflows.placeholders.selectLoan')}</option>
               {activeLoans.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -392,6 +497,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
                 </option>
               ))}
             </select>
+            {activeLoans.length === 0 ? <small className="hint-text">{t('workflows.loanReturn.noActiveLoans')}</small> : null}
           </Field>
         ) : (
           <SearchableSelect
@@ -402,6 +508,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             placeholder={kind === 'check-in' ? t('workflows.placeholders.searchAnnouncedVehicle') : t('workflows.placeholders.searchVehicle')}
             emptyText={t('workflows.placeholders.noVehicleMatches')}
             error={fieldErrors.vehicle}
+            required
           >
             {kind === 'check-in' && vehicleOptions.length === 0 ? (
               <small className="hint-text">{t('workflows.checkIn.noAnnounced')}</small>
@@ -409,11 +516,19 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           </SearchableSelect>
         )}
 
-        {kind === 'loan-checkout' ? (
-          <Field label={t('workflows.fields.company')}>
-            <select value={company} onChange={(event) => setCompany(event.target.value)}>
-              <option value="">{t('workflows.placeholders.optionalCompany')}</option>
-              {companies.map((item) => (
+        {kind !== 'loan-return' ? (
+          <Field
+            label={t(kind === 'check-in' ? 'workflows.fields.supplierCompany' : kind === 'manufacturer-checkout' ? 'workflows.fields.recipientCompany' : 'workflows.fields.company')}
+            error={fieldErrors.company}
+            required={kind === 'check-in' || kind === 'manufacturer-checkout'}
+          >
+            <select
+              required={kind === 'check-in' || kind === 'manufacturer-checkout'}
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
+            >
+              <option value="">{t(kind === 'loan-checkout' ? 'workflows.placeholders.optionalCompany' : 'workflows.placeholders.selectCompany')}</option>
+              {workflowCompanies.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
                 </option>
@@ -437,8 +552,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
             <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName}>
               <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
             </Field>
-            <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone}>
-              <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+            <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone} required>
+              <input required type="tel" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
             </Field>
             <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt}>
               <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
@@ -447,22 +562,22 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         ) : null}
 
         {kind === 'check-in' || kind === 'manufacturer-checkout' ? (
-          <Field label={t('workflows.fields.performedAt')}>
+          <Field label={t('workflows.fields.performedAt')} error={fieldErrors.performedAt}>
             <input type="datetime-local" value={performedAt} onChange={(event) => setPerformedAt(event.target.value)} />
           </Field>
         ) : null}
 
         {kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.actualReturn')}>
+          <Field label={t('workflows.fields.actualReturn')} error={fieldErrors.actualReturnAt}>
             <input type="datetime-local" value={actualReturnAt} onChange={(event) => setActualReturnAt(event.target.value)} />
           </Field>
         ) : null}
 
         <div className="form-grid form-grid--two">
-          <Field label={t(kind === 'loan-return' ? 'workflows.fields.returnOdometer' : kind === 'loan-checkout' ? 'workflows.fields.checkoutOdometer' : 'workflows.fields.odometer')}>
+          <Field error={fieldErrors.odometer} label={t(kind === 'loan-return' ? 'workflows.fields.returnOdometer' : kind === 'loan-checkout' ? 'workflows.fields.checkoutOdometer' : 'workflows.fields.odometer')}>
             <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
           </Field>
-          <Field label={t(kind === 'loan-return' ? 'workflows.fields.returnHours' : kind === 'loan-checkout' ? 'workflows.fields.checkoutHours' : 'workflows.fields.hours')}>
+          <Field error={fieldErrors.hours} label={t(kind === 'loan-return' ? 'workflows.fields.returnHours' : kind === 'loan-checkout' ? 'workflows.fields.checkoutHours' : 'workflows.fields.hours')}>
             <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
           </Field>
         </div>
@@ -520,7 +635,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           ) : null}
           {damageActive ? (
             <>
-              <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription}>
+              <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription} required>
                 <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
               </Field>
               <Field label={t('workflows.damage.severity')}>
@@ -539,59 +654,63 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
                 label={t('workflows.damage.photoLabel')}
                 accept="image/*"
                 capture
+                required
+                validationError={fieldErrors.damagePhoto}
+                submitted={Boolean(result)}
                 onUploaded={addDamagePhoto}
+                onRemoved={(media) => setDamagePhotoIds((current) => current.filter((id) => id !== media.id))}
               />
               {damagePhotoIds.length > 0 ? (
                 <p className="hint-text">{t('workflows.damage.photoCount', { count: damagePhotoIds.length })}</p>
               ) : null}
-              {fieldErrors.damagePhoto ? (
-                <small className="field-error">{fieldErrors.damagePhoto}</small>
-              ) : (
+              {!fieldErrors.damagePhoto ? (
                 <p className="hint-text">{t('workflows.damage.photoRequired')}</p>
-              )}
+              ) : null}
             </>
           ) : (
             <p className="hint-text">{t('workflows.damage.optionalHint')}</p>
           )}
         </fieldset>
 
-        {/* Check-in is an internal add-to-pool workflow: no photos/signatures
-            section here (damage photos are captured in the damage section when
-            relevant). Loan return needs a signature; other workflows keep an
-            optional photo. */}
-        {kind === 'check-in' ? null : (
-          <fieldset className="fieldset-card">
-            <legend>{t('media.title')}</legend>
-            <MediaUploadField
-              mediaType="photo"
-              vehicleId={selectedVehicleId}
-              loanId={kind === 'loan-return' ? loan : undefined}
-              relatedType="workflow_draft"
-              label={t('media.photoLabel')}
-              accept="image/*"
-              capture
-              onUploaded={addMedia}
-            />
-            {kind === 'loan-return' ? (
-              <>
-                <p className="hint-text">{t('media.signatureRequired')}</p>
-                <SignatureInput
-                  ref={signatureRef}
-                  vehicleId={selectedVehicleId}
-                  loanId={loan}
-                  relatedType="workflow_draft"
-                  label={t('media.signatureLabel')}
-                  onUploaded={addMedia}
-                  onDrawnChange={setSignatureDrawn}
-                />
-                {fieldErrors.signature ? <small className="field-error">{fieldErrors.signature}</small> : null}
-                <p className="hint-text">{t('media.handoffNote')}</p>
-              </>
-            ) : (
-              <p className="hint-text">{t('media.internalWorkflowNote')}</p>
-            )}
-          </fieldset>
-        )}
+        <fieldset className="fieldset-card">
+          <legend>{t('media.title')}</legend>
+          <MediaUploadField
+            mediaType="photo"
+            vehicleId={selectedVehicleId}
+            loanId={kind === 'loan-return' ? loan : undefined}
+            relatedType="workflow_draft"
+            label={t(kind === 'check-in' ? 'media.generalPhotoLabel' : 'media.photoLabel')}
+            accept="image/*"
+            capture
+            required={kind === 'check-in'}
+            validationError={fieldErrors.generalPhoto}
+            submitted={Boolean(result)}
+            onUploaded={addMedia}
+            onRemoved={(media) => {
+              setMediaFileIds((current) => current.filter((id) => id !== media.id));
+              setGeneralPhotoIds((current) => current.filter((id) => id !== media.id));
+            }}
+          />
+          <SignatureInput
+            ref={signatureRef}
+            vehicleId={selectedVehicleId}
+            loanId={kind === 'loan-return' ? loan : undefined}
+            relatedType="workflow_draft"
+            label={t(kind === 'loan-checkout' ? 'media.signatureLabel' : 'media.optionalSignatureLabel')}
+            required={kind === 'loan-checkout'}
+            validationError={fieldErrors.signature}
+            onUploaded={addMedia}
+            onRemoved={(media) => {
+              setMediaFileIds((current) => current.filter((id) => id !== media.id));
+              setSignatureMediaIds((current) => current.filter((id) => id !== media.id));
+            }}
+            onDrawnChange={setSignatureDrawn}
+            submitted={Boolean(result)}
+          />
+          <p className="hint-text">
+            {t(kind === 'loan-checkout' ? 'media.signatureRequiredCheckout' : 'media.signatureOptional')}
+          </p>
+        </fieldset>
 
         <button
           type="submit"
@@ -604,7 +723,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
               ? t('workflows.checkIn.submit')
               : t('workflows.submit')}
         </button>
-      </form>
+      </form> : null}
     </section>
   );
 }

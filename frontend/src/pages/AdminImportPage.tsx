@@ -6,9 +6,12 @@ import {
   remapVehicleImport,
   uploadVehicleImport,
   type ImportJob,
+  type PageResult,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { PaginationControls } from '../components/PaginationControls';
 
 const FALLBACK_TARGET_COLUMNS = [
   'internal_number',
@@ -33,6 +36,8 @@ export function AdminImportPage() {
   const [isCommitting, setIsCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [rowPage, setRowPage] = useState(1);
+  const [confirmCommit, setConfirmCommit] = useState(false);
 
   useEffect(() => {
     const active = job?.result?.mapping ?? job?.result?.suggested_mapping;
@@ -51,6 +56,7 @@ export function AdminImportPage() {
     setJob(null);
     setMapping({});
     setError(null);
+    setRowPage(1);
   }
 
   async function handleUpload() {
@@ -106,6 +112,17 @@ export function AdminImportPage() {
   }
 
   const canCommit = job?.status === 'validated' && job.error_count === 0;
+  const rows = job?.result?.rows ?? [];
+  const pageSize = 50;
+  const visibleRows = rows.slice((rowPage - 1) * pageSize, rowPage * pageSize);
+  const rowsPage: PageResult<(typeof rows)[number]> = {
+    count: rows.length,
+    page: rowPage,
+    pageSize,
+    results: visibleRows,
+    previous: rowPage > 1 ? 'previous' : null,
+    next: rowPage * pageSize < rows.length ? 'next' : null,
+  };
 
   function importStatusLabel(status: string) {
     const key = `imports.status.${status}`;
@@ -160,6 +177,7 @@ export function AdminImportPage() {
           <p className="hint-text">{t('imports.mapping.description')}</p>
           <div className="table-scroll">
             <table>
+              <caption>{t('imports.mapping.caption')}</caption>
               <thead>
                 <tr>
                   <th>{t('imports.mapping.targetColumn')}</th>
@@ -239,38 +257,54 @@ export function AdminImportPage() {
           ) : null}
 
           {job.result?.rows?.length ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('imports.table.row')}</th>
-                    <th>{t('imports.table.action')}</th>
-                    <th>{t('imports.table.errors')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {job.result.rows.slice(0, 20).map((row) => (
-                    <tr key={row.row_number}>
-                      <td>{row.row_number}</td>
-                      <td>{importActionLabel(row.action)}</td>
-                      <td>
-                        {row.errors?.length
-                          ? row.errors.map(importErrorLabel).join(t('imports.errorSeparator'))
-                          : t('imports.table.noErrors')}
-                      </td>
+            <>
+              <div className="table-scroll">
+                <table>
+                  <caption>{t('imports.table.caption')}</caption>
+                  <thead>
+                    <tr>
+                      <th>{t('imports.table.row')}</th>
+                      <th>{t('imports.table.action')}</th>
+                      <th>{t('imports.table.errors')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((row) => (
+                      <tr key={row.row_number}>
+                        <td>{row.row_number}</td>
+                        <td>{importActionLabel(row.action)}</td>
+                        <td>
+                          {row.errors?.length
+                            ? row.errors.map(importErrorLabel).join(t('imports.errorSeparator'))
+                            : t('imports.table.noErrors')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {rows.length > pageSize ? <PaginationControls page={rowsPage} onPageChange={setRowPage} /> : null}
+            </>
           ) : null}
 
-          <button type="button" disabled={!canCommit || isCommitting} onClick={handleCommit}>
+          <button type="button" disabled={!canCommit || isCommitting} onClick={() => setConfirmCommit(true)}>
             {isCommitting ? t('imports.committing') : t('imports.commit')}
           </button>
           {!canCommit ? <p className="hint-text">{t('imports.commitHint')}</p> : null}
         </section>
       ) : null}
+      <ConfirmDialog
+        open={confirmCommit}
+        title={t('imports.confirmTitle')}
+        description={t('imports.confirmDescription', { count: job?.row_count ?? 0 })}
+        confirmLabel={t('imports.commit')}
+        busy={isCommitting}
+        onCancel={() => setConfirmCommit(false)}
+        onConfirm={() => {
+          setConfirmCommit(false);
+          void handleCommit();
+        }}
+      />
     </section>
   );
 }

@@ -8,7 +8,9 @@ import {
   listDrivers,
   listLoans,
   listVehicleCategories,
+  listVehiclePage,
   listVehicles,
+  type PageResult,
   type Driver,
   type Loan,
   type Vehicle,
@@ -19,6 +21,10 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { StatusBadge } from '../components/StatusBadge';
+import { PaginationControls } from '../components/PaginationControls';
+import { useAuth } from '../auth/AuthContext';
+import { canLoan, canMutate } from '../utils/capabilities';
+import { formatDateTime, formatNumber } from '../utils/format';
 
 const statuses = [
   '',
@@ -37,10 +43,14 @@ const ARCHIVED_STATUSES = new Set(['manufacturer_checkout', 'archived']);
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const requestedStatus = searchParams.get('status') ?? '';
   const initialStatus = ARCHIVED_STATUSES.has(requestedStatus) ? '' : requestedStatus;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -84,9 +94,40 @@ export function VehiclePoolPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextVehicles = await listVehicles({ status, category, search });
+        let nextPage: PageResult<Vehicle>;
+        if (status) {
+          nextPage = await listVehiclePage({ status, category, search }, page);
+        } else {
+          // The backend currently has no "active fleet only" filter, so its
+          // unfiltered count includes archived/manufacturer-returned records.
+          // Follow all pages and paginate the filtered active set locally to
+          // keep counts and page boundaries correct.
+          const allVehicles = await listVehicles({ category });
+          const query = search.trim().toLowerCase();
+          const activeVehicles = allVehicles
+            .filter((item) => !ARCHIVED_STATUSES.has(item.status))
+            .filter((item) => !query || [
+              item.internal_number,
+              item.manufacturer,
+              item.model,
+              item.license_plate,
+              item.serial_number,
+              item.current_location,
+            ].filter(Boolean).join(' ').toLowerCase().includes(query));
+          const pageSize = 50;
+          const results = activeVehicles.slice((page - 1) * pageSize, page * pageSize);
+          nextPage = {
+            count: activeVehicles.length,
+            next: page * pageSize < activeVehicles.length ? 'next' : null,
+            previous: page > 1 ? 'previous' : null,
+            results,
+            page,
+            pageSize,
+          };
+        }
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextPage.results);
+          setVehiclePage(nextPage);
         }
       } catch (error) {
         if (isMounted) {
@@ -104,7 +145,7 @@ export function VehiclePoolPage() {
     return () => {
       isMounted = false;
     };
-  }, [category, search, status, t]);
+  }, [category, page, reloadToken, search, status, t]);
 
   const activeLoansByVehicle = useMemo(() => {
     const driverNames = new Map(drivers.map((driver) => [driver.id, displayDriverName(driver)]));
@@ -126,6 +167,7 @@ export function VehiclePoolPage() {
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   return (
@@ -136,9 +178,11 @@ export function VehiclePoolPage() {
           <h2>{t('vehicles.title')}</h2>
           <p>{t('vehicles.description')}</p>
         </div>
-        <Link className="button-link" to="/app/workflows/loans">
-          {t('navigation.loanWorkflows')}
-        </Link>
+        {canMutate(user?.role) ? (
+          <Link className="button-link" to="/app/workflows/loans">
+            {t('navigation.loanWorkflows')}
+          </Link>
+        ) : null}
       </div>
 
       <form className="filter-panel" onSubmit={handleSearch}>
@@ -148,7 +192,7 @@ export function VehiclePoolPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.status')}</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
             {statuses.map((statusOption) => (
               <option key={statusOption || 'all'} value={statusOption}>
                 {statusOption ? t(`status.${statusOption}`) : t('vehicles.filters.allStatuses')}
@@ -158,7 +202,7 @@ export function VehiclePoolPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.category')}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
             <option value="">{t('vehicles.filters.allCategories')}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
@@ -171,9 +215,9 @@ export function VehiclePoolPage() {
       </form>
 
       {isLoading ? <LoadingState variant="skeleton" rows={6} /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
-      <div className="vehicle-grid">
+      {!isLoading && !error ? <div className="vehicle-grid">
         {visibleVehicles.map((vehicle) => {
           const activeLoan = activeLoansByVehicle.get(vehicle.id);
           return (
@@ -192,11 +236,11 @@ export function VehiclePoolPage() {
                 </div>
                 <div>
                   <dt>{t('vehicles.fields.odometer')}</dt>
-                  <dd>{vehicle.current_odometer_km ?? t('common.notAvailable')}</dd>
+                  <dd>{formatNumber(vehicle.current_odometer_km, i18n.language, t('common.notAvailable'))}</dd>
                 </div>
                 <div>
                   <dt>{t('vehicles.fields.hours')}</dt>
-                  <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
+                  <dd>{formatNumber(vehicle.current_operating_hours, i18n.language, t('common.notAvailable'), { maximumFractionDigits: 1 })}</dd>
                 </div>
               </dl>
               {activeLoan ? (
@@ -205,7 +249,7 @@ export function VehiclePoolPage() {
                   <span>{activeLoan.borrower_name || t('common.unknown')}</span>
                   <small>
                     {t('vehicles.expectedReturn', {
-                      date: new Intl.DateTimeFormat(i18n.language).format(new Date(activeLoan.expected_return_at)),
+                      date: formatDateTime(activeLoan.expected_return_at, i18n.language, t('common.notAvailable')),
                     })}
                   </small>
                 </div>
@@ -214,7 +258,7 @@ export function VehiclePoolPage() {
                 <Link className="button-link secondary-button" to={`/app/vehicles/${vehicle.id}`}>
                   {t('vehicles.actions.details')}
                 </Link>
-                {vehicle.status === 'available' ? (
+                {canLoan(user?.role, vehicle.status) ? (
                   <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
                     {t('workflows.loanCheckout.shortTitle')}
                   </Link>
@@ -223,10 +267,13 @@ export function VehiclePoolPage() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
 
-      {!isLoading && !visibleVehicles.length ? (
+      {!isLoading && !error && !visibleVehicles.length ? (
         <EmptyState title={t('vehicles.empty.title')} description={t('vehicles.empty.body')} />
+      ) : null}
+      {!isLoading && !error && vehiclePage && vehiclePage.count > 0 ? (
+        <PaginationControls page={vehiclePage} onPageChange={setPage} />
       ) : null}
     </section>
   );

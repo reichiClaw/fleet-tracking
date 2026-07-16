@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiClient } from './client';
+import {
+  acknowledgeAuthRecovery,
+  apiClient,
+  ApiError,
+  AUTH_CONTINUATION_KEY,
+  AUTH_EXPIRED_EVENT,
+} from './client';
 
 describe('apiClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     document.cookie = 'csrftoken=; Max-Age=0; path=/';
     window.localStorage.clear();
+    window.sessionStorage.clear();
+    acknowledgeAuthRecovery();
   });
 
   it('sends the CSRF cookie value on unsafe session-authenticated requests', async () => {
@@ -42,5 +50,57 @@ describe('apiClient', () => {
         headers: expect.not.objectContaining({ 'X-CSRFToken': 'test-token' }),
       }),
     );
+  });
+
+  it('bootstraps CSRF before the first unsafe request', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input).endsWith('/auth/csrf/')) {
+        document.cookie = 'csrftoken=bootstrapped-token; path=/';
+        return Promise.resolve(new Response(JSON.stringify({ detail: 'ok' }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiClient.post('/auth/login/', { username: 'ada', password: 'secret' });
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/auth/csrf/');
+    expect(fetchMock.mock.calls[1][1]).toEqual(expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ 'X-CSRFToken': 'bootstrapped-token' }),
+    }));
+  });
+
+  it('parses the standardized backend error envelope', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: {
+        code: 'invalid',
+        message: 'Request validation failed.',
+        details: { vehicle: ['Only available vehicles can be loaned.'] },
+      },
+    }), { status: 400, headers: { 'Content-Type': 'application/json' } }))));
+
+    await expect(apiClient.get('/vehicles/')).rejects.toMatchObject({
+      status: 400,
+      code: 'invalid',
+      message: 'Request validation failed.',
+      details: { vehicle: ['Only available vehicles can be loaned.'] },
+    });
+  });
+
+  it('dispatches auth expiry once and preserves the full continuation URL', async () => {
+    window.history.pushState({}, '', '/app/qr?mode=scan#camera');
+    const expired = vi.fn();
+    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: { code: 'not_authenticated', message: 'Authentication required.', details: {} },
+    }), { status: 401, headers: { 'Content-Type': 'application/json' } }))));
+
+    await expect(apiClient.get('/vehicles/')).rejects.toBeInstanceOf(ApiError);
+    await expect(apiClient.get('/vehicles/')).rejects.toBeInstanceOf(ApiError);
+
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(window.sessionStorage.getItem(AUTH_CONTINUATION_KEY)).toBe('/app/qr?mode=scan#camera');
+    window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
   });
 });

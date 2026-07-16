@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { AUTH_CONTINUATION_KEY } from '../api/client';
 import { getApiErrorMessage } from '../api/errors';
 import { DEMO_AUTH_ENABLED, type UserRole, useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
@@ -18,11 +19,22 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isAuthenticated) {
-    return <Navigate to="/app" replace />;
-  }
+  const stateFrom = (location.state as { from?: string | { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const stateTarget =
+    typeof stateFrom === 'string'
+      ? stateFrom
+      : stateFrom
+        ? `${stateFrom.pathname ?? ''}${stateFrom.search ?? ''}${stateFrom.hash ?? ''}`
+        : '';
+  const storedTarget = window.sessionStorage.getItem(AUTH_CONTINUATION_KEY) ?? '';
+  const candidate = stateTarget || storedTarget;
+  const from = candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.startsWith('/login')
+    ? candidate
+    : '/app';
 
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/app';
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,6 +57,7 @@ export function LoginPage() {
         password,
         fallbackUser: { name: username.trim(), username: username.trim(), role, isBackendSession: false },
       });
+      window.sessionStorage.removeItem(AUTH_CONTINUATION_KEY);
       navigate(from, { replace: true });
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('auth.login.error')));
@@ -63,7 +76,7 @@ export function LoginPage() {
           </div>
           <LanguageSelector />
         </div>
-        <p>{t('auth.login.intro')}</p>
+        <p>{t(DEMO_AUTH_ENABLED ? 'auth.login.intro' : 'auth.login.introProduction')}</p>
 
         {error ? <ErrorState message={error} /> : null}
 

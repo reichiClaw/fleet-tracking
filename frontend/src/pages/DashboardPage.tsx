@@ -218,6 +218,7 @@ export function DashboardPage() {
 
   const totals = data.totals;
   const canManageVehicles = user?.role === 'admin';
+  const canRunWorkflows = user?.role === 'admin' || user?.role === 'operations';
 
   if (totals.vehicles === 0) {
     return (
@@ -257,9 +258,11 @@ export function DashboardPage() {
         description={t('dashboard.description')}
         actions={
           <div className="action-row action-row--wrap">
-            <Link className="button-link" to="/app/workflows/loan-checkout">
-              {t('dashboard.primaryAction')}
-            </Link>
+            {canRunWorkflows ? (
+              <Link className="button-link" to="/app/workflows/loan-checkout">
+                {t('dashboard.primaryAction')}
+              </Link>
+            ) : null}
             <Link className="button-link secondary-button" to="/app/vehicles">
               {t('dashboard.secondaryAction')}
             </Link>
@@ -395,9 +398,11 @@ export function DashboardPage() {
                 {reservation.conflict ? (
                   <span className="status-badge status-badge--damaged">{t('dashboard.reservations.overdue')}</span>
                 ) : null}
-                <Link className="button-link success-button" to={reservationHandoverHref(reservation)}>
-                  {t('dashboard.reservations.handover')}
-                </Link>
+                {canRunWorkflows ? (
+                  <Link className="button-link success-button" to={reservationHandoverHref(reservation)}>
+                    {t('dashboard.reservations.handover')}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -444,6 +449,7 @@ export function DashboardPage() {
         {data.recent_loans.length ? (
           <div className="table-scroll">
             <table>
+            <caption>{t('dashboard.recent.title')}</caption>
               <thead>
                 <tr>
                   <th>{t('dashboard.recent.columns.vehicle')}</th>
@@ -474,14 +480,18 @@ export function DashboardPage() {
       <section className="content-card">
         <h3>{t('dashboard.quickActions.title')}</h3>
         <div className="quick-actions">
-          <Link className="quick-action" to="/app/workflows/loan-checkout">
-            <Icon name="loaned" />
-            <span>{t('dashboard.quickActions.loan')}</span>
-          </Link>
-          <Link className="quick-action" to="/app/workflows/loan-return">
-            <Icon name="available" />
-            <span>{t('dashboard.quickActions.return')}</span>
-          </Link>
+          {canRunWorkflows ? (
+            <>
+              <Link className="quick-action" to="/app/workflows/loan-checkout">
+                <Icon name="loaned" />
+                <span>{t('dashboard.quickActions.loan')}</span>
+              </Link>
+              <Link className="quick-action" to="/app/workflows/loan-return">
+                <Icon name="available" />
+                <span>{t('dashboard.quickActions.return')}</span>
+              </Link>
+            </>
+          ) : null}
           {canManageVehicles ? (
             <Link className="quick-action" to="/app/workflows/add-vehicle">
               <Icon name="fleet" />

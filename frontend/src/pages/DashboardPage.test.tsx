@@ -146,4 +146,24 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('Ihr Fuhrpark ist leer')).toBeInTheDocument();
   });
+
+  it('does not show mutation actions to read-only users', async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/auth/me/')) return jsonResponse({ username: 'reader', role: 'readonly' });
+        if (url.includes('/dashboard/summary/')) return jsonResponse(summary);
+        return jsonResponse({});
+      }),
+    );
+
+    renderDashboard();
+
+    expect(await screen.findByRole('heading', { name: 'Fuhrpark-Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fahrzeug ausleihen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fahrzeug zurückgeben' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Übergeben' })).not.toBeInTheDocument();
+  });
 });

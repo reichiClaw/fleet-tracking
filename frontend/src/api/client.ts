@@ -5,20 +5,32 @@ const CSRF_COOKIE_NAME = 'csrftoken';
 const CSRF_HEADER_NAME = 'X-CSRFToken';
 const CSRF_PATH = '/auth/csrf/';
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+export const AUTH_EXPIRED_EVENT = 'fleet:auth-expired';
+export const AUTH_CONTINUATION_KEY = 'fleet-auth-continuation';
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
 
 export class ApiError extends Error {
   status: number;
+  code: string;
   details: unknown;
 
-  constructor(status: number, message: string, details?: unknown) {
+  constructor(status: number, message: string, details?: unknown, code = 'error') {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
     this.details = details;
   }
 }
+
+type ErrorEnvelope = {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: unknown;
+  };
+};
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown>;
@@ -65,6 +77,7 @@ function isUnsafeMethod(method?: string) {
 }
 
 let csrfBootstrap: Promise<void> | null = null;
+let authExpiryDispatched = false;
 
 async function ensureCsrfToken() {
   if (getCookie(CSRF_COOKIE_NAME)) {
@@ -78,8 +91,11 @@ async function ensureCsrfToken() {
       credentials: 'include',
       headers: { Accept: 'application/json' },
     })
-      .then(() => undefined)
-      .catch(() => undefined)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw await apiErrorFromResponse(response);
+        }
+      })
       .finally(() => {
         csrfBootstrap = null;
       });
@@ -88,6 +104,14 @@ async function ensureCsrfToken() {
 }
 
 export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | null | undefined>) {
+  if (/^https?:\/\//i.test(path)) {
+    if (!query) return path;
+    const absolute = new URL(path);
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') absolute.searchParams.set(key, String(value));
+    });
+    return absolute.toString();
+  }
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = `${API_BASE_URL}${normalizedPath}`;
   if (!query) {
@@ -103,6 +127,42 @@ export function buildApiUrl(path: string, query?: Record<string, string | number
 
   const queryString = params.toString();
   return queryString ? `${url}?${queryString}` : url;
+}
+
+async function apiErrorFromResponse(response: Response) {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = undefined;
+  }
+  const envelope = body as ErrorEnvelope | undefined;
+  const payload = envelope?.error;
+  return new ApiError(
+    response.status,
+    payload?.message || response.statusText || 'Request failed',
+    payload ? payload.details : body,
+    payload?.code || 'error',
+  );
+}
+
+function notifyAuthExpired(path: string) {
+  if (
+    authExpiryDispatched ||
+    typeof window === 'undefined' ||
+    path.includes('/auth/login/') ||
+    path.includes('/auth/me/')
+  ) return;
+  authExpiryDispatched = true;
+  const continuation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (continuation !== '/login' && !continuation.startsWith('/login?')) {
+    window.sessionStorage.setItem(AUTH_CONTINUATION_KEY, continuation);
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+}
+
+export function acknowledgeAuthRecovery() {
+  authExpiryDispatched = false;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -128,13 +188,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   });
 
   if (!response.ok) {
-    let details: unknown;
-    try {
-      details = await response.json();
-    } catch {
-      details = undefined;
-    }
-    throw new ApiError(response.status, response.statusText, details);
+    const error = await apiErrorFromResponse(response);
+    if (response.status === 401) notifyAuthExpired(path);
+    throw error;
   }
 
   if (response.status === 204) {

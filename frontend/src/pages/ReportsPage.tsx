@@ -1,12 +1,18 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { listDocuments, mediaDownloadUrl, type GeneratedDocument } from '../api/fleet';
+import {
+  listDocumentPage,
+  mediaDownloadUrl,
+  type GeneratedDocument,
+  type PageResult,
+} from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
 
 const REPORT_TYPES = [
   'check_in_protocol_pdf',
@@ -20,6 +26,9 @@ const LANGUAGES = ['', 'de', 'en'] as const;
 export function ReportsPage() {
   const { t, i18n } = useTranslation();
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
+  const [documentPage, setDocumentPage] = useState<PageResult<GeneratedDocument> | null>(null);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
   const [type, setType] = useState('');
   const [language, setLanguage] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -35,9 +44,10 @@ export function ReportsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextDocuments = await listDocuments({ search, type, language });
+        const nextPage = await listDocumentPage({ search, type, language }, page);
         if (isMounted) {
-          setDocuments(nextDocuments);
+          setDocuments(nextPage.results);
+          setDocumentPage(nextPage);
         }
       } catch (loadError) {
         if (isMounted) {
@@ -54,11 +64,12 @@ export function ReportsPage() {
     return () => {
       isMounted = false;
     };
-  }, [language, search, type, t]);
+  }, [language, page, reloadToken, search, type, t]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   function reportTypeLabel(relatedType: string) {
@@ -77,7 +88,7 @@ export function ReportsPage() {
         </label>
         <label>
           <span>{t('reports.filters.type')}</span>
-          <select value={type} onChange={(event) => setType(event.target.value)}>
+          <select value={type} onChange={(event) => { setType(event.target.value); setPage(1); }}>
             <option value="">{t('reports.filters.allTypes')}</option>
             {REPORT_TYPES.map((reportType) => (
               <option key={reportType} value={reportType}>
@@ -88,7 +99,7 @@ export function ReportsPage() {
         </label>
         <label>
           <span>{t('reports.filters.language')}</span>
-          <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+          <select value={language} onChange={(event) => { setLanguage(event.target.value); setPage(1); }}>
             {LANGUAGES.map((code) => (
               <option key={code || 'all'} value={code}>
                 {code ? t(`language.options.${code}`) : t('reports.filters.allLanguages')}
@@ -100,13 +111,14 @@ export function ReportsPage() {
       </form>
 
       {isLoading ? <LoadingState variant="skeleton" rows={4} /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
       {!isLoading && !error ? (
         documents.length ? (
           <section className="content-card">
             <div className="table-scroll">
               <table>
+                <caption>{t('reports.tableCaption')}</caption>
                 <thead>
                   <tr>
                     <th>{t('reports.columns.type')}</th>
@@ -133,6 +145,7 @@ export function ReportsPage() {
                 </tbody>
               </table>
             </div>
+            {documentPage ? <PaginationControls page={documentPage} onPageChange={setPage} /> : null}
           </section>
         ) : (
           <EmptyState title={t('reports.empty.title')} description={t('reports.empty.body')} />

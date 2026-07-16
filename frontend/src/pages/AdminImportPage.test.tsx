@@ -31,7 +31,7 @@ const validatedJob = {
   id: 'job-1',
   import_type: 'vehicles',
   status: 'validated',
-  row_count: 1,
+  row_count: 75,
   error_count: 0,
   result: {
     columns: ['internal_number', 'category', 'manufacturer', 'model'],
@@ -39,7 +39,7 @@ const validatedJob = {
     source_columns: sourceColumns,
     suggested_mapping: {},
     mapping: { manufacturer: 0, model: 1 },
-    rows: [{ row_number: 2, action: 'create', errors: [] }],
+    rows: Array.from({ length: 75 }, (_, index) => ({ row_number: index + 2, action: 'create', errors: [] })),
   },
 };
 
@@ -120,5 +120,27 @@ describe('AdminImportPage interactive mapping', () => {
 
     expect(await screen.findByText('Was korrigiert werden muss')).toBeInTheDocument();
     expect(screen.getByText(/manufacturer is required\./)).toBeInTheDocument();
+  });
+
+  it('paginates every validated row instead of truncating the first 20', async () => {
+    render(
+      <MemoryRouter>
+        <AdminImportPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText('Excel-Datei'), {
+      target: { files: [new File(['x'], 'fleet.xlsx')] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Hochladen und validieren' }));
+    await screen.findByText('Spalten zuordnen');
+    fireEvent.change(screen.getByLabelText(/Hersteller/), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText(/Modell/), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zuordnung übernehmen & neu validieren' }));
+
+    await screen.findByText(/1–50 von 75/);
+    expect(screen.queryByText('76')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+    expect(await screen.findByText('76')).toBeInTheDocument();
+    expect(screen.getByText(/51–75 von 75/)).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import {
   cancelReservation,
+  archiveVehicle,
   createDriver,
   createReservation,
   displayDriverName,
@@ -30,6 +31,7 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Field } from '../components/Field';
 import { LoadingState } from '../components/LoadingState';
 import { QRCodeCard } from '../components/QRCodeCard';
@@ -37,6 +39,15 @@ import { SearchableSelect, type SearchableOption } from '../components/Searchabl
 import { ReservationTimeline } from '../components/ReservationTimeline';
 import { StatusBadge } from '../components/StatusBadge';
 import { publicVehiclePath } from './QRAccessPage';
+import {
+  canArchive,
+  canCheckIn,
+  canLoan,
+  canManufacturerCheckout,
+  canReturnLoan,
+} from '../utils/capabilities';
+import { formatDateOnly, formatDateTime, formatNumber, localDateTimeToIso } from '../utils/format';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 function defaultReservationStart() {
   const date = new Date();
@@ -70,6 +81,10 @@ export function VehicleDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [pendingReservationId, setPendingReservationId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'reservation'; id: string } | { type: 'archive' } | null>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   const [reservationStart, setReservationStart] = useState(defaultReservationStart);
   const [reservationEnd, setReservationEnd] = useState(defaultReservationEnd);
@@ -137,6 +152,12 @@ export function VehicleDetailPage() {
       setReservationError(t('reservations.validation.required'));
       return;
     }
+    const startAt = localDateTimeToIso(reservationStart);
+    const endAt = localDateTimeToIso(reservationEnd);
+    if (!startAt || !endAt || new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      setReservationError(t('reservations.validation.chronology'));
+      return;
+    }
     if (!reservationDriver) {
       setReservationError(t('reservations.validation.driverRequired'));
       return;
@@ -145,8 +166,8 @@ export function VehicleDetailPage() {
     try {
       await createReservation({
         vehicle: vehicleId,
-        start_at: new Date(reservationStart).toISOString(),
-        end_at: new Date(reservationEnd).toISOString(),
+        start_at: startAt,
+        end_at: endAt,
         driver: reservationDriver,
         notes: reservationNotes.trim(),
       });
@@ -189,11 +210,32 @@ export function VehicleDetailPage() {
 
   async function handleCancelReservation(id: string) {
     setReservationError(null);
+    setPendingReservationId(id);
     try {
       await cancelReservation(id);
+      setNotice(t('reservations.cancelled'));
       setReloadToken((token) => token + 1);
     } catch (cancelError) {
       setReservationError(getApiErrorMessage(cancelError, t, t('reservations.saveError')));
+    } finally {
+      setPendingReservationId(null);
+      setConfirmAction(null);
+    }
+  }
+
+  async function handleArchive() {
+    if (!vehicleId) return;
+    setIsArchiving(true);
+    setError(null);
+    try {
+      const updated = await archiveVehicle(vehicleId);
+      setVehicle(updated);
+      setNotice(t('archive.success'));
+      setConfirmAction(null);
+    } catch (archiveError) {
+      setError(getApiErrorMessage(archiveError, t, t('archive.error')));
+    } finally {
+      setIsArchiving(false);
     }
   }
 
@@ -223,6 +265,10 @@ export function VehicleDetailPage() {
     [i18n.language],
   );
   const reports = useMemo(() => (history?.media ?? []).filter((media) => media.media_type === 'pdf'), [history]);
+  const unresolvedDamages = useMemo(
+    () => (history?.damages ?? []).filter((damage) => !damage.resolved_at),
+    [history],
+  );
   const driverOptions = useMemo<SearchableOption[]>(
     () =>
       drivers.map((item) => ({
@@ -268,7 +314,7 @@ export function VehicleDetailPage() {
   }
 
   if (error || !vehicle) {
-    return <ErrorState message={error ?? t('vehicles.detail.loadError')} />;
+    return <ErrorState message={error ?? t('vehicles.detail.loadError')} onRetry={() => setReloadToken((token) => token + 1)} />;
   }
 
   return (
@@ -283,25 +329,33 @@ export function VehicleDetailPage() {
       </div>
 
       <div className="action-row action-row--wrap">
-        {vehicle.status === 'announced' ? (
+        {canCheckIn(user?.role, vehicle.status) ? (
           <Link className="button-link success-button" to={`/app/workflows/check-in?vehicle=${vehicle.id}`}>
             {t('workflows.checkIn.poolAction')}
           </Link>
         ) : null}
-        {vehicle.status === 'available' ? (
+        {canLoan(user?.role, vehicle.status) ? (
           <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
             {t('workflows.loanCheckout.title')}
           </Link>
         ) : null}
-        {activeLoan ? (
+        {activeLoan && canReturnLoan(user?.role, activeLoan) ? (
           <Link className="button-link" to={`/app/workflows/loan-return?loan=${activeLoan.id}`}>
             {t('workflows.loanReturn.title')}
           </Link>
         ) : null}
-        <Link className="button-link danger-button" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
-          {t('workflows.manufacturerCheckout.title')}
-        </Link>
+        {!activeLoan && canManufacturerCheckout(user?.role, vehicle.status) ? (
+          <Link className="button-link danger-button" to={`/app/workflows/manufacturer-checkout?vehicle=${vehicle.id}`}>
+            {t('workflows.manufacturerCheckout.title')}
+          </Link>
+        ) : null}
+        {canArchive(user?.role, vehicle.status) ? (
+          <button type="button" className="danger-button" onClick={() => setConfirmAction({ type: 'archive' })}>
+            {t('archive.action')}
+          </button>
+        ) : null}
       </div>
+      {notice ? <p className="success-text" role="status" aria-live="polite">{notice}</p> : null}
 
       {pdfError ? <ErrorState message={pdfError} /> : null}
       {generatedMedia ? (
@@ -317,9 +371,9 @@ export function VehicleDetailPage() {
             <h3>{t('qr.shortcuts.title')}</h3>
             <p className="hint-text">{t('qr.shortcuts.description')}</p>
           </div>
-          <button className="secondary-button" type="button" onClick={() => window.print()}>
+          <Link className="button-link secondary-button" to={`/app/qr/print?vehicle=${vehicle.id}`}>
             {t('qr.print')}
-          </button>
+          </Link>
         </div>
         <div className="qr-card-grid">
           <QRCodeCard
@@ -328,6 +382,35 @@ export function VehicleDetailPage() {
             value={appUrl(publicVehiclePath(vehicle.qr_code))}
           />
         </div>
+      </section>
+
+      <section className={`content-card damage-history${unresolvedDamages.length ? ' damage-history--alert' : ''}`}>
+        <h3>{t('vehicles.history.unresolvedDamages', { count: unresolvedDamages.length })}</h3>
+        {unresolvedDamages.length ? (
+          <ul className="damage-list">
+            {unresolvedDamages.map((damage) => {
+              const damageMedia = (history?.media ?? []).filter((media) => media.damage_report === damage.id);
+              return (
+                <li key={damage.id}>
+                  <div className="card-title-row">
+                    <strong>{damage.description}</strong>
+                    <span className={`severity severity--${damage.severity ?? 'unknown'}`}>
+                      {t(`severity.${damage.severity ?? 'unknown'}`)}
+                    </span>
+                  </div>
+                  <small>{formatDateTime(damage.discovered_at, i18n.language, t('common.notAvailable'))}</small>
+                  {damageMedia.length ? (
+                    <div className="damage-media">
+                      {damageMedia.map((media) => (
+                        <a key={media.id} href={mediaDownloadUrl(media)}>{media.original_filename}</a>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="hint-text">{t('vehicles.history.noUnresolvedDamages')}</p>}
       </section>
 
       <section className="content-card">
@@ -366,11 +449,11 @@ export function VehicleDetailPage() {
             </div>
             <div>
               <dt>{t('vehicles.fields.odometer')}</dt>
-              <dd>{vehicle.current_odometer_km ?? t('common.notAvailable')}</dd>
+              <dd>{formatNumber(vehicle.current_odometer_km, i18n.language, t('common.notAvailable'))}</dd>
             </div>
             <div>
               <dt>{t('vehicles.fields.hours')}</dt>
-              <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
+              <dd>{formatNumber(vehicle.current_operating_hours, i18n.language, t('common.notAvailable'), { maximumFractionDigits: 1 })}</dd>
             </div>
           </dl>
         )}
@@ -388,9 +471,7 @@ export function VehicleDetailPage() {
           {vehicle.manufacturer_return_due ? (
             <p className="status-badge status-badge--manufacturer_checkout">
               {t('reservations.returnDue.current', {
-                date: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(
-                  new Date(vehicle.manufacturer_return_due),
-                ),
+                date: formatDateOnly(vehicle.manufacturer_return_due, i18n.language),
               })}
             </p>
           ) : (
@@ -488,8 +569,13 @@ export function VehicleDetailPage() {
                   </small>
                 </div>
                 {canManage ? (
-                  <button type="button" className="danger-button" onClick={() => handleCancelReservation(reservation.id)}>
-                    {t('reservations.cancel')}
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={pendingReservationId === reservation.id}
+                    onClick={() => setConfirmAction({ type: 'reservation', id: reservation.id })}
+                  >
+                    {pendingReservationId === reservation.id ? t('common.pending') : t('reservations.cancel')}
                   </button>
                 ) : null}
               </li>
@@ -530,19 +616,33 @@ export function VehicleDetailPage() {
           <li key={loan.id}>
             <div>
               <strong>{loan.borrower_name || t('common.unknown')}</strong>
-              <small>{new Intl.DateTimeFormat(i18n.language).format(new Date(loan.expected_return_at))}</small>
+              <small>{formatDateTime(loan.expected_return_at, i18n.language, t('common.notAvailable'))}</small>
+              {loan.checkout_pdf_generation_error ? <small className="field-error">{t('pdf.automaticError', { error: loan.checkout_pdf_generation_error })}</small> : null}
+              {loan.return_pdf_generation_error ? <small className="field-error">{t('pdf.automaticError', { error: loan.return_pdf_generation_error })}</small> : null}
             </div>
             <StatusBadge status={loan.status} />
-            <button type="button" onClick={() => handleGeneratePdf('loanCheckout', loan.id)}>
+            {canManage ? <button type="button" onClick={() => handleGeneratePdf('loanCheckout', loan.id)}>
               {t('pdf.generateCheckout')}
-            </button>
-            {loan.status === 'returned' ? (
+            </button> : null}
+            {canManage && loan.status === 'returned' ? (
               <button type="button" onClick={() => handleGeneratePdf('loanReturn', loan.id)}>
                 {t('pdf.generateReturn')}
               </button>
             ) : null}
           </li>
         )}
+      />
+      <ConfirmDialog
+        open={Boolean(confirmAction)}
+        title={confirmAction?.type === 'archive' ? t('archive.confirmTitle') : t('reservations.confirmCancelTitle')}
+        description={confirmAction?.type === 'archive' ? t('archive.confirmDescription') : t('reservations.confirmCancelDescription')}
+        confirmLabel={confirmAction?.type === 'archive' ? t('archive.action') : t('reservations.cancel')}
+        busy={isArchiving || Boolean(pendingReservationId)}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          if (confirmAction?.type === 'archive') void handleArchive();
+          if (confirmAction?.type === 'reservation') void handleCancelReservation(confirmAction.id);
+        }}
       />
 
       <HistorySection
@@ -553,11 +653,12 @@ export function VehicleDetailPage() {
           <li key={protocol.id}>
             <div>
               <strong>{t('workflows.checkIn.title')}</strong>
-              <small>{new Intl.DateTimeFormat(i18n.language).format(new Date(protocol.performed_at))}</small>
+              <small>{formatDateTime(protocol.performed_at, i18n.language, t('common.notAvailable'))}</small>
+              {protocol.pdf_generation_error ? <small className="field-error">{t('pdf.automaticError', { error: protocol.pdf_generation_error })}</small> : null}
             </div>
-            <button type="button" onClick={() => handleGeneratePdf('checkIn', protocol.id)}>
+            {canManage ? <button type="button" onClick={() => handleGeneratePdf('checkIn', protocol.id)}>
               {t('pdf.generate')}
-            </button>
+            </button> : null}
           </li>
         )}
       />
@@ -570,11 +671,12 @@ export function VehicleDetailPage() {
           <li key={protocol.id}>
             <div>
               <strong>{t('workflows.manufacturerCheckout.title')}</strong>
-              <small>{new Intl.DateTimeFormat(i18n.language).format(new Date(protocol.performed_at))}</small>
+              <small>{formatDateTime(protocol.performed_at, i18n.language, t('common.notAvailable'))}</small>
+              {protocol.pdf_generation_error ? <small className="field-error">{t('pdf.automaticError', { error: protocol.pdf_generation_error })}</small> : null}
             </div>
-            <button type="button" onClick={() => handleGeneratePdf('manufacturer', protocol.id)}>
+            {canManage ? <button type="button" onClick={() => handleGeneratePdf('manufacturer', protocol.id)}>
               {t('pdf.generate')}
-            </button>
+            </button> : null}
           </li>
         )}
       />
@@ -624,6 +726,18 @@ function VehicleEditForm({
   const [notes, setNotes] = useState(vehicle.notes ?? '');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const isDirty =
+    category !== currentCategoryId ||
+    internalNumber !== (vehicle.internal_number ?? '') ||
+    manufacturer !== (vehicle.manufacturer ?? '') ||
+    model !== (vehicle.model ?? '') ||
+    serialNumber !== (vehicle.serial_number ?? '') ||
+    licensePlate !== (vehicle.license_plate ?? '') ||
+    location !== (vehicle.current_location ?? '') ||
+    odometer !== (vehicle.current_odometer_km != null ? String(vehicle.current_odometer_km) : '') ||
+    hours !== (vehicle.current_operating_hours != null ? String(vehicle.current_operating_hours) : '') ||
+    notes !== (vehicle.notes ?? '');
+  useDirtyFormWarning(isDirty, t('forms.unsaved'));
 
   const activeCategories = categories.filter((item) => item.is_active || item.id === currentCategoryId);
 

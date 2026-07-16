@@ -12,7 +12,9 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingState } from '../components/LoadingState';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 const ROLES: UserRole[] = ['admin', 'operations', 'readonly'];
 
@@ -30,6 +32,10 @@ export function UserManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [confirmChange, setConfirmChange] = useState<
+    { type: 'role'; user: ManagedUser; role: UserRole } | { type: 'active'; user: ManagedUser } | null
+  >(null);
+  useDirtyFormWarning(Boolean(username || fullName || email || password), t('forms.unsaved'));
 
   async function loadUsers() {
     setIsLoading(true);
@@ -82,12 +88,13 @@ export function UserManagementPage() {
     }
   }
 
-  async function runUpdate(id: string, action: () => Promise<unknown>) {
+  async function runUpdate(id: string, action: () => Promise<unknown>, success: string) {
     setPendingId(id);
     setError(null);
     setNotice(null);
     try {
       await action();
+      setNotice(success);
       await loadUsers();
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('users.saveError')));
@@ -100,13 +107,26 @@ export function UserManagementPage() {
     if (nextRole === target.role) {
       return;
     }
-    void runUpdate(target.id, () => updateUser(target.id, { role: nextRole }));
+    setConfirmChange({ type: 'role', user: target, role: nextRole });
   }
 
   function handleToggleActive(target: ManagedUser) {
-    void runUpdate(target.id, () =>
-      target.is_active ? deactivateUser(target.id) : updateUser(target.id, { is_active: true }),
-    );
+    setConfirmChange({ type: 'active', user: target });
+  }
+
+  function confirmUpdate() {
+    if (!confirmChange) return;
+    const change = confirmChange;
+    setConfirmChange(null);
+    if (change.type === 'role') {
+      void runUpdate(change.user.id, () => updateUser(change.user.id, { role: change.role }), t('users.roleUpdated'));
+    } else {
+      void runUpdate(
+        change.user.id,
+        () => change.user.is_active ? deactivateUser(change.user.id) : updateUser(change.user.id, { is_active: true }),
+        t(change.user.is_active ? 'users.deactivated' : 'users.activated'),
+      );
+    }
   }
 
   return (
@@ -117,7 +137,7 @@ export function UserManagementPage() {
         <p>{t('users.description')}</p>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      {notice ? <p className="hint-text">{notice}</p> : null}
+      {notice ? <p className="success-text" role="status" aria-live="polite">{notice}</p> : null}
       <form className="content-card form-stack" onSubmit={handleSubmit}>
         <div className="form-grid form-grid--two">
           <label>
@@ -169,6 +189,16 @@ export function UserManagementPage() {
           onToggleActive={handleToggleActive}
         />
       )}
+      <ConfirmDialog
+        open={Boolean(confirmChange)}
+        title={t('users.confirmTitle')}
+        description={confirmChange?.type === 'role'
+          ? t('users.confirmRole', { user: confirmChange.user.username, role: t(`roles.${confirmChange.role}`) })
+          : t('users.confirmActive', { user: confirmChange?.user.username })}
+        confirmLabel={t('common.confirm')}
+        onCancel={() => setConfirmChange(null)}
+        onConfirm={confirmUpdate}
+      />
     </section>
   );
 }

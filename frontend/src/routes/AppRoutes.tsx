@@ -5,6 +5,7 @@ import { useAuth, type UserRole } from '../auth/AuthContext';
 import { LoadingState } from '../components/LoadingState';
 import { AppLayout } from '../layouts/AppLayout';
 import { AddVehiclePage } from '../pages/AddVehiclePage';
+import { AccessDeniedPage } from '../pages/AccessDeniedPage';
 import { AdminImportPage } from '../pages/AdminImportPage';
 import { ArchivePage } from '../pages/ArchivePage';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -21,6 +22,8 @@ import { VehicleStatusPage } from '../pages/VehicleStatusPage';
 import { VehiclePoolPage } from '../pages/VehiclePoolPage';
 import { WorkflowMenuPage } from '../pages/WorkflowMenuPage';
 import { WorkflowPage } from '../pages/WorkflowPage';
+import { CategoryManagementPage } from '../pages/CategoryManagementPage';
+import { QRPrintPage } from '../pages/QRPrintPage';
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -42,7 +45,7 @@ function RequireRole({ children, roles }: { children: ReactElement; roles: UserR
   const { user } = useAuth();
 
   if (!user || !roles.includes(user.role)) {
-    return <Navigate to="/app" replace />;
+    return <AccessDeniedPage />;
   }
 
   return children;
@@ -73,6 +76,7 @@ export function AppRoutes() {
         <Route path="archive" element={<ArchivePage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="qr" element={<QRAccessPage />} />
+        <Route path="qr/print" element={<QRPrintPage />} />
         <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
         <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />
         <Route path="workflows/add-vehicle" element={<RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole>} />
@@ -86,6 +90,7 @@ export function AppRoutes() {
         <Route path="companies" element={<Navigate to="/app/partners" replace />} />
         <Route path="imports" element={<RequireRole roles={adminRoles}><AdminImportPage /></RequireRole>} />
         <Route path="users" element={<RequireRole roles={adminRoles}><UserManagementPage /></RequireRole>} />
+        <Route path="categories" element={<RequireRole roles={adminRoles}><CategoryManagementPage /></RequireRole>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

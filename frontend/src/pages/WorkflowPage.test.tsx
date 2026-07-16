@@ -16,8 +16,11 @@ const vehicles = [
     status: 'announced',
   },
 ];
+const companies = [{ id: 'supplier-1', name: 'Acme Supply', company_type: 'supplier', is_active: true }];
 
 let lastCheckInPayload: Record<string, unknown> | null = null;
+let lastReturnPayload: Record<string, unknown> | null = null;
+let mediaSequence = 0;
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
@@ -35,7 +38,7 @@ function installFetchMock() {
     const method = (init?.method ?? 'GET').toUpperCase();
     if (url.includes('/vehicle-categories/') && method === 'GET') return jsonResponse([]);
     if (url.includes('/vehicles/') && method === 'GET') return jsonResponse(vehicles);
-    if (url.includes('/companies/') && method === 'GET') return jsonResponse([]);
+    if (url.includes('/companies/') && method === 'GET') return jsonResponse(companies);
     if (url.includes('/drivers/') && method === 'GET') return jsonResponse([]);
     if (url.includes('/loans/') && method === 'GET')
       return jsonResponse([
@@ -47,9 +50,21 @@ function installFetchMock() {
           status: 'active',
         },
       ]);
+    if (url.endsWith('/media/') && method === 'POST') {
+      mediaSequence += 1;
+      return jsonResponse({
+        id: `photo-${mediaSequence}`,
+        media_type: 'photo',
+        original_filename: 'vehicle.jpg',
+      }, 201);
+    }
     if (url.endsWith('/workflows/check-ins/') && method === 'POST') {
       lastCheckInPayload = JSON.parse(String(init?.body));
       return jsonResponse({ id: 'checkin-1', vehicle: 'veh-1' }, 201);
+    }
+    if (url.endsWith('/loans/loan-1/return/') && method === 'POST') {
+      lastReturnPayload = JSON.parse(String(init?.body));
+      return jsonResponse({ id: 'loan-1', vehicle: 'veh-1', borrower_name: 'Borrower', status: 'returned' });
     }
     return jsonResponse({ detail: 'not found' }, 404);
   });
@@ -61,6 +76,8 @@ describe('WorkflowPage damage handling', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     lastCheckInPayload = null;
+    lastReturnPayload = null;
+    mediaSequence = 0;
     installFetchMock();
     await i18n.changeLanguage('de');
   });
@@ -78,11 +95,20 @@ describe('WorkflowPage damage handling', () => {
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
-    fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
+    fireEvent.click(screen.getByRole('option', { name: /FZ-00001/ }));
+    fireEvent.change(screen.getByLabelText('Lieferant / Hersteller'), { target: { value: 'supplier-1' } });
+    fireEvent.change(screen.getByLabelText('Allgemeines Fahrzeugfoto'), {
+      target: { files: [new File(['photo'], 'vehicle.jpg', { type: 'image/jpeg' })] },
+    });
+    await screen.findByText('Hochgeladen: vehicle.jpg');
     fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
 
     await waitFor(() => expect(screen.getByText('Fahrzeug zum Pool hinzugefügt')).toBeInTheDocument());
-    expect(lastCheckInPayload).toMatchObject({ vehicle: 'veh-1' });
+    expect(lastCheckInPayload).toMatchObject({
+      vehicle: 'veh-1',
+      supplier_company: 'supplier-1',
+      media_file_ids: ['photo-1'],
+    });
     expect(lastCheckInPayload).not.toHaveProperty('damage_reports');
   });
 
@@ -95,18 +121,16 @@ describe('WorkflowPage damage handling', () => {
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
-    fireEvent.click(screen.getByRole('button', { name: /FZ-00001/ }));
+    fireEvent.click(screen.getByRole('option', { name: /FZ-00001/ }));
     fireEvent.click(screen.getByLabelText('Ja'));
     fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
     fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
 
-    expect(
-      await screen.findByText('Bitte fügen Sie mindestens ein Foto des Schadens hinzu.'),
-    ).toBeInTheDocument();
+    expect((await screen.findAllByText('Bitte fügen Sie mindestens ein Foto des Schadens hinzu.')).length).toBeGreaterThan(0);
     expect(lastCheckInPayload).toBeNull();
   });
 
-  it('requires a signature to complete a loan return', async () => {
+  it('completes a loan return without a signature', async () => {
     render(
       <MemoryRouter>
         <WorkflowPage kind="loan-return" />
@@ -117,8 +141,7 @@ describe('WorkflowPage damage handling', () => {
     fireEvent.change(screen.getByLabelText('Aktive Ausleihe'), { target: { value: 'loan-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Workflow abschließen' }));
 
-    expect(
-      await screen.findByText('Für den Abschluss der Rückgabe ist eine Unterschrift erforderlich.'),
-    ).toBeInTheDocument();
+    await screen.findByText('Ausleihe zurückgegeben');
+    expect(lastReturnPayload).toMatchObject({ media_file_ids: [], target_status: 'available' });
   });
 });

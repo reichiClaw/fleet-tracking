@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { Field } from '../components/Field';
+import { FormErrorSummary } from '../components/FormErrorSummary';
 
 import {
   createDriver,
@@ -24,8 +25,15 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
+import {
+  markMediaAttached,
+  MediaUploadField,
+  SignatureInput,
+  type SignatureInputHandle,
+} from '../components/MediaUploadField';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
+import { isValidPhone, localDateTimeToIso } from '../utils/format';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 type BorrowerType = 'driver' | 'company' | 'other';
 type FieldErrors = Record<string, string>;
@@ -69,9 +77,15 @@ export function LoanCheckoutPage() {
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
   const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
+  const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
+  const [signatureDrawn, setSignatureDrawn] = useState(false);
+  const [hasDamage, setHasDamage] = useState(false);
+  const [damageDescription, setDamageDescription] = useState('');
+  const [damageSeverity, setDamageSeverity] = useState('minor');
+  const [damagePhotoIds, setDamagePhotoIds] = useState<string[]>([]);
   const signatureRef = useRef<SignatureInputHandle>(null);
 
-  const [result, setResult] = useState<{ id: string; detail: string } | null>(null);
+  const [result, setResult] = useState<{ id: string; detail: string; pdfError?: string } | null>(null);
   const [generatedPdf, setGeneratedPdf] = useState<MediaFile | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -82,6 +96,10 @@ export function LoanCheckoutPage() {
   const [newDriverPhone, setNewDriverPhone] = useState('');
   const [isSavingDriver, setIsSavingDriver] = useState(false);
   const [quickDriverError, setQuickDriverError] = useState<string | null>(null);
+  useDirtyFormWarning(
+    !result && Boolean(vehicle || driver || company || borrowerName || borrowerPhone || odometer || hours || notes || mediaFileIds.length || damagePhotoIds.length),
+    t('forms.unsaved'),
+  );
 
   async function handleQuickAddDriver() {
     if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
@@ -127,6 +145,11 @@ export function LoanCheckoutPage() {
           setDrivers(nextDrivers.filter((item) => item.is_active));
           setCompanies(nextCompanies.filter((item) => item.is_active));
           setCategories(nextCategories);
+          const presetVehicle = searchParams.get('vehicle');
+          if (presetVehicle && nextVehicles.find((item) => item.id === presetVehicle)?.status !== 'available') {
+            setVehicle('');
+            setError(t('workflows.validation.vehicleNotEligible'));
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -145,8 +168,8 @@ export function LoanCheckoutPage() {
   }, [t]);
 
   const loanableVehicles = useMemo(
-    () => vehicles.filter((item) => item.status === 'available' || item.id === vehicle),
-    [vehicles, vehicle],
+    () => vehicles.filter((item) => item.status === 'available'),
+    [vehicles],
   );
   const selectedDriver = useMemo(() => drivers.find((item) => item.id === driver), [driver, drivers]);
   const selectedCompany = useMemo(() => companies.find((item) => item.id === company), [company, companies]);
@@ -211,6 +234,9 @@ export function LoanCheckoutPage() {
 
   function addMedia(media: MediaFile) {
     setMediaFileIds((current) => [...current, media.id]);
+    if (media.media_type === 'signature') {
+      setSignatureMediaIds((current) => [...current, media.id]);
+    }
   }
 
   function resolveBorrower() {
@@ -227,6 +253,8 @@ export function LoanCheckoutPage() {
     const next: FieldErrors = {};
     if (!vehicle) {
       next.vehicle = t('workflows.validation.vehicleRequired');
+    } else if (vehicles.find((item) => item.id === vehicle)?.status !== 'available') {
+      next.vehicle = t('workflows.validation.vehicleNotEligible');
     }
     if (borrowerType === 'driver' && !driver) {
       next.driver = t('loanCheckout.validation.driverRequired');
@@ -239,6 +267,21 @@ export function LoanCheckoutPage() {
     }
     if (!expectedReturnAt) {
       next.expectedReturnAt = t('workflows.validation.expectedReturnRequired');
+    } else if (!localDateTimeToIso(expectedReturnAt) || new Date(expectedReturnAt).getTime() <= Date.now()) {
+      next.expectedReturnAt = t('workflows.validation.expectedReturnFuture');
+    }
+    const borrower = resolveBorrower();
+    if (!borrower.name) next.borrowerName = t('workflows.validation.borrowerRequired');
+    if (!isValidPhone(borrower.phone)) next.borrowerPhone = t('workflows.validation.phoneInvalid');
+    if (signatureMediaIds.length === 0 && !signatureDrawn) next.signature = t('workflows.validation.checkoutSignatureRequired');
+    if (hasDamage && !damageDescription.trim()) next.damageDescription = t('workflows.validation.damageDescriptionRequired');
+    if (hasDamage && damagePhotoIds.length === 0) next.damagePhoto = t('workflows.validation.damagePhotoRequired');
+    const selected = vehicles.find((item) => item.id === vehicle);
+    if (selected?.current_odometer_km != null && odometer !== '' && Number(odometer) < selected.current_odometer_km) {
+      next.odometer = t('workflows.validation.odometerDecrease');
+    }
+    if (selected?.current_operating_hours != null && hours !== '' && Number(hours) < Number(selected.current_operating_hours)) {
+      next.hours = t('workflows.validation.hoursDecrease');
     }
     setFieldErrors(next);
     return Object.keys(next).length === 0;
@@ -246,6 +289,7 @@ export function LoanCheckoutPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setResult(null);
     setGeneratedPdf(null);
@@ -270,7 +314,7 @@ export function LoanCheckoutPage() {
         vehicle,
         borrower_name: borrower.name,
         borrower_phone: borrower.phone,
-        expected_return_at: new Date(expectedReturnAt).toISOString(),
+        expected_return_at: localDateTimeToIso(expectedReturnAt),
         media_file_ids: signatureMediaId ? [...mediaFileIds, signatureMediaId] : mediaFileIds,
       };
       if (borrowerType === 'driver') {
@@ -291,8 +335,23 @@ export function LoanCheckoutPage() {
       if (notes.trim()) {
         payload.checkout_notes = notes.trim();
       }
+      if (hasDamage) {
+        payload.damage_reports = [{
+          description: damageDescription.trim(),
+          severity: damageSeverity,
+          media_file_ids: damagePhotoIds,
+        }];
+      }
       const loan = await createLoanCheckout(payload);
-      setResult({ id: loan.id, detail: loan.borrower_name || borrower.name || t('common.unknown') });
+      markMediaAttached([
+        ...((payload.media_file_ids as string[]) ?? []),
+        ...damagePhotoIds,
+      ]);
+      setResult({
+        id: loan.id,
+        detail: loan.borrower_name || borrower.name || t('common.unknown'),
+        pdfError: loan.checkout_pdf_generation_error,
+      });
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('workflows.submitError')));
     } finally {
@@ -328,9 +387,10 @@ export function LoanCheckoutPage() {
       {pdfError ? <ErrorState message={pdfError} /> : null}
 
       {result ? (
-        <article className="content-card success-card">
-          <h3>{t('workflows.loanCheckout.completed')}</h3>
+        <article className="content-card success-card" role="status" aria-live="polite">
+          <h3 tabIndex={-1} autoFocus>{t('workflows.loanCheckout.completed')}</h3>
           <p>{result.detail}</p>
+          {result.pdfError ? <p className="field-error">{t('pdf.automaticError', { error: result.pdfError })}</p> : null}
           <div className="action-row">
             <button type="button" onClick={handleGeneratePdf}>
               {t('pdf.generate')}
@@ -344,7 +404,8 @@ export function LoanCheckoutPage() {
       ) : null}
 
       {!result ? (
-        <form className="content-card form-stack" onSubmit={handleSubmit}>
+        <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
+          <FormErrorSummary errors={fieldErrors} />
           <SearchableSelect
             label={t('workflows.fields.vehicle')}
             options={vehicleOptions}
@@ -353,6 +414,7 @@ export function LoanCheckoutPage() {
             placeholder={t('loanCheckout.searchVehicle')}
             emptyText={t('loanCheckout.noMatches')}
             error={fieldErrors.vehicle}
+            required
           >
             {loanableVehicles.length === 0 ? <small className="hint-text">{t('loanCheckout.noVehicles')}</small> : null}
           </SearchableSelect>
@@ -442,35 +504,35 @@ export function LoanCheckoutPage() {
                 <Field label={t('loanCheckout.contactPersonOptional')}>
                   <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
-                <Field label={t('loanCheckout.phoneOptional')}>
-                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+                <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone} required>
+                  <input required type="tel" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
                 </Field>
               </>
             ) : null}
 
             {borrowerType === 'other' ? (
               <>
-                <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName}>
-                  <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
+                <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName} required>
+                  <input required value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
-                <Field label={t('loanCheckout.phoneOptional')}>
-                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+                <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone} required>
+                  <input required type="tel" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
                 </Field>
               </>
             ) : null}
           </fieldset>
 
-          <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt}>
-            <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
+          <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt} required>
+            <input required type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
           </Field>
 
           <fieldset className="fieldset-card">
             <legend>{t('loanCheckout.moreDetails')}</legend>
             <div className="form-grid form-grid--two">
-              <Field label={t('workflows.fields.checkoutOdometer')}>
+              <Field label={t('workflows.fields.checkoutOdometer')} error={fieldErrors.odometer}>
                 <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
               </Field>
-              <Field label={t('workflows.fields.checkoutHours')}>
+              <Field label={t('workflows.fields.checkoutHours')} error={fieldErrors.hours}>
                 <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
               </Field>
               <div className="form-grid__full">
@@ -482,6 +544,39 @@ export function LoanCheckoutPage() {
           </fieldset>
 
           <fieldset className="fieldset-card">
+            <legend>{t('workflows.damage.title')}</legend>
+            <label className="checkbox-inline">
+              <input type="checkbox" checked={hasDamage} onChange={(event) => setHasDamage(event.target.checked)} />
+              <span>{t('workflows.damage.hasDamage')}</span>
+            </label>
+            {hasDamage ? (
+              <>
+                <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription} required>
+                  <textarea required value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
+                </Field>
+                <Field label={t('workflows.damage.severity')}>
+                  <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
+                    {['unknown', 'minor', 'major', 'critical'].map((severity) => (
+                      <option key={severity} value={severity}>{t(`severity.${severity}`)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <MediaUploadField
+                  mediaType="photo"
+                  label={t('workflows.damage.photoLabel')}
+                  accept="image/*"
+                  capture
+                  required
+                  validationError={fieldErrors.damagePhoto}
+                  submitted={Boolean(result)}
+                  onUploaded={(media) => setDamagePhotoIds((current) => [...current, media.id])}
+                  onRemoved={(media) => setDamagePhotoIds((current) => current.filter((id) => id !== media.id))}
+                />
+              </>
+            ) : null}
+          </fieldset>
+
+          <fieldset className="fieldset-card">
             <legend>{t('loanCheckout.documentHandover')}</legend>
             <MediaUploadField
               mediaType="photo"
@@ -490,14 +585,24 @@ export function LoanCheckoutPage() {
               label={t('media.photoLabel')}
               accept="image/*"
               capture
+              submitted={Boolean(result)}
               onUploaded={addMedia}
+              onRemoved={(media) => setMediaFileIds((current) => current.filter((id) => id !== media.id))}
             />
             <SignatureInput
               ref={signatureRef}
               vehicleId={vehicle || undefined}
               relatedType="workflow_draft"
               label={t('media.signatureLabel')}
+              required
+              validationError={fieldErrors.signature}
               onUploaded={addMedia}
+              onRemoved={(media) => {
+                setMediaFileIds((current) => current.filter((id) => id !== media.id));
+                setSignatureMediaIds((current) => current.filter((id) => id !== media.id));
+              }}
+              onDrawnChange={setSignatureDrawn}
+              submitted={Boolean(result)}
             />
             <p className="hint-text">{t('media.handoffNote')}</p>
           </fieldset>

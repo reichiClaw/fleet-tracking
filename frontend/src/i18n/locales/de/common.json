@@ -8,7 +8,14 @@
     "notAvailable": "Nicht verfügbar",
     "unknown": "Unbekannt",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "save": "Speichern",
+    "edit": "Bearbeiten",
+    "back": "Zurück",
+    "close": "Schließen",
+    "pending": "Wird ausgeführt..."
   },
   "language": {
     "label": "Sprache",
@@ -39,11 +46,14 @@
     "imports": "Importe",
     "users": "Benutzer",
     "settings": "Einstellungen",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "categories": "Fahrzeugkategorien"
   },
   "layout": {
     "signedInAs": "Angemeldet als",
-    "quickActions": "Schnellaktionen"
+    "quickActions": "Schnellaktionen",
+    "skipToContent": "Zum Hauptinhalt springen",
+    "navigationMenu": "Navigationsmenü öffnen"
   },
   "states": {
     "loading": "Wird geladen...",
@@ -60,12 +70,14 @@
     "notFound": "Der angeforderte Eintrag wurde nicht gefunden. Er wurde möglicherweise geändert oder entfernt.",
     "tooLarge": "Der Upload ist zu groß. Bitte verwenden Sie eine kleinere Datei.",
     "throttled": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
-    "server": "Auf dem Server ist ein Problem aufgetreten. Bitte versuchen Sie es in Kürze erneut."
+    "server": "Auf dem Server ist ein Problem aufgetreten. Bitte versuchen Sie es in Kürze erneut.",
+    "roleDenied": "Ihre Rolle erlaubt keinen Zugriff auf diese Seite."
   },
   "auth": {
     "login": {
       "title": "Anmelden",
       "intro": "Melden Sie sich mit Backend-Benutzername und Passwort an. Wenn das Backend nicht erreichbar ist, hält die Rollenauswahl einen lokalen Demo-Zugang für Frontend-Arbeiten bereit.",
+      "introProduction": "Melden Sie sich mit Benutzername und Passwort an.",
       "usernameLabel": "Benutzername",
       "usernamePlaceholder": "max.mustermann",
       "roleLabel": "Demo-Rolle",
@@ -80,6 +92,31 @@
       "passwordLabel": "Passwort",
       "passwordPlaceholder": "Passwort eingeben"
     }
+  },
+  "pagination": {
+    "label": "Ergebnisseiten",
+    "count": "{{first}}–{{last}} von {{count}} werden angezeigt",
+    "page": "Seite {{page}}",
+    "previous": "Zurück",
+    "next": "Weiter"
+  },
+  "forms": {
+    "errorSummary": "Bitte korrigieren Sie die folgenden Felder:",
+    "unsaved": "Nicht gespeicherte Änderungen verwerfen?"
+  },
+  "apiFields": {
+    "vehicle": "Fahrzeug",
+    "borrower_name": "Name des Entleihers",
+    "borrower_phone": "Telefon des Entleihers",
+    "expected_return_at": "Erwartete Rückgabe",
+    "checkout_odometer_km": "Ausgabe-Kilometerstand",
+    "return_odometer_km": "Rückgabe-Kilometerstand",
+    "operating_hours": "Betriebsstunden",
+    "media_file_ids": "Mediendateien",
+    "supplier_company": "Lieferant",
+    "recipient_company": "Empfängerfirma",
+    "new_password": "Neues Passwort",
+    "current_password": "Aktuelles Passwort"
   },
   "dashboard": {
     "eyebrow": "Übersicht",
@@ -213,6 +250,8 @@
       "manufacturer": "Hersteller-Check-outs",
       "media": "Medien",
       "reports": "Berichte",
+      "unresolvedDamages": "Offene Schäden ({{count}})",
+      "noUnresolvedDamages": "Keine offenen Schadensmeldungen.",
       "emptyLoans": "Keine Ausleihen erfasst.",
       "emptyCheckIns": "Keine Check-in-Protokolle erfasst.",
       "emptyManufacturer": "Keine Hersteller-Check-outs erfasst.",
@@ -277,7 +316,8 @@
     "loanReturn": {
       "title": "Ausleihe zurückgeben",
       "description": "Aktive Ausleihe schließen und Fahrzeugzustand aktualisieren.",
-      "completed": "Ausleihe zurückgegeben"
+      "completed": "Ausleihe zurückgegeben",
+      "noActiveLoans": "Es gibt keine aktive Ausleihe zur Rückgabe. Starten Sie zuerst eine Ausleihe."
     },
     "manufacturerCheckout": {
       "title": "Fahrzeug aus Pool entfernen",
@@ -288,6 +328,7 @@
       "vehicle": "Fahrzeug",
       "loan": "Aktive Ausleihe",
       "company": "Firma",
+      "supplierCompany": "Lieferant / Hersteller",
       "recipientCompany": "Empfängerfirma",
       "driver": "Fahrer",
       "borrowerName": "Name des Entleihers",
@@ -311,7 +352,8 @@
       "noVehicleMatches": "Keine passenden Fahrzeuge",
       "selectLoan": "Aktive Ausleihe auswählen",
       "optionalCompany": "Keine Firma ausgewählt",
-      "optionalDriver": "Kein Fahrer ausgewählt"
+      "optionalDriver": "Kein Fahrer ausgewählt",
+      "selectCompany": "Firma auswählen"
     },
     "validation": {
       "vehicleRequired": "Bitte wählen Sie ein Fahrzeug aus.",
@@ -321,7 +363,19 @@
       "expectedReturnRequired": "Bitte wählen Sie eine erwartete Rückgabe.",
       "damageDescriptionRequired": "Bitte beschreiben Sie den Schaden.",
       "damagePhotoRequired": "Bitte fügen Sie mindestens ein Foto des Schadens hinzu.",
-      "signatureRequired": "Für den Abschluss der Rückgabe ist eine Unterschrift erforderlich."
+      "signatureRequired": "Eine Unterschrift ist erforderlich.",
+      "checkoutSignatureRequired": "Für die Ausgabe ist die Unterschrift des Entleihers erforderlich.",
+      "vehicleNotEligible": "Das ausgewählte Fahrzeug ist für diesen Workflow nicht zulässig.",
+      "loanNotEligible": "Die ausgewählte Ausleihe ist nicht mehr aktiv.",
+      "supplierRequired": "Bitte wählen Sie den Lieferanten oder Hersteller.",
+      "recipientRequired": "Bitte wählen Sie den empfangenden Hersteller oder Lieferanten.",
+      "phoneInvalid": "Bitte geben Sie eine gültige Telefonnummer ein.",
+      "expectedReturnFuture": "Die erwartete Rückgabe muss in der Zukunft liegen.",
+      "generalPhotoRequired": "Fügen Sie mindestens ein allgemeines Fahrzeugfoto hinzu.",
+      "futureTimestamp": "Der Workflow-Zeitpunkt darf nicht in der Zukunft liegen.",
+      "returnChronology": "Die Rückgabe muss nach der Ausgabe liegen und darf nicht in der Zukunft liegen.",
+      "odometerDecrease": "Der Kilometerstand darf nicht sinken.",
+      "hoursDecrease": "Die Betriebsstunden dürfen nicht sinken."
     },
     "damage": {
       "title": "Schadensmeldung",
@@ -403,7 +457,8 @@
       "location": "Standort",
       "odometer": "Kilometerstand (km)",
       "hours": "Betriebsstunden",
-      "notes": "Notizen"
+      "notes": "Notizen",
+      "photos": "Allgemeine Fahrzeugfotos"
     },
     "damage": {
       "title": "Schadensprüfung",
@@ -427,11 +482,17 @@
     "title": "Fotos und Unterschriften",
     "photoLabel": "Foto hochladen oder Kamera",
     "signatureLabel": "Unterschrift",
-    "signatureRequired": "Für jede Ausleihe-Rückgabe ist eine Unterschrift erforderlich – unten zeichnen oder hochladen.",
+    "signatureRequired": "Eine Unterschrift ist erforderlich – unten zeichnen oder hochladen.",
+    "signatureRequiredCheckout": "Für die Ausgabe ist die Unterschrift des Entleihers erforderlich.",
+    "signatureOptional": "Eine Unterschrift ist für diesen Workflow optional.",
+    "optionalSignatureLabel": "Unterschrift (optional)",
+    "generalPhotoLabel": "Allgemeines Fahrzeugfoto",
     "signatureFallback": "Unterschrift als Bild hochladen",
     "handoffNote": "Unterschriften können im Canvas gezeichnet oder als Bild hochgeladen werden; hochgeladene Medien werden beim Absenden dem Workflow zugeordnet.",
     "uploading": "Wird hochgeladen...",
     "uploadError": "Die Mediendatei konnte nicht hochgeladen werden.",
+    "discardError": "Der vorgemerkte Upload konnte nicht entfernt werden.",
+    "remove": "Entfernen",
     "uploaded": "Hochgeladen: {{name}}",
     "clearSignature": "Leeren",
     "saveSignature": "Unterschrift speichern",
@@ -450,12 +511,18 @@
     "generateCheckout": "Ausgabe-PDF erzeugen",
     "generateReturn": "Rückgabe-PDF erzeugen",
     "generated": "PDF erzeugt",
-    "error": "Das PDF konnte nicht erzeugt werden."
+    "error": "Das PDF konnte nicht erzeugt werden.",
+    "automaticError": "Der Workflow wurde abgeschlossen, aber die automatische PDF-Erzeugung ist fehlgeschlagen: {{error}}"
   },
   "archive": {
     "eyebrow": "Fuhrpark",
     "title": "Archiv",
     "description": "Fahrzeuge, die nicht mehr zum aktiven Fuhrpark gehören – an den Hersteller zurückgegeben oder archiviert.",
+    "action": "Fahrzeug archivieren",
+    "confirmTitle": "Dieses Fahrzeug archivieren?",
+    "confirmDescription": "Die vollständige Historie bleibt erhalten; das Fahrzeug bleibt außerhalb des aktiven Fuhrparks.",
+    "success": "Fahrzeug archiviert.",
+    "error": "Das Fahrzeug konnte nicht archiviert werden.",
     "empty": {
       "title": "Archiv ist leer",
       "body": "Es wurden noch keine Fahrzeuge aus dem Pool entfernt."
@@ -536,6 +603,7 @@
     "mapping": {
       "title": "Spalten zuordnen",
       "description": "Ordnen Sie jedem Feld eine Spalte aus Ihrer Datei zu. Erkannte Spalten sind vorausgewählt – passen Sie falsche an und validieren Sie erneut.",
+      "caption": "Zuordnung der Importspalten",
       "targetColumn": "Feld",
       "sourceColumn": "Spalte in Ihrer Datei",
       "notMapped": "— Nicht in Datei —",
@@ -551,6 +619,8 @@
     "commit": "Import übernehmen",
     "committing": "Wird übernommen...",
     "commitHint": "Übernehmen ist nur nach einem validierten Import ohne Fehler möglich.",
+    "confirmTitle": "Diesen Import übernehmen?",
+    "confirmDescription": "Damit werden alle {{count}} validierten Zeilen angewendet.",
     "validation": {
       "fileRequired": "Bitte wählen Sie eine Excel-Datei aus."
     },
@@ -567,7 +637,8 @@
       "row": "Zeile",
       "action": "Aktion",
       "errors": "Fehler",
-      "noErrors": "Keine Fehler"
+      "noErrors": "Keine Fehler",
+      "caption": "Vollständige Zeilen der Importvalidierung"
     },
     "errorFormat": "{{field}}: {{message}}",
     "errorSeparator": "; ",
@@ -600,6 +671,12 @@
     "addUser": "Benutzer hinzufügen",
     "saving": "Wird gespeichert...",
     "created": "Benutzer angelegt.",
+    "roleUpdated": "Benutzerrolle aktualisiert.",
+    "deactivated": "Benutzer deaktiviert.",
+    "activated": "Benutzer aktiviert.",
+    "confirmTitle": "Benutzeränderung bestätigen",
+    "confirmRole": "Rolle von {{user}} auf {{role}} ändern?",
+    "confirmActive": "Aktivstatus von {{user}} ändern?",
     "loadError": "Benutzer konnten nicht geladen werden.",
     "saveError": "Der Benutzer konnte nicht gespeichert werden.",
     "empty": "Keine Benutzer gefunden.",
@@ -628,7 +705,7 @@
     "intro": "Verleihen Sie ein Fahrzeug in wenigen Schritten an einen Mitarbeiter oder Subunternehmer.",
     "submit": "Ausleihe abschließen",
     "moreDetails": "Weitere Angaben (optional)",
-    "documentHandover": "Übergabe dokumentieren (optional)",
+    "documentHandover": "Übergabe dokumentieren",
     "noVehicles": "Keine verfügbaren Fahrzeuge. Bitte zuerst ein Fahrzeug einchecken.",
     "selectDriver": "Mitarbeiter/Fahrer auswählen",
     "selectCompany": "Subunternehmer auswählen",
@@ -658,6 +735,7 @@
     "title": "QR-Zugriff",
     "description": "Jedes Fahrzeug hat einen QR-Code. Beim Scannen öffnet sich eine Live-Statusseite, die auch ohne Anmeldung funktioniert.",
     "loadError": "QR-Daten konnten nicht geladen werden.",
+    "printTitle": "QR-Etiketten drucken",
     "print": "QR-Codes drucken",
     "export": "URLs exportieren (CSV)",
     "compact": "Kompakte Labels für Etikettendrucker",
@@ -669,6 +747,7 @@
       "scanning": "Scan läuft...",
       "unsupported": "Der Kamera-Scan benötigt eine sichere (HTTPS-)Verbindung und Kamerazugriff. Nutzen Sie das manuelle Feld unten oder die Kamera-App Ihres Geräts.",
       "cameraError": "Die Kamera konnte nicht gestartet werden.",
+      "decodeError": "Die Kamera wurde gestartet, aber die QR-Erkennung ist wiederholt fehlgeschlagen. Sorgen Sie für besseres Licht oder geben Sie den Code manuell ein.",
       "invalid": "Dieser QR-Code ist kein Fleet-Tracking-Fahrzeuglink.",
       "empty": "Bitte geben Sie einen QR-Link oder Fahrzeugcode ein.",
       "manualLabel": "QR-Link oder Fahrzeugcode",
@@ -713,6 +792,9 @@
     "submit": "Fahrzeug reservieren",
     "saving": "Wird reserviert...",
     "cancel": "Stornieren",
+    "cancelled": "Reservierung storniert.",
+    "confirmCancelTitle": "Diese Reservierung stornieren?",
+    "confirmCancelDescription": "Die Reservierung bleibt als storniert in der Historie erhalten.",
     "saveError": "Die Reservierung konnte nicht gespeichert werden.",
     "fields": {
       "start": "Von",
@@ -725,7 +807,8 @@
     },
     "validation": {
       "required": "Bitte wählen Sie Start- und Endzeit.",
-      "driverRequired": "Bitte wählen Sie einen Fahrer aus der Datenbank."
+      "driverRequired": "Bitte wählen Sie einen Fahrer aus der Datenbank.",
+      "chronology": "Das Ende der Reservierung muss nach dem Start liegen."
     },
     "timeline": {
       "summary": "Reservierungs-Zeitleiste mit {{count}} aktiven Reservierungen.",
@@ -745,6 +828,7 @@
     "title": "Berichte",
     "description": "Alle Workflow-PDF-Berichte suchen und herunterladen. Berichte werden beim Abschluss eines Workflows automatisch erstellt.",
     "loadError": "Berichte konnten nicht geladen werden.",
+    "tableCaption": "Erzeugte Workflow-Berichte",
     "download": "Herunterladen",
     "filters": {
       "search": "Suche",
@@ -771,6 +855,28 @@
       "loan_checkout_pdf": "Ausleihe-Bericht",
       "loan_return_pdf": "Rückgabe-Bericht",
       "manufacturer_checkout_protocol_pdf": "Aus-Pool-entfernen-Bericht"
+    }
+  },
+  "categories": {
+    "eyebrow": "Konfiguration",
+    "title": "Fahrzeugkategorien",
+    "description": "Kategorien des Fuhrparks anlegen, bearbeiten und deaktivieren.",
+    "create": "Kategorie anlegen",
+    "edit": "Kategorie bearbeiten",
+    "empty": "Es sind keine Fahrzeugkategorien vorhanden.",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "deactivate": "Deaktivieren",
+    "confirmTitle": "Kategorie deaktivieren?",
+    "confirmDescription": "Bestehende Fahrzeuge behalten die Kategorie „{{name}}“, für neue Fahrzeuge kann sie jedoch nicht mehr gewählt werden.",
+    "created": "Kategorie angelegt.",
+    "updated": "Kategorie aktualisiert.",
+    "deactivated": "Kategorie deaktiviert.",
+    "loadError": "Kategorien konnten nicht geladen werden.",
+    "saveError": "Die Kategorie konnte nicht gespeichert werden.",
+    "fields": {
+      "name": "Name",
+      "description": "Beschreibung"
     }
   },
   "notFound": {

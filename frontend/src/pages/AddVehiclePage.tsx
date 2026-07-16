@@ -3,12 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import {
-  createDamageReport,
   createVehicle,
   displayVehicleName,
   listVehicleCategories,
   listVehicles,
-  updateMedia,
   type CreateVehiclePayload,
   type DamageSeverity,
   type MediaFile,
@@ -18,10 +16,12 @@ import {
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { Field } from '../components/Field';
+import { FormErrorSummary } from '../components/FormErrorSummary';
 import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField } from '../components/MediaUploadField';
+import { markMediaAttached, MediaUploadField } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 type FieldErrors = Record<string, string>;
 
@@ -53,6 +53,11 @@ export function AddVehiclePage() {
   const [damageDescription, setDamageDescription] = useState('');
   const [damageSeverity, setDamageSeverity] = useState<DamageSeverity>('minor');
   const [damageMedia, setDamageMedia] = useState<MediaFile[]>([]);
+  const [vehicleMedia, setVehicleMedia] = useState<MediaFile[]>([]);
+  useDirtyFormWarning(
+    !created && Boolean(internalNumber || manufacturer || model || serialNumber || licensePlate || location || odometer || hours || notes || hasDamage || damageMedia.length || vehicleMedia.length),
+    t('forms.unsaved'),
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -131,6 +136,7 @@ export function AddVehiclePage() {
     setDamageDescription('');
     setDamageSeverity('minor');
     setDamageMedia([]);
+    setVehicleMedia([]);
     setFieldErrors({});
   }
 
@@ -176,6 +182,7 @@ export function AddVehiclePage() {
         model: model.trim(),
         // New vehicles are added straight into the operational pool.
         status: 'available',
+        media_file_ids: vehicleMedia.map((media) => media.id),
       };
       if (internalNumber.trim()) {
         payload.internal_number = internalNumber.trim();
@@ -198,25 +205,18 @@ export function AddVehiclePage() {
       if (notes.trim()) {
         payload.notes = notes.trim();
       }
-      const vehicle = await createVehicle(payload);
       if (hasDamage) {
-        const damage = await createDamageReport({
-          vehicle: vehicle.id,
+        payload.initial_damage_reports = [{
           description: damageDescription.trim(),
           severity: damageSeverity,
-          workflow_phase: 'general',
-        });
-        await Promise.all(
-          damageMedia.map((media) =>
-            updateMedia(media.id, {
-              vehicle: vehicle.id,
-              damage_report: damage.id,
-              related_type: 'damage_report',
-              related_id: damage.id,
-            }),
-          ),
-        );
+          media_file_ids: damageMedia.map((media) => media.id),
+        }];
       }
+      const vehicle = await createVehicle(payload);
+      markMediaAttached([
+        ...(payload.media_file_ids ?? []),
+        ...(payload.initial_damage_reports ?? []).flatMap((damage) => damage.media_file_ids ?? []),
+      ]);
       setCreated(vehicle);
       resetForm();
     } catch (submitError) {
@@ -256,8 +256,8 @@ export function AddVehiclePage() {
       ) : null}
 
       {created ? (
-        <article className="content-card success-card">
-          <h3>{t('addVehicle.completed')}</h3>
+        <article className="content-card success-card" role="status" aria-live="polite">
+          <h3 tabIndex={-1} autoFocus>{t('addVehicle.completed')}</h3>
           <p>{[created.internal_number, created.manufacturer, created.model].filter(Boolean).join(' · ')}</p>
           <div className="action-row">
             <Link className="button-link" to={`/app/vehicles/${created.id}`}>
@@ -274,10 +274,11 @@ export function AddVehiclePage() {
         <section className="placeholder-card">
           <p>{t('addVehicle.noCategories')}</p>
         </section>
-      ) : (
-        <form className="content-card form-stack" onSubmit={handleSubmit}>
-          <Field label={t('addVehicle.fields.category')} error={fieldErrors.category}>
-            <select value={category} onChange={(event) => setCategory(event.target.value)}>
+      ) : !created ? (
+        <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
+          <FormErrorSummary errors={fieldErrors} />
+          <Field label={t('addVehicle.fields.category')} error={fieldErrors.category} required>
+            <select required value={category} onChange={(event) => setCategory(event.target.value)}>
               <option value="">{t('addVehicle.fields.selectCategory')}</option>
               {categories.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -292,11 +293,11 @@ export function AddVehiclePage() {
           </Field>
 
           <div className="form-grid form-grid--two">
-            <Field label={t('addVehicle.fields.manufacturer')} error={fieldErrors.manufacturer}>
-              <input value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} />
+            <Field label={t('addVehicle.fields.manufacturer')} error={fieldErrors.manufacturer} required>
+              <input required value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} />
             </Field>
-            <Field label={t('addVehicle.fields.model')} error={fieldErrors.model}>
-              <input value={model} onChange={(event) => setModel(event.target.value)} />
+            <Field label={t('addVehicle.fields.model')} error={fieldErrors.model} required>
+              <input required value={model} onChange={(event) => setModel(event.target.value)} />
             </Field>
           </div>
 
@@ -325,6 +326,16 @@ export function AddVehiclePage() {
           <Field label={t('addVehicle.fields.notes')}>
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
+
+          <MediaUploadField
+            mediaType="photo"
+            label={t('addVehicle.fields.photos')}
+            accept="image/*"
+            capture
+            submitted={Boolean(created)}
+            onUploaded={(media) => setVehicleMedia((current) => [...current, media])}
+            onRemoved={(media) => setVehicleMedia((current) => current.filter((item) => item.id !== media.id))}
+          />
 
           <fieldset className="fieldset-card">
             <legend>{t('addVehicle.damage.title')}</legend>
@@ -362,7 +373,7 @@ export function AddVehiclePage() {
             </div>
             {hasDamage ? (
               <>
-                <Field label={t('addVehicle.damage.description')} error={fieldErrors.damageDescription}>
+                <Field label={t('addVehicle.damage.description')} error={fieldErrors.damageDescription} required>
                   <textarea
                     value={damageDescription}
                     onChange={(event) => setDamageDescription(event.target.value)}
@@ -386,7 +397,11 @@ export function AddVehiclePage() {
                   label={t('addVehicle.damage.photoLabel')}
                   accept="image/*"
                   capture
+                  required
+                  validationError={fieldErrors.damagePhoto}
+                  submitted={Boolean(created)}
                   onUploaded={addDamageMedia}
+                  onRemoved={(media) => setDamageMedia((current) => current.filter((item) => item.id !== media.id))}
                 />
                 {damageMedia.length > 0 ? (
                   <ul className="media-list">
@@ -395,11 +410,9 @@ export function AddVehiclePage() {
                     ))}
                   </ul>
                 ) : null}
-                {fieldErrors.damagePhoto ? (
-                  <small className="field-error">{fieldErrors.damagePhoto}</small>
-                ) : (
+                {!fieldErrors.damagePhoto ? (
                   <p className="hint-text">{t('addVehicle.damage.photoRequired')}</p>
-                )}
+                ) : null}
               </>
             ) : (
               <p className="hint-text">{t('addVehicle.damage.noDamageHint')}</p>
@@ -410,7 +423,7 @@ export function AddVehiclePage() {
             {isSubmitting ? t('addVehicle.submitting') : t('addVehicle.submit')}
           </button>
         </form>
-      )}
+      ) : null}
     </section>
   );
 }

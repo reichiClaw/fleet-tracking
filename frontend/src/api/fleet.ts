@@ -1,4 +1,7 @@
 import { apiClient, buildApiUrl } from './client';
+import { fetchAllPages, normalizePage, type PageResult, type PaginatedResponse } from './pagination';
+
+export type { PageResult, PaginatedResponse } from './pagination';
 
 export type UserRole = 'admin' | 'operations' | 'readonly';
 
@@ -49,13 +52,6 @@ export type ReservationStatus = 'active' | 'cancelled';
 export type CompanyType = 'subcontractor' | 'manufacturer' | 'supplier' | 'internal';
 export type MediaType = 'photo' | 'signature' | 'pdf' | 'import';
 
-export type PaginatedResponse<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-};
-
 export type VehicleCategory = {
   id: string;
   name: string;
@@ -78,6 +74,7 @@ export type Vehicle = {
   current_location?: string;
   notes?: string;
   manufacturer_return_due?: string | null;
+  archived_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -155,6 +152,10 @@ export type Loan = {
   return_notes?: string;
   checkout_pdf_media?: string | null;
   return_pdf_media?: string | null;
+  checkout_snapshot?: Record<string, unknown>;
+  return_snapshot?: Record<string, unknown>;
+  checkout_pdf_generation_error?: string;
+  return_pdf_generation_error?: string;
   created_at?: string;
 };
 
@@ -167,6 +168,8 @@ export type CheckInProtocol = {
   operating_hours?: string | number | null;
   condition_notes?: string;
   pdf_media?: string | null;
+  snapshot?: Record<string, unknown>;
+  pdf_generation_error?: string;
   created_at?: string;
 };
 
@@ -179,6 +182,8 @@ export type ManufacturerCheckoutProtocol = {
   operating_hours?: string | number | null;
   condition_notes?: string;
   pdf_media?: string | null;
+  snapshot?: Record<string, unknown>;
+  pdf_generation_error?: string;
   created_at?: string;
 };
 
@@ -187,8 +192,10 @@ export type DamageReport = {
   vehicle: string;
   description: string;
   severity?: string;
+  workflow_phase?: string;
   discovered_at?: string;
-  status?: string;
+  resolved_at?: string | null;
+  resolution_notes?: string;
 };
 
 export type VehicleHistory = {
@@ -307,10 +314,6 @@ export type VehicleFilters = {
   is_available?: boolean;
 };
 
-function listFromResponse<T>(response: T[] | PaginatedResponse<T>): T[] {
-  return Array.isArray(response) ? response : response.results;
-}
-
 export function displayVehicleName(vehicle?: Vehicle | null) {
   if (!vehicle) {
     return '';
@@ -342,8 +345,7 @@ export async function getCurrentUser() {
 }
 
 export async function listUsers() {
-  const response = await apiClient.get<ManagedUser[] | PaginatedResponse<ManagedUser>>('/users/');
-  return listFromResponse(response);
+  return fetchAllPages<ManagedUser>('/users/');
 }
 
 export async function createUser(payload: CreateUserPayload) {
@@ -352,6 +354,10 @@ export async function createUser(payload: CreateUserPayload) {
 
 export async function updateUser(id: string, payload: Partial<ManagedUser> & { password?: string }) {
   return apiClient.patch<ManagedUser>(`/users/${id}/`, payload as Record<string, unknown>);
+}
+
+export async function setUserPassword(id: string, payload: { current_password?: string; new_password: string }) {
+  return apiClient.post<void>(`/users/${id}/set-password/`, payload);
 }
 
 export async function deactivateUser(id: string) {
@@ -373,9 +379,15 @@ export async function getDashboardSummary() {
   return apiClient.get<DashboardSummary>('/dashboard/summary/');
 }
 
+export async function listVehiclePage(filters: VehicleFilters = {}, page = 1): Promise<PageResult<Vehicle>> {
+  const response = await apiClient.get<Vehicle[] | PaginatedResponse<Vehicle>>(
+    pathWithQuery('/vehicles/', { ...filters, page }),
+  );
+  return normalizePage(response, page);
+}
+
 export async function listVehicles(filters: VehicleFilters = {}) {
-  const response = await apiClient.get<Vehicle[] | PaginatedResponse<Vehicle>>(pathWithQuery('/vehicles/', filters));
-  return listFromResponse(response);
+  return fetchAllPages<Vehicle>(pathWithQuery('/vehicles/', filters));
 }
 
 export async function getVehicle(id: string) {
@@ -394,6 +406,12 @@ export type CreateVehiclePayload = {
   current_operating_hours?: string;
   notes?: string;
   status?: VehicleStatus;
+  media_file_ids?: string[];
+  initial_damage_reports?: Array<{
+    description: string;
+    severity?: DamageSeverity;
+    media_file_ids?: string[];
+  }>;
 };
 
 export async function createVehicle(payload: CreateVehiclePayload) {
@@ -402,6 +420,10 @@ export async function createVehicle(payload: CreateVehiclePayload) {
 
 export async function updateVehicle(id: string, payload: Partial<CreateVehiclePayload>) {
   return apiClient.patch<Vehicle>(`/vehicles/${id}/`, payload as Record<string, unknown>);
+}
+
+export async function archiveVehicle(id: string) {
+  return apiClient.post<Vehicle>(`/vehicles/${id}/archive/`);
 }
 
 export type DamageSeverity = 'unknown' | 'minor' | 'major' | 'critical';
@@ -418,8 +440,8 @@ export async function createDamageReport(payload: CreateDamageReportPayload) {
   return apiClient.post<DamageReport>('/damage-reports/', payload as unknown as Record<string, unknown>);
 }
 
-export async function updateMedia(id: string, payload: Partial<MediaFile>) {
-  return apiClient.patch<MediaFile>(`/media/${id}/`, payload as Record<string, unknown>);
+export async function discardMedia(id: string) {
+  return apiClient.post<void>(`/media/${id}/discard/`);
 }
 
 export async function resolveVehicleQrCode(qrCode: string) {
@@ -435,13 +457,23 @@ export async function getVehicleHistory(id: string) {
 }
 
 export async function listVehicleCategories() {
-  const response = await apiClient.get<VehicleCategory[] | PaginatedResponse<VehicleCategory>>('/vehicle-categories/');
-  return listFromResponse(response);
+  return fetchAllPages<VehicleCategory>('/vehicle-categories/');
+}
+
+export async function createVehicleCategory(payload: Pick<VehicleCategory, 'name'> & Partial<VehicleCategory>) {
+  return apiClient.post<VehicleCategory>('/vehicle-categories/', payload as Record<string, unknown>);
+}
+
+export async function updateVehicleCategory(id: string, payload: Partial<VehicleCategory>) {
+  return apiClient.patch<VehicleCategory>(`/vehicle-categories/${id}/`, payload as Record<string, unknown>);
+}
+
+export async function deactivateVehicleCategory(id: string) {
+  return apiClient.post<VehicleCategory>(`/vehicle-categories/${id}/deactivate/`);
 }
 
 export async function listCompanies() {
-  const response = await apiClient.get<Company[] | PaginatedResponse<Company>>('/companies/');
-  return listFromResponse(response);
+  return fetchAllPages<Company>('/companies/');
 }
 
 export async function createCompany(payload: Partial<Company>) {
@@ -457,8 +489,7 @@ export async function deleteCompany(id: string) {
 }
 
 export async function listDrivers() {
-  const response = await apiClient.get<Driver[] | PaginatedResponse<Driver>>('/drivers/');
-  return listFromResponse(response);
+  return fetchAllPages<Driver>('/drivers/');
 }
 
 export async function createDriver(payload: Partial<Driver>) {
@@ -470,17 +501,13 @@ export async function updateDriver(id: string, payload: Partial<Driver>) {
 }
 
 export async function listLoans() {
-  const response = await apiClient.get<Loan[] | PaginatedResponse<Loan>>('/loans/');
-  return listFromResponse(response);
+  return fetchAllPages<Loan>('/loans/');
 }
 
 export type ReservationFilters = { vehicle?: string; status?: ReservationStatus };
 
 export async function listReservations(filters: ReservationFilters = {}) {
-  const response = await apiClient.get<Reservation[] | PaginatedResponse<Reservation>>(
-    pathWithQuery('/reservations/', filters),
-  );
-  return listFromResponse(response);
+  return fetchAllPages<Reservation>(pathWithQuery('/reservations/', filters));
 }
 
 export async function createReservation(payload: Record<string, unknown>) {
@@ -497,14 +524,10 @@ export async function scheduleManufacturerReturn(vehicleId: string, due: string 
   });
 }
 
-export async function uploadMedia(file: File | Blob, metadata: Partial<MediaFile> & { media_type: MediaType }) {
+export async function uploadMedia(file: File | Blob, metadata: { media_type: 'photo' | 'signature' }) {
   const formData = new FormData();
   formData.append('file', file);
-  Object.entries(metadata).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      formData.append(key, String(value));
-    }
-  });
+  formData.append('media_type', metadata.media_type);
   return apiClient.post<MediaFile>('/media/', formData);
 }
 
@@ -560,11 +583,15 @@ export type DocumentFilters = {
   language?: string;
 };
 
-export async function listDocuments(filters: DocumentFilters = {}) {
+export async function listDocumentPage(filters: DocumentFilters = {}, page = 1): Promise<PageResult<GeneratedDocument>> {
   const response = await apiClient.get<GeneratedDocument[] | PaginatedResponse<GeneratedDocument>>(
-    pathWithQuery('/documents/', filters),
+    pathWithQuery('/documents/', { ...filters, page }),
   );
-  return listFromResponse(response);
+  return normalizePage(response, page);
+}
+
+export async function listDocuments(filters: DocumentFilters = {}) {
+  return fetchAllPages<GeneratedDocument>(pathWithQuery('/documents/', filters));
 }
 
 export async function uploadVehicleImport(file: File) {

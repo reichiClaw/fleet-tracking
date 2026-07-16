@@ -8,6 +8,7 @@ import {
   listVehicles,
   type Vehicle,
   type VehicleCategory,
+  type PageResult,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
@@ -15,6 +16,7 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
+import { PaginationControls } from '../components/PaginationControls';
 
 // Vehicles that have left the active fleet (handed back to the manufacturer or
 // otherwise archived) live here instead of the vehicle pool.
@@ -29,6 +31,8 @@ export function ArchivePage() {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +59,7 @@ export function ArchivePage() {
     return () => {
       isMounted = false;
     };
-  }, [t]);
+  }, [reloadToken, t]);
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -91,10 +95,21 @@ export function ArchivePage() {
           .includes(query);
       });
   }, [vehicles, category, search]);
+  const pageSize = 50;
+  const visibleVehicles = archivedVehicles.slice((page - 1) * pageSize, page * pageSize);
+  const archivePage: PageResult<Vehicle> = {
+    count: archivedVehicles.length,
+    page,
+    pageSize,
+    results: visibleVehicles,
+    previous: page > 1 ? 'previous' : null,
+    next: page * pageSize < archivedVehicles.length ? 'next' : null,
+  };
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   return (
@@ -108,7 +123,7 @@ export function ArchivePage() {
         </label>
         <label>
           <span>{t('vehicles.filters.category')}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
             <option value="">{t('vehicles.filters.allCategories')}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
@@ -121,10 +136,10 @@ export function ArchivePage() {
       </form>
 
       {isLoading ? <LoadingState variant="skeleton" rows={4} /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
-      <div className="vehicle-grid">
-        {archivedVehicles.map((vehicle) => {
+      {!isLoading && !error ? <div className="vehicle-grid">
+        {visibleVehicles.map((vehicle) => {
           const categoryName =
             typeof vehicle.category === 'string'
               ? categoryNameById.get(vehicle.category)
@@ -158,10 +173,13 @@ export function ArchivePage() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
 
-      {!isLoading && !archivedVehicles.length ? (
+      {!isLoading && !error && !archivedVehicles.length ? (
         <EmptyState title={t('archive.empty.title')} description={t('archive.empty.body')} />
+      ) : null}
+      {!isLoading && !error && archivedVehicles.length ? (
+        <PaginationControls page={archivePage} onPageChange={setPage} />
       ) : null}
     </section>
   );

@@ -80,6 +80,7 @@ describe('UserManagementPage', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    document.cookie = 'csrftoken=test-token; path=/';
     users = [
       { id: 'me', username: 'admin', full_name: 'Site Admin', role: 'admin', is_active: true },
       { id: 'u-ops', username: 'mara', full_name: 'Mara Ops', role: 'operations', is_active: true },
@@ -136,6 +137,8 @@ describe('UserManagementPage', () => {
 
     const card = (await screen.findByText('Mara Ops')).closest('article') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Deaktivieren' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Bestätigen' }));
 
     await waitFor(() => {
       const updated = screen.getByText('Mara Ops').closest('article') as HTMLElement;

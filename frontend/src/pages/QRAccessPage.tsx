@@ -169,6 +169,7 @@ export function QRAccessPage() {
       // (e.g. iOS Safari), keeping it out of the initial bundle.
       const decodeQr = detector ? null : (await import('jsqr')).default;
       let stopped = false;
+      let detectorFailures = 0;
 
       async function decodeFrame(): Promise<string | null> {
         if (!video) {
@@ -202,7 +203,12 @@ export function QRAccessPage() {
             return;
           }
         } catch {
-          // Keep scanning; transient detector/frame errors happen while the camera settles.
+          detectorFailures += 1;
+          if (detectorFailures >= 10) {
+            setError(t('qr.scan.decodeError'));
+            stopScanner();
+            return;
+          }
         }
         window.requestAnimationFrame(scanFrame);
       }
@@ -244,9 +250,9 @@ export function QRAccessPage() {
         description={t('qr.description')}
         actions={
           <div className="action-row action-row--wrap">
-            <button type="button" onClick={() => window.print()}>
+            <Link className="button-link" to="/app/qr/print">
               {t('qr.print')}
-            </button>
+            </Link>
             <button type="button" className="secondary-button" disabled={!vehicles.length} onClick={exportCsv}>
               {t('qr.export')}
             </button>
@@ -339,7 +345,7 @@ export function parseQrTarget(value: string): string | null {
       return null;
     }
     if (url.pathname.startsWith('/v/') || url.pathname.startsWith('/app/')) {
-      return `${url.pathname}${url.search}`;
+      return `${url.pathname}${url.search}${url.hash}`;
     }
     return null;
   } catch {

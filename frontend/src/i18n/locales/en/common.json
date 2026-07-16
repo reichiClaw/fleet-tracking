@@ -8,7 +8,14 @@
     "notAvailable": "Not available",
     "unknown": "Unknown",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "back": "Back",
+    "close": "Close",
+    "pending": "Working..."
   },
   "language": {
     "label": "Language",
@@ -39,11 +46,14 @@
     "imports": "Imports",
     "users": "Users",
     "settings": "Settings",
-    "logout": "Log out"
+    "logout": "Log out",
+    "categories": "Vehicle categories"
   },
   "layout": {
     "signedInAs": "Signed in as",
-    "quickActions": "Quick actions"
+    "quickActions": "Quick actions",
+    "skipToContent": "Skip to main content",
+    "navigationMenu": "Open navigation menu"
   },
   "states": {
     "loading": "Loading...",
@@ -60,12 +70,14 @@
     "notFound": "The requested item could not be found. It may have been changed or removed.",
     "tooLarge": "The upload is too large. Please use a smaller file.",
     "throttled": "Too many attempts. Please wait a moment and try again.",
-    "server": "The server ran into a problem. Please try again in a moment."
+    "server": "The server ran into a problem. Please try again in a moment.",
+    "roleDenied": "Your role does not allow access to this page."
   },
   "auth": {
     "login": {
       "title": "Sign in",
       "intro": "Sign in with your backend username and password. If the backend is unavailable, the role selector keeps local demo access available for frontend work.",
+      "introProduction": "Sign in with your username and password.",
       "usernameLabel": "Username",
       "usernamePlaceholder": "jane.doe",
       "roleLabel": "Demo role",
@@ -80,6 +92,31 @@
       "passwordLabel": "Password",
       "passwordPlaceholder": "Enter password"
     }
+  },
+  "pagination": {
+    "label": "Result pages",
+    "count": "Showing {{first}}–{{last}} of {{count}}",
+    "page": "Page {{page}}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "forms": {
+    "errorSummary": "Please correct the following fields:",
+    "unsaved": "Discard your unsaved changes?"
+  },
+  "apiFields": {
+    "vehicle": "Vehicle",
+    "borrower_name": "Borrower name",
+    "borrower_phone": "Borrower phone",
+    "expected_return_at": "Expected return",
+    "checkout_odometer_km": "Checkout odometer",
+    "return_odometer_km": "Return odometer",
+    "operating_hours": "Operating hours",
+    "media_file_ids": "Media files",
+    "supplier_company": "Supplier",
+    "recipient_company": "Recipient company",
+    "new_password": "New password",
+    "current_password": "Current password"
   },
   "dashboard": {
     "eyebrow": "Overview",
@@ -213,6 +250,8 @@
       "manufacturer": "Manufacturer check-outs",
       "media": "Media",
       "reports": "Reports",
+      "unresolvedDamages": "Unresolved damage ({{count}})",
+      "noUnresolvedDamages": "No unresolved damage reports.",
       "emptyLoans": "No loans recorded.",
       "emptyCheckIns": "No check-in protocols recorded.",
       "emptyManufacturer": "No manufacturer check-outs recorded.",
@@ -277,7 +316,8 @@
     "loanReturn": {
       "title": "Loan return",
       "description": "Close an active loan and update the vehicle condition.",
-      "completed": "Loan return completed"
+      "completed": "Loan return completed",
+      "noActiveLoans": "There are no active loans to return. Start a loan checkout first."
     },
     "manufacturerCheckout": {
       "title": "Remove vehicle from pool",
@@ -288,6 +328,7 @@
       "vehicle": "Vehicle",
       "loan": "Active loan",
       "company": "Company",
+      "supplierCompany": "Supplier / manufacturer",
       "recipientCompany": "Recipient company",
       "driver": "Driver",
       "borrowerName": "Borrower name",
@@ -311,7 +352,8 @@
       "noVehicleMatches": "No matching vehicles",
       "selectLoan": "Select active loan",
       "optionalCompany": "No company selected",
-      "optionalDriver": "No driver selected"
+      "optionalDriver": "No driver selected",
+      "selectCompany": "Select a company"
     },
     "validation": {
       "vehicleRequired": "Please select a vehicle.",
@@ -321,7 +363,19 @@
       "expectedReturnRequired": "Please choose an expected return date.",
       "damageDescriptionRequired": "Please describe the damage.",
       "damagePhotoRequired": "Please add at least one photo of the damage.",
-      "signatureRequired": "A signature is required to complete the return."
+      "signatureRequired": "A signature is required.",
+      "checkoutSignatureRequired": "The borrower's signature is required for checkout.",
+      "vehicleNotEligible": "The selected vehicle is not eligible for this workflow.",
+      "loanNotEligible": "The selected loan is no longer active.",
+      "supplierRequired": "Please select the supplier or manufacturer.",
+      "recipientRequired": "Please select the receiving manufacturer or supplier.",
+      "phoneInvalid": "Enter a valid phone number.",
+      "expectedReturnFuture": "Expected return must be in the future.",
+      "generalPhotoRequired": "Add at least one general vehicle photo.",
+      "futureTimestamp": "The workflow time cannot be in the future.",
+      "returnChronology": "The return time must be after checkout and cannot be in the future.",
+      "odometerDecrease": "Odometer value must not decrease.",
+      "hoursDecrease": "Operating hours must not decrease."
     },
     "damage": {
       "title": "Damage report",
@@ -403,7 +457,8 @@
       "location": "Location",
       "odometer": "Odometer (km)",
       "hours": "Operating hours",
-      "notes": "Notes"
+      "notes": "Notes",
+      "photos": "General vehicle photos"
     },
     "damage": {
       "title": "Damage check",
@@ -427,11 +482,17 @@
     "title": "Photos and signatures",
     "photoLabel": "Photo upload or camera",
     "signatureLabel": "Signature",
-    "signatureRequired": "A signature is required for every loan return — draw or upload one below.",
+    "signatureRequired": "A signature is required — draw or upload one below.",
+    "signatureRequiredCheckout": "The borrower signature is required for checkout.",
+    "signatureOptional": "A signature is optional for this workflow.",
+    "optionalSignatureLabel": "Signature (optional)",
+    "generalPhotoLabel": "General vehicle photo",
     "signatureFallback": "Upload signature image",
     "handoffNote": "Signatures can be drawn on the canvas or uploaded as an image; uploaded media is attached when the workflow is submitted.",
     "uploading": "Uploading...",
     "uploadError": "The media file could not be uploaded.",
+    "discardError": "The staged upload could not be removed.",
+    "remove": "Remove",
     "uploaded": "Uploaded: {{name}}",
     "clearSignature": "Clear",
     "saveSignature": "Save signature",
@@ -450,12 +511,18 @@
     "generateCheckout": "Generate checkout PDF",
     "generateReturn": "Generate return PDF",
     "generated": "PDF generated",
-    "error": "The PDF could not be generated."
+    "error": "The PDF could not be generated.",
+    "automaticError": "The workflow completed, but automatic PDF generation failed: {{error}}"
   },
   "archive": {
     "eyebrow": "Fleet",
     "title": "Archive",
     "description": "Vehicles that have left the active fleet — handed back to the manufacturer or archived.",
+    "action": "Archive vehicle",
+    "confirmTitle": "Archive this vehicle?",
+    "confirmDescription": "The complete history will be preserved, but the vehicle will remain outside the active fleet.",
+    "success": "Vehicle archived.",
+    "error": "The vehicle could not be archived.",
     "empty": {
       "title": "Archive is empty",
       "body": "No vehicles have been removed from the pool yet."
@@ -536,6 +603,7 @@
     "mapping": {
       "title": "Assign columns",
       "description": "Match each field to a column from your file. Detected columns are pre-selected — adjust any that are wrong, then re-validate.",
+      "caption": "Import column mapping",
       "targetColumn": "Field",
       "sourceColumn": "Column in your file",
       "notMapped": "— Not in file —",
@@ -551,6 +619,8 @@
     "commit": "Commit import",
     "committing": "Committing...",
     "commitHint": "Commit is available only after a validated import without errors.",
+    "confirmTitle": "Commit this import?",
+    "confirmDescription": "This will apply all {{count}} validated rows.",
     "validation": {
       "fileRequired": "Please choose an Excel file."
     },
@@ -567,7 +637,8 @@
       "row": "Row",
       "action": "Action",
       "errors": "Errors",
-      "noErrors": "No errors"
+      "noErrors": "No errors",
+      "caption": "Complete import validation rows"
     },
     "errorFormat": "{{field}}: {{message}}",
     "errorSeparator": "; ",
@@ -600,6 +671,12 @@
     "addUser": "Add user",
     "saving": "Saving...",
     "created": "User created.",
+    "roleUpdated": "User role updated.",
+    "deactivated": "User deactivated.",
+    "activated": "User activated.",
+    "confirmTitle": "Confirm user change",
+    "confirmRole": "Change {{user}} to the {{role}} role?",
+    "confirmActive": "Change the active state for {{user}}?",
     "loadError": "Users could not be loaded.",
     "saveError": "The user could not be saved.",
     "empty": "No users found.",
@@ -628,7 +705,7 @@
     "intro": "Loan a vehicle to an employee or subcontractor in a few steps.",
     "submit": "Complete loan",
     "moreDetails": "More details (optional)",
-    "documentHandover": "Document handover (optional)",
+    "documentHandover": "Document handover",
     "noVehicles": "No available vehicles. Check in a vehicle first.",
     "selectDriver": "Select an employee/driver",
     "selectCompany": "Select a subcontractor",
@@ -658,6 +735,7 @@
     "title": "QR access",
     "description": "Every vehicle has one QR code. Scanning it opens a live status page that works without signing in.",
     "loadError": "QR data could not be loaded.",
+    "printTitle": "Print QR labels",
     "print": "Print QR codes",
     "export": "Export URLs (CSV)",
     "compact": "Compact labels for label printers",
@@ -669,6 +747,7 @@
       "scanning": "Scanning...",
       "unsupported": "Camera scanning needs a secure (HTTPS) connection and camera permission. Use the manual field below or your device's camera app.",
       "cameraError": "The camera could not be started.",
+      "decodeError": "The camera started, but QR decoding repeatedly failed. Try better lighting or enter the code manually.",
       "invalid": "This QR code is not a Fleet Tracking vehicle link.",
       "empty": "Please enter a QR link or vehicle code.",
       "manualLabel": "QR link or vehicle code",
@@ -713,6 +792,9 @@
     "submit": "Reserve vehicle",
     "saving": "Reserving...",
     "cancel": "Cancel",
+    "cancelled": "Reservation cancelled.",
+    "confirmCancelTitle": "Cancel this reservation?",
+    "confirmCancelDescription": "The reservation will remain in history as cancelled.",
     "saveError": "The reservation could not be saved.",
     "fields": {
       "start": "From",
@@ -725,7 +807,8 @@
     },
     "validation": {
       "required": "Please choose a start and end time.",
-      "driverRequired": "Please select a driver from the database."
+      "driverRequired": "Please select a driver from the database.",
+      "chronology": "The reservation end must be after its start."
     },
     "timeline": {
       "summary": "Reservation timeline with {{count}} active reservations.",
@@ -745,6 +828,7 @@
     "title": "Reports",
     "description": "Search and download every workflow PDF report. Reports are generated automatically when a workflow is completed.",
     "loadError": "Reports could not be loaded.",
+    "tableCaption": "Generated workflow reports",
     "download": "Download",
     "filters": {
       "search": "Search",
@@ -771,6 +855,28 @@
       "loan_checkout_pdf": "Loan checkout report",
       "loan_return_pdf": "Loan return report",
       "manufacturer_checkout_protocol_pdf": "Remove-from-pool report"
+    }
+  },
+  "categories": {
+    "eyebrow": "Configuration",
+    "title": "Vehicle categories",
+    "description": "Create, edit, and deactivate the categories used by the fleet.",
+    "create": "Create category",
+    "edit": "Edit category",
+    "empty": "No vehicle categories exist.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deactivate": "Deactivate",
+    "confirmTitle": "Deactivate category?",
+    "confirmDescription": "Existing vehicles keep the category “{{name}}”, but it cannot be selected for new vehicles.",
+    "created": "Category created.",
+    "updated": "Category updated.",
+    "deactivated": "Category deactivated.",
+    "loadError": "Categories could not be loaded.",
+    "saveError": "The category could not be saved.",
+    "fields": {
+      "name": "Name",
+      "description": "Description"
     }
   },
   "notFound": {
