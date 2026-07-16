@@ -179,12 +179,19 @@ class LoanWorkflowTests(WorkflowAPITestCase):
             created_by=self.operations_user,
         )
         with self.assertRaises(IntegrityError), transaction.atomic():
-            Loan.objects.create(
-                vehicle=vehicle,
-                borrower_name="Second",
-                borrower_phone="456",
-                expected_return_at=timezone.now() + timedelta(days=2),
-                created_by=self.operations_user,
+            # ``Loan.save()`` validates constraints before reaching the
+            # database. Bulk creation intentionally bypasses model validation
+            # so this test verifies the partial unique index itself.
+            Loan.objects.bulk_create(
+                [
+                    Loan(
+                        vehicle=vehicle,
+                        borrower_name="Second",
+                        borrower_phone="456",
+                        expected_return_at=timezone.now() + timedelta(days=2),
+                        created_by=self.operations_user,
+                    )
+                ]
             )
 
     def test_damage_cannot_reference_a_loan_for_another_vehicle(self):
