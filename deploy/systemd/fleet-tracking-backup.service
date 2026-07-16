@@ -1,0 +1,24 @@
+[Unit]
+Description=Fleet Tracking encrypted application backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=fleet-tracking
+Group=fleet-tracking
+SupplementaryGroups=docker
+WorkingDirectory=/opt/fleet-tracking
+Environment=ENV_FILE=/opt/fleet-tracking/.env.production
+Environment=DEPLOYMENT_MODE=production
+ExecStart=/opt/fleet-tracking/scripts/backup.sh
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/fleet-tracking
+LockPersonality=true
+RestrictSUIDSGID=true
+

@@ -1,56 +1,225 @@
 name: ${COMPOSE_PROJECT_NAME:-fleet-tracking}
 
+# This base file is the development-only Compose path. Its HTTP listener is
+# loopback-only. Production always adds docker-compose.prod.yml and
+# docker-compose.tls.yml and uses a separately protected environment file.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend-environment: &backend-environment
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-key-never-use-in-production}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+  DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+  DATABASE_URL: ${DATABASE_URL:-postgres://fleet_tracking:dev-only-database-password@db:5432/fleet_tracking}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-False}
+  CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-False}
+  SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+  CSRF_COOKIE_SAMESITE: ${CSRF_COOKIE_SAMESITE:-Lax}
+  SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-False}
+  SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: ${SECURE_HSTS_INCLUDE_SUBDOMAINS:-False}
+  SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-False}
+  SECURE_CONTENT_TYPE_NOSNIFF: ${SECURE_CONTENT_TYPE_NOSNIFF:-True}
+  TRUST_X_FORWARDED_FOR: ${TRUST_X_FORWARDED_FOR:-True}
+  DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+  LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10/min}
+  MEDIA_UPLOAD_RATE_LIMIT: ${MEDIA_UPLOAD_RATE_LIMIT:-30/hour}
+  GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+  DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-de}
+  SUPPORTED_LANGUAGES: ${SUPPORTED_LANGUAGES:-de,en}
+  TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
+  STATIC_URL: ${STATIC_URL:-/static/}
+  MEDIA_URL: ${MEDIA_URL:-/media/}
+  DJANGO_STATIC_ROOT: /app/staticfiles
+  DJANGO_MEDIA_ROOT: /app/media
+  MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-25}
+  MAX_STAGED_MEDIA_FILES: ${MAX_STAGED_MEDIA_FILES:-50}
+  MAX_STAGED_MEDIA_SIZE_MB: ${MAX_STAGED_MEDIA_SIZE_MB:-100}
+  STAGED_MEDIA_TTL_HOURS: ${STAGED_MEDIA_TTL_HOURS:-24}
+  MAX_IMPORT_ROWS: ${MAX_IMPORT_ROWS:-5000}
+  MAX_IMPORT_COLUMNS: ${MAX_IMPORT_COLUMNS:-100}
+  MAX_IMPORT_UNCOMPRESSED_SIZE_MB: ${MAX_IMPORT_UNCOMPRESSED_SIZE_MB:-100}
+  MAX_IMPORT_ZIP_ENTRIES: ${MAX_IMPORT_ZIP_ENTRIES:-1000}
+  MAX_IMPORT_RESULT_SIZE_MB: ${MAX_IMPORT_RESULT_SIZE_MB:-5}
+  MEDIA_STORAGE_BACKEND: ${MEDIA_STORAGE_BACKEND:-local}
+  SFTP_HOST: ${SFTP_HOST:-}
+  SFTP_PORT: ${SFTP_PORT:-22}
+  SFTP_USER: ${SFTP_USER:-}
+  SFTP_PASSWORD: ${SFTP_PASSWORD:-}
+  SFTP_KEY_PATH: ${SFTP_KEY_PATH:-}
+  SFTP_ROOT: ${SFTP_ROOT:-/fleet-media/}
+  SFTP_KNOWN_HOSTS: ${SFTP_KNOWN_HOSTS:-}
+  AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
+  AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-}
+  AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  AWS_DEFAULT_ACL: ${AWS_DEFAULT_ACL:-private}
+  AWS_QUERYSTRING_AUTH: ${AWS_QUERYSTRING_AUTH:-True}
+  AWS_S3_ADDRESSING_STYLE: ${AWS_S3_ADDRESSING_STYLE:-}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@example.com}
+
+x-python-security: &python-security
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+  pids_limit: 256
+  logging: *default-logging
+  deploy:
+    resources:
+      limits:
+        cpus: "2.0"
+        memory: 1g
+
+x-nginx-security: &nginx-security
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - DAC_OVERRIDE
+    - NET_BIND_SERVICE
+    - SETGID
+    - SETUID
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    - /var/cache/nginx:rw,noexec,nosuid,nodev,size=32m
+    - /var/run:rw,noexec,nosuid,nodev,size=1m
+  pids_limit: 128
+  logging: *default-logging
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 256m
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16.14-alpine3.23
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
+    init: true
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fleet_tracking}
       POSTGRES_USER: ${POSTGRES_USER:-fleet_tracking}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-database-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fleet_tracking} -d $${POSTGRES_DB:-fleet_tracking}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=1m
+    pids_limit: 256
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
     networks:
-      - internal
+      - db
 
   backend:
+    <<: *python-security
     build:
       context: ./backend
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://fleet_tracking:change-me@db:5432/fleet_tracking}
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        exec gunicorn config.wsgi:application
+        --bind 0.0.0.0:8000
+        --workers "$${GUNICORN_WORKERS:-3}"
+        --worker-tmp-dir /tmp
+        --access-logfile -
+        --error-logfile -
+    environment: *backend-environment
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - media_data:/app/media
-      - static_data:/app/staticfiles
+      - static_data:/app/staticfiles:ro
     expose:
       - "8000"
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          python -c "import os, urllib.request; host=(os.getenv('DJANGO_ALLOWED_HOSTS') or '127.0.0.1').split(',')[0].strip() or '127.0.0.1'; req=urllib.request.Request('http://127.0.0.1:8000/api/health/', headers={'Host': host}); urllib.request.urlopen(req, timeout=5)"
+          python -c "import os,urllib.request;
+          host=(os.getenv('DJANGO_ALLOWED_HOSTS') or '127.0.0.1').split(',')[0].strip() or '127.0.0.1';
+          req=urllib.request.Request('http://127.0.0.1:8000/api/health/ready/',headers={'Host':host});
+          urllib.request.urlopen(req,timeout=5).read()"
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     networks:
-      - internal
+      - app
+      - db
+
+  release:
+    <<: *python-security
+    profiles:
+      - operations
+    build:
+      context: ./backend
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    environment: *backend-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    networks:
+      - app
+      - db
 
   frontend:
+    <<: *nginx-security
     build:
       context: ./frontend
       args:
@@ -59,33 +228,37 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
-      - internal
+      - app
 
   nginx:
-    image: nginx:stable-alpine
+    <<: *nginx-security
+    image: nginx:1.30.2-alpine3.23
     restart: unless-stopped
+    environment:
+      HEALTHCHECK_HOST: ${HEALTHCHECK_HOST:-localhost}
     depends_on:
       backend:
         condition: service_healthy
       frontend:
         condition: service_healthy
     ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_BIND_IP:-127.0.0.1}:${NGINX_HTTP_PORT:-8080}:80"
     volumes:
-      - ./deploy/nginx:/etc/nginx/conf.d:ro
+      - ./deploy/nginx/fleet-tracking.conf:/etc/nginx/conf.d/default.conf:ro
       - static_data:/var/www/static:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --header \"Host: $${HEALTHCHECK_HOST}\" http://127.0.0.1/api/health/"]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
-      - internal
+      - edge
+      - app
 
 volumes:
   postgres_data:
@@ -93,5 +266,11 @@ volumes:
   static_data:
 
 networks:
-  internal:
+  edge:
     driver: bridge
+  app:
+    driver: bridge
+    internal: true
+  db:
+    driver: bridge
+    internal: true

@@ -1,0 +1,98 @@
+# Fail-closed production overrides. Always combine this file with the base and
+# TLS files through `make prod-*` or scripts/lib/compose.sh.
+x-production-backend-environment: &production-backend-environment
+  ENVIRONMENT: production
+  DJANGO_DEBUG: "False"
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in the production environment file}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set DJANGO_ALLOWED_HOSTS in the production environment file}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?Set DJANGO_CSRF_TRUSTED_ORIGINS in the production environment file}
+  DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the production environment file}
+  SESSION_COOKIE_SECURE: "True"
+  CSRF_COOKIE_SECURE: "True"
+  SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+  CSRF_COOKIE_SAMESITE: ${CSRF_COOKIE_SAMESITE:-Lax}
+  SECURE_SSL_REDIRECT: "False"
+  SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-31536000}
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: ${SECURE_HSTS_INCLUDE_SUBDOMAINS:-False}
+  SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-False}
+  SECURE_CONTENT_TYPE_NOSNIFF: "True"
+  TRUST_X_FORWARDED_FOR: "True"
+  DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+  LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-5/min}
+  MEDIA_UPLOAD_RATE_LIMIT: ${MEDIA_UPLOAD_RATE_LIMIT:-30/hour}
+  GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+  DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-de}
+  SUPPORTED_LANGUAGES: ${SUPPORTED_LANGUAGES:-de,en}
+  TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
+  MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-25}
+  MAX_STAGED_MEDIA_FILES: ${MAX_STAGED_MEDIA_FILES:-50}
+  MAX_STAGED_MEDIA_SIZE_MB: ${MAX_STAGED_MEDIA_SIZE_MB:-100}
+  STAGED_MEDIA_TTL_HOURS: ${STAGED_MEDIA_TTL_HOURS:-24}
+  MAX_IMPORT_ROWS: ${MAX_IMPORT_ROWS:-5000}
+  MAX_IMPORT_COLUMNS: ${MAX_IMPORT_COLUMNS:-100}
+  MAX_IMPORT_UNCOMPRESSED_SIZE_MB: ${MAX_IMPORT_UNCOMPRESSED_SIZE_MB:-100}
+  MAX_IMPORT_ZIP_ENTRIES: ${MAX_IMPORT_ZIP_ENTRIES:-1000}
+  MAX_IMPORT_RESULT_SIZE_MB: ${MAX_IMPORT_RESULT_SIZE_MB:-5}
+  MEDIA_STORAGE_BACKEND: ${MEDIA_STORAGE_BACKEND:-local}
+  SFTP_HOST: ${SFTP_HOST:-}
+  SFTP_PORT: ${SFTP_PORT:-22}
+  SFTP_USER: ${SFTP_USER:-}
+  SFTP_PASSWORD: ${SFTP_PASSWORD:-}
+  SFTP_KEY_PATH: ${SFTP_KEY_PATH:-}
+  SFTP_ROOT: ${SFTP_ROOT:-/fleet-media/}
+  SFTP_KNOWN_HOSTS: ${SFTP_KNOWN_HOSTS:-}
+  AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
+  AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-}
+  AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  AWS_DEFAULT_ACL: ${AWS_DEFAULT_ACL:-private}
+  AWS_QUERYSTRING_AUTH: ${AWS_QUERYSTRING_AUTH:-True}
+  AWS_S3_ADDRESSING_STYLE: ${AWS_S3_ADDRESSING_STYLE:-}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL to the public HTTPS URL}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@example.com}
+
+services:
+  db:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the production environment file}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the production environment file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the production environment file}
+
+  backend:
+    environment: *production-backend-environment
+
+  release:
+    environment: *production-backend-environment
+
+  frontend:
+    build:
+      args:
+        VITE_API_BASE_URL: /api/v1
+
+  nginx:
+    # Production has no direct host listener. Caddy in the mandatory TLS
+    # overlay is the only published edge.
+    ports: !reset []
+    environment:
+      EDGE_SUBNET: ${EDGE_SUBNET:-172.30.0.0/24}
+      HEALTHCHECK_HOST: ${TLS_DOMAIN:?Set TLS_DOMAIN in the production environment file}
+      NGINX_ENVSUBST_FILTER: ^EDGE_SUBNET$
+    volumes: !override
+      - ./deploy/nginx/fleet-tracking-tls.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - static_data:/var/www/static:ro
+    tmpfs:
+      - /etc/nginx/conf.d:rw,noexec,nosuid,nodev,size=1m
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: ${EDGE_SUBNET:-172.30.0.0/24}

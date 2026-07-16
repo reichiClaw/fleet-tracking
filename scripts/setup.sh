@@ -18,7 +18,7 @@ Prepare and optionally deploy the Fleet Tracking app.
 Options:
   --install-system-packages  Install python3-venv, Docker, and Compose via apt.
   --skip-tests               Install dependencies without running tests/build checks.
-  --deploy                   Build and start the Docker Compose stack after checks.
+  --deploy                   Build and start the loopback-only development stack.
   --create-superuser         Run Django createsuperuser in the backend container after deploy.
   -h, --help                 Show this help.
 
@@ -63,9 +63,8 @@ if ! python3 -m venv --help >/dev/null 2>&1; then
 fi
 
 if [ ! -f .env ]; then
-  echo "Creating .env from .env.example..."
-  cp .env.example .env
-  echo "Review .env before production deployment, especially secrets, hosts, HTTPS, and passwords."
+  echo "Creating owner-only development .env from .env.example..."
+  install -m 600 .env.example .env
 fi
 
 echo "Preparing backend virtual environment..."
@@ -89,16 +88,19 @@ if [ "$RUN_TESTS" = true ]; then
 fi
 
 echo "Validating Docker Compose configuration..."
-docker compose config >/dev/null
+docker compose --env-file .env -f docker-compose.yml config >/dev/null
 
 if [ "$START_STACK" = true ]; then
-  echo "Building and starting Docker Compose stack..."
-  docker compose up -d --build
-  docker compose ps
+  echo "Building and starting the loopback-only development stack..."
+  docker compose --env-file .env -f docker-compose.yml build
+  docker compose --env-file .env -f docker-compose.yml up -d db
+  docker compose --env-file .env -f docker-compose.yml run --rm release
+  docker compose --env-file .env -f docker-compose.yml up -d
+  docker compose --env-file .env -f docker-compose.yml ps
 
   if [ "$CREATE_SUPERUSER" = true ]; then
     echo "Creating Django superuser..."
-    docker compose exec backend python manage.py createsuperuser
+    docker compose --env-file .env -f docker-compose.yml exec backend python manage.py createsuperuser
   fi
 fi
 
