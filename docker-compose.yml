@@ -83,13 +83,13 @@ x-python-security: &python-security
   tmpfs:
     # Three default workers can each spool a 25 MiB upload to disk.
     - /tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777
-  pids_limit: 256
   logging: *default-logging
   deploy:
     resources:
       limits:
         cpus: "2.0"
         memory: 1g
+        pids: 256
 
 x-nginx-security: &nginx-security
   init: true
@@ -108,13 +108,13 @@ x-nginx-security: &nginx-security
     - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
     - /var/cache/nginx:rw,noexec,nosuid,nodev,size=32m
     - /var/run:rw,noexec,nosuid,nodev,size=1m
-  pids_limit: 128
   logging: *default-logging
   deploy:
     resources:
       limits:
         cpus: "1.0"
         memory: 256m
+        pids: 128
 
 services:
   db:
@@ -147,13 +147,13 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
       - /var/run/postgresql:rw,noexec,nosuid,nodev,size=1m
-    pids_limit: 256
     logging: *default-logging
     deploy:
       resources:
         limits:
           cpus: "2.0"
           memory: 1g
+          pids: 256
     networks:
       - db
 
