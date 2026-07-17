@@ -119,6 +119,7 @@ fi
 docker compose -f docker-compose.yml config --quiet
 docker compose \
   --env-file "$work_dir/production.env" \
+  --profile operations \
   -f docker-compose.yml \
   -f docker-compose.prod.yml \
   -f docker-compose.tls.yml \
