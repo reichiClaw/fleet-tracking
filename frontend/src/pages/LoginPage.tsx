@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
@@ -18,8 +18,13 @@ export function LoginPage() {
   const [role, setRole] = useState<UserRole>('operations');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const stateFrom = (location.state as { from?: string | { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const locationState = location.state as {
+    from?: string | { pathname?: string; search?: string; hash?: string };
+    sessionExpired?: boolean;
+  } | null;
+  const stateFrom = locationState?.from;
   const stateTarget =
     typeof stateFrom === 'string'
       ? stateFrom
@@ -31,6 +36,11 @@ export function LoginPage() {
   const from = candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.startsWith('/login')
     ? candidate
     : '/app';
+
+  useEffect(() => {
+    document.title = `${t('auth.login.title')} · ${t('app.name')}`;
+    headingRef.current?.focus();
+  }, [t]);
 
   if (isAuthenticated) {
     return <Navigate to={from} replace />;
@@ -73,12 +83,15 @@ export function LoginPage() {
         <div className="login-card__header">
           <div>
             <p className="eyebrow">{t('app.subtitle')}</p>
-            <h1>{t('auth.login.title')}</h1>
+            <h1 ref={headingRef} tabIndex={-1}>{t('auth.login.title')}</h1>
           </div>
           <LanguageSelector />
         </div>
         <p>{t(DEMO_AUTH_ENABLED ? 'auth.login.intro' : 'auth.login.introProduction')}</p>
 
+        {locationState?.sessionExpired ? (
+          <p className="warning-panel" role="status" aria-live="polite">{t('auth.login.sessionExpired')}</p>
+        ) : null}
         {error ? <ErrorState message={error} /> : null}
 
         <form className="form-stack" onSubmit={handleSubmit}>

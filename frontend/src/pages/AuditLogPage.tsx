@@ -1,13 +1,12 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import {
   listAuditLogPage,
-  listUsers,
+  listUserPage,
   type AuditLogEntry,
   type AuditLogFilters,
-  type ManagedUser,
   type PageResult,
 } from '../api/fleet';
 import { buildApiUrl } from '../api/client';
@@ -17,6 +16,7 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
 import { PaginationControls } from '../components/PaginationControls';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { formatDateTime } from '../utils/format';
 
 const ENTITY_TYPES = ['', 'vehicle', 'user', 'company', 'driver', 'vehicle_category', 'import_job', 'document_register'];
@@ -26,7 +26,6 @@ export function AuditLogPage() {
   const { t, i18n } = useTranslation();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [resultPage, setResultPage] = useState<PageResult<AuditLogEntry> | null>(null);
-  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<AuditLogFilters>({});
   const [draft, setDraft] = useState<AuditLogFilters>({});
@@ -34,10 +33,6 @@ export function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    listUsers().then(setUsers).catch(() => undefined);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -64,10 +59,6 @@ export function AuditLogPage() {
     };
   }, [filters, page, reload, t]);
 
-  const actorNames = useMemo(
-    () => new Map(users.map((user) => [user.id, user.full_name || user.username])),
-    [users],
-  );
   const exportUrl = buildApiUrl('/audit-logs/export-csv/', filters);
 
   function apply(event: FormEvent) {
@@ -102,13 +93,21 @@ export function AuditLogPage() {
             {ENTITY_TYPES.map((value) => <option key={value || 'all'} value={value}>{value ? entityTypeLabel(value, t, i18n.exists) : t('audit.filters.allEntities')}</option>)}
           </select>
         </label>
-        <label>
-          <span>{t('audit.filters.actor')}</span>
-          <select value={draft.actor ?? ''} onChange={(event) => setDraft((current) => ({ ...current, actor: event.target.value }))}>
-            <option value="">{t('audit.filters.allActors')}</option>
-            {users.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.username}</option>)}
-          </select>
-        </label>
+        <SearchableSelect
+          label={t('audit.filters.actor')}
+          value={draft.actor ?? ''}
+          onChange={(actor) => setDraft((current) => ({ ...current, actor: actor || undefined }))}
+          options={[{ value: '', label: t('audit.filters.allActors') }]}
+          loadOptions={async (query, signal) => {
+            const nextPage = await listUserPage({ search: query }, 1, signal);
+            return [
+              { value: '', label: t('audit.filters.allActors') },
+              ...nextPage.results.map((user) => ({ value: user.id, label: user.full_name || user.username })),
+            ];
+          }}
+          emptyText={t('users.empty')}
+          loadingText={t('states.loading')}
+        />
         <label>
           <span>{t('audit.filters.dateFrom')}</span>
           <input type="date" value={draft.date_from ?? ''} onChange={(event) => setDraft((current) => ({ ...current, date_from: event.target.value }))} />
@@ -138,7 +137,7 @@ export function AuditLogPage() {
                 {entries.map((entry) => (
                   <tr key={entry.id}>
                     <td>{formatDateTime(entry.created_at, i18n.language, t('common.notAvailable'))}</td>
-                    <td>{entry.actor ? actorNames.get(entry.actor) || entry.actor : t('audit.system')}</td>
+                    <td>{entry.actor ? entry.actor_label || entry.actor : t('audit.system')}</td>
                     <td>{actionLabel(entry.action, t, i18n.exists)}</td>
                     <td><EntityLink entry={entry} /></td>
                     <td><AuditDiff entry={entry} /></td>
@@ -152,7 +151,7 @@ export function AuditLogPage() {
               <article className="data-card" key={entry.id}>
                 <strong>{actionLabel(entry.action, t, i18n.exists)}</strong>
                 <span>{formatDateTime(entry.created_at, i18n.language)}</span>
-                <span>{entry.actor ? actorNames.get(entry.actor) || entry.actor : t('audit.system')}</span>
+                <span>{entry.actor ? entry.actor_label || entry.actor : t('audit.system')}</span>
                 <EntityLink entry={entry} />
                 <AuditDiff entry={entry} />
               </article>

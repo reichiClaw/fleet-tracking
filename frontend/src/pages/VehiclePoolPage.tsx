@@ -14,8 +14,9 @@ import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
-import { StatusBadge } from '../components/StatusBadge';
+import { PageHeader } from '../components/PageHeader';
 import { PaginationControls } from '../components/PaginationControls';
+import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../auth/AuthContext';
 import { canLoan, canMutate } from '../utils/capabilities';
 import { formatDateTime, formatNumber } from '../utils/format';
@@ -119,18 +120,16 @@ export function VehiclePoolPage() {
 
   return (
     <section className="page-stack">
-      <div className="page-header page-header--with-actions">
-        <div>
-          <p className="eyebrow">{t('vehicles.eyebrow')}</p>
-          <h2>{t('vehicles.title')}</h2>
-          <p>{t('vehicles.description')}</p>
-        </div>
-        {canMutate(user?.role) ? (
+      <PageHeader
+        eyebrow={t('vehicles.eyebrow')}
+        title={t('vehicles.title')}
+        description={t('vehicles.description')}
+        actions={canMutate(user?.role) ? (
           <Link className="button-link" to="/app/workflows/loans">
             {t('navigation.loanWorkflows')}
           </Link>
-        ) : null}
-      </div>
+        ) : undefined}
+      />
 
       <form className="filter-panel" onSubmit={handleSearch}>
         <label>

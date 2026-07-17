@@ -14,15 +14,20 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from PIL import Image as PillowImage
 
 from drivers.models import Driver
+from mediafiles.models import MediaType
+from mediafiles.services import create_media_file_from_bytes
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
+from workflows.models import ConditionOutcome
 from workflows.services import (
     complete_check_in,
     complete_loan_checkout,
@@ -37,7 +42,13 @@ DEMO_USERS = [
     ("demo-readonly", "readonly", "Demo Read-only"),
 ]
 
-CATEGORIES = ["Steiger", "Golf Car", "Loader", "Telehandler", "Lifting platform"]
+CATEGORIES = {
+    "Steiger": VehicleCategory.MeterMode.BOTH,
+    "Golf Car": VehicleCategory.MeterMode.ODOMETER,
+    "Loader": VehicleCategory.MeterMode.BOTH,
+    "Telehandler": VehicleCategory.MeterMode.BOTH,
+    "Lifting platform": VehicleCategory.MeterMode.HOURS,
+}
 
 COMPANIES = [
     ("Muster Bau GmbH", Company.CompanyType.SUBCONTRACTOR, "Anna Bauer"),
@@ -69,7 +80,10 @@ class Command(BaseCommand):
         password = options["password"]
         user_model = get_user_model()
 
-        categories = {name: VehicleCategory.objects.get_or_create(name=name)[0] for name in CATEGORIES}
+        categories = {
+            name: VehicleCategory.objects.get_or_create(name=name, defaults={"meter_mode": meter_mode})[0]
+            for name, meter_mode in CATEGORIES.items()
+        }
         companies = {
             name: Company.objects.get_or_create(
                 name=name, company_type=company_type, defaults={"contact_name": contact, "is_active": True}
@@ -123,17 +137,46 @@ class Command(BaseCommand):
 
         now = timezone.now()
 
+        def staged_signature(label: str):
+            buffer = BytesIO()
+            PillowImage.new("RGB", (320, 100), color=(245, 248, 252)).save(buffer, "PNG")
+            return create_media_file_from_bytes(
+                content=buffer.getvalue(),
+                actor=actor,
+                media_type=MediaType.SIGNATURE,
+                filename=f"{label}-signature.png",
+                content_type="image/png",
+            )
+
         # Available after check-in.
         available = make_vehicle("0001", "Steiger", "Ruthmann", "T300")
         complete_check_in(
-            data={"vehicle": available, "odometer_km": 1200, "operating_hours": Decimal("320.0"), "supplier_company": manufacturer},
+            data={
+                "vehicle": available,
+                "odometer_km": 1200,
+                "operating_hours": Decimal("320.0"),
+                "supplier_company": manufacturer,
+                "condition_outcome": ConditionOutcome.FIT,
+            },
             actor=actor,
         )
+        available.refresh_from_db()
+        available.manufacturer_return_due = now.date()
+        available.save(update_fields=["manufacturer_return_due", "updated_at"])
 
         # Currently loaned (active loan).
         loaned = make_vehicle("0002", "Telehandler", "Manitou", "MT1840")
-        complete_check_in(data={"vehicle": loaned, "odometer_km": 800, "operating_hours": Decimal("150.0")}, actor=actor)
-        complete_loan_checkout(
+        complete_check_in(
+            data={
+                "vehicle": loaned,
+                "odometer_km": 800,
+                "operating_hours": Decimal("150.0"),
+                "supplier_company": manufacturer,
+                "condition_outcome": ConditionOutcome.FIT,
+            },
+            actor=actor,
+        )
+        active_loan = complete_loan_checkout(
             data={
                 "vehicle": loaned,
                 "company": subcontractor,
@@ -144,22 +187,35 @@ class Command(BaseCommand):
                 "checkout_odometer_km": 800,
                 "checkout_operating_hours": Decimal("150.0"),
                 "checkout_notes": "Demo loan in progress.",
+                "media_file_ids": [staged_signature("active-loan").id],
             },
             actor=actor,
         )
+        active_loan.expected_return_at = now - timedelta(days=1)
+        active_loan.save(update_fields=["expected_return_at", "updated_at"])
 
         # Returned loan -> back to available with higher usage.
         returned = make_vehicle("0003", "Loader", "Caterpillar", "906M")
-        complete_check_in(data={"vehicle": returned, "odometer_km": 2500, "operating_hours": Decimal("540.0")}, actor=actor)
+        complete_check_in(
+            data={
+                "vehicle": returned,
+                "odometer_km": 2500,
+                "operating_hours": Decimal("540.0"),
+                "supplier_company": manufacturer,
+                "condition_outcome": ConditionOutcome.FIT,
+            },
+            actor=actor,
+        )
         loan = complete_loan_checkout(
             data={
                 "vehicle": returned,
                 "company": subcontractor,
                 "borrower_name": "Sofia Klein",
                 "borrower_phone": "+49 171 7654321",
-                "expected_return_at": now - timedelta(days=1),
+                "expected_return_at": now + timedelta(days=1),
                 "checkout_odometer_km": 2500,
                 "checkout_operating_hours": Decimal("540.0"),
+                "media_file_ids": [staged_signature("returned-loan").id],
             },
             actor=actor,
         )
@@ -169,6 +225,7 @@ class Command(BaseCommand):
                 "return_odometer_km": 2750,
                 "return_operating_hours": Decimal("572.5"),
                 "return_notes": "Returned in good condition.",
+                "condition_outcome": ConditionOutcome.FIT,
             },
             actor=actor,
         )
@@ -179,6 +236,8 @@ class Command(BaseCommand):
             data={
                 "vehicle": damaged,
                 "odometer_km": 400,
+                "supplier_company": manufacturer,
+                "condition_outcome": ConditionOutcome.NEW_DAMAGE,
                 "condition_notes": "Visible damage on arrival.",
                 "damage_reports": [{"description": "Cracked windshield", "severity": "major"}],
             },
@@ -187,7 +246,15 @@ class Command(BaseCommand):
 
         # Returned to manufacturer.
         checkout = make_vehicle("0005", "Lifting platform", "Genie", "GS-1932")
-        complete_check_in(data={"vehicle": checkout, "operating_hours": Decimal("90.0")}, actor=actor)
+        complete_check_in(
+            data={
+                "vehicle": checkout,
+                "operating_hours": Decimal("90.0"),
+                "supplier_company": manufacturer,
+                "condition_outcome": ConditionOutcome.FIT,
+            },
+            actor=actor,
+        )
         complete_manufacturer_checkout(
             data={
                 "vehicle": checkout,

@@ -1,14 +1,15 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import {
   createUser,
   deactivateUser,
-  listUsers,
+  listUserPage,
   setTemporaryUserPassword,
   updateUser,
   type ManagedUser,
+  type PageResult,
   type UserRole,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
@@ -16,6 +17,8 @@ import { useAuth } from '../auth/AuthContext';
 import { ErrorState } from '../components/ErrorState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingState } from '../components/LoadingState';
+import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
 import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 import { formatDateTime } from '../utils/format';
 
@@ -27,6 +30,8 @@ export function UserManagementPage() {
   const { user: currentUser } = useAuth();
   const [params] = useSearchParams();
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [resultPage, setResultPage] = useState<PageResult<ManagedUser> | null>(null);
+  const [page, setPage] = useState(1);
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -48,21 +53,36 @@ export function UserManagementPage() {
   >(null);
   useDirtyFormWarning(Boolean(username || fullName || email || password), t('forms.unsaved'));
 
-  async function loadUsers() {
+  async function loadUsers(signal?: AbortSignal) {
     setIsLoading(true);
     setError(null);
     try {
-      setUsers(await listUsers());
-    } catch (error) {
-      setError(getApiErrorMessage(error, t, t('users.loadError')));
+      const active = statusFilter === 'active' ? true : statusFilter === 'inactive' ? false : undefined;
+      const apiStatus = ['must_change', 'unused', 'attention'].includes(statusFilter)
+        ? statusFilter as 'must_change' | 'unused' | 'attention'
+        : undefined;
+      const nextPage = await listUserPage(
+        { search: search.trim(), role: roleFilter as UserRole | '', active, status: apiStatus },
+        page,
+        signal,
+      );
+      setUsers(nextPage.results);
+      setResultPage(nextPage);
+    } catch (loadError) {
+      if (!signal?.aborted) setError(getApiErrorMessage(loadError, t, t('users.loadError')));
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadUsers();
-  }, []);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void loadUsers(controller.signal), search ? 250 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [page, roleFilter, search, statusFilter]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,26 +185,9 @@ export function UserManagementPage() {
     setTemporaryPassword('');
   }
 
-  const filteredUsers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return users.filter((target) => {
-      if (roleFilter && target.role !== roleFilter) return false;
-      if (statusFilter === 'active' && !target.is_active) return false;
-      if (statusFilter === 'inactive' && target.is_active) return false;
-      if (statusFilter === 'must_change' && !target.must_change_password) return false;
-      if (statusFilter === 'unused' && (!target.is_active || target.last_login)) return false;
-      if (statusFilter === 'attention' && target.is_active && target.last_login && !target.must_change_password) return false;
-      return !query || [target.username, target.full_name, target.email].filter(Boolean).join(' ').toLowerCase().includes(query);
-    });
-  }, [roleFilter, search, statusFilter, users]);
-
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t('users.eyebrow')}</p>
-        <h2>{t('users.title')}</h2>
-        <p>{t('users.description')}</p>
-      </div>
+      <PageHeader eyebrow={t('users.eyebrow')} title={t('users.title')} description={t('users.description')} />
       {error ? <ErrorState message={error} /> : null}
       {notice ? <p className="success-text" role="status" aria-live="polite">{notice}</p> : null}
       {oneTimePassword ? (
@@ -245,18 +248,18 @@ export function UserManagementPage() {
       <section className="filter-panel admin-filter-grid" aria-label={t('users.filters.label')}>
         <label>
           <span>{t('users.filters.search')}</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
         </label>
         <label>
           <span>{t('users.filters.role')}</span>
-          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+          <select value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}>
             <option value="">{t('users.filters.allRoles')}</option>
             {ROLES.map((value) => <option key={value} value={value}>{t(`roles.${value}`)}</option>)}
           </select>
         </label>
         <label>
           <span>{t('users.filters.status')}</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             {['', 'active', 'inactive', 'must_change', 'unused', 'attention'].map((value) => <option key={value || 'all'} value={value}>{t(`users.filters.${value || 'allStatuses'}`)}</option>)}
           </select>
         </label>
@@ -265,7 +268,7 @@ export function UserManagementPage() {
         <LoadingState />
       ) : (
         <UserList
-          users={filteredUsers}
+          users={users}
           currentUsername={currentUser?.username}
           pendingId={pendingId}
           onRoleChange={handleRoleChange}
@@ -274,6 +277,9 @@ export function UserManagementPage() {
           language={i18n.language}
         />
       )}
+      {!isLoading && resultPage && resultPage.count > 0 ? (
+        <PaginationControls page={resultPage} onPageChange={setPage} />
+      ) : null}
       {resetUser ? (
         <form className="content-card form-stack" onSubmit={resetPassword}>
           <h3>{t('users.temporary.resetTitle', { user: resetUser.username })}</h3>

@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       const from = `${location.pathname}${location.search}${location.hash}`;
       if (location.pathname !== '/login') {
-        navigate('/login', { replace: true, state: { from } });
+        navigate('/login', { replace: true, state: { from, sessionExpired: true } });
       }
     }
     window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);

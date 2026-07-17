@@ -63,6 +63,9 @@ export function getApiErrorMessage(error: unknown, t: Translate, fallback?: stri
   const fallbackMessage = fallback ?? t('errors.generic');
 
   if (error instanceof ApiError) {
+    if (error.code === 'request_timeout' || error.status === 408) {
+      return t('errors.timeout');
+    }
     if (error.details && typeof error.details === 'object') {
       const messages: string[] = [];
       collectMessages(error.details, '', messages, t);

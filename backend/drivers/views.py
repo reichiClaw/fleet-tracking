@@ -34,7 +34,12 @@ class DriverViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             elif active.lower() in {"0", "false", "no"}:
                 queryset = queryset.filter(is_active=False)
         if params.get("company"):
-            queryset = queryset.filter(company_id=params["company"])
+            if params["company"] == "independent":
+                queryset = queryset.filter(company__isnull=True)
+            else:
+                queryset = queryset.filter(company_id=params["company"])
+        if params.get("company_type"):
+            queryset = queryset.filter(company__company_type=params["company_type"])
         if params.get("search"):
             search = params["search"].strip()
             queryset = queryset.filter(

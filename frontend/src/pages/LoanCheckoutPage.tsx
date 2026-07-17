@@ -9,7 +9,6 @@ import {
   getDriver,
   getReservation,
   getVehicle,
-  mediaDownloadUrl,
   searchCompanies,
   searchDrivers,
   searchVehicles,
@@ -31,6 +30,7 @@ import {
   type SignatureInputHandle,
 } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
+import { ProtocolReceipt } from '../components/ProtocolReceipt';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 import {
   CurrentConditionPanel,
@@ -99,7 +99,13 @@ export function LoanCheckoutPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{ loanId: string; vehicleId: string; pdfId?: string | null; warnings: string[] } | null>(null);
+  const [result, setResult] = useState<{
+    loanId: string;
+    vehicleId: string;
+    pdfId?: string | null;
+    pdfError?: string;
+    warnings: string[];
+  } | null>(null);
   const vehicleState = useVehicleContext(vehicleId);
   const meterMode = vehicleState.context?.meter?.mode;
   const stagedMediaIds = useMemo(
@@ -413,6 +419,7 @@ export function LoanCheckoutPage() {
         loanId: loan.id,
         vehicleId,
         pdfId: loan.checkout_pdf_media,
+        pdfError: loan.checkout_pdf_generation_error,
         warnings: (loan.warnings || []).map((warning) => t(`checkoutWorkflow.warnings.${warning.code}`, {
           date: warning.start_at ? formatDateTime(warning.start_at, i18n.language) : '',
         })),
@@ -443,8 +450,13 @@ export function LoanCheckoutPage() {
         <article className="content-card success-card" role="status" aria-live="polite">
           <h3 tabIndex={-1} autoFocus>{t('workflowRedesign.completed.loanCheckout')}</h3>
           {result.warnings.map((warning) => <p className="warning-panel" key={warning}>{warning}</p>)}
+          <ProtocolReceipt
+            mediaId={result.pdfId}
+            error={result.pdfError}
+            documentType="loan_checkout_pdf"
+            recordId={result.loanId}
+          />
           <div className="action-row">
-            {result.pdfId ? <a className="button-link" href={mediaDownloadUrl({ id: result.pdfId })}>{t('workflowRedesign.openReceipt')}</a> : null}
             <Link className="button-link secondary-button" to={`/app/vehicles/${result.vehicleId}`}>{t('workflowRedesign.openHistory')}</Link>
           </div>
         </article>

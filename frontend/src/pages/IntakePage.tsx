@@ -5,7 +5,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   createAndCheckIn,
   listVehicleCategories,
-  mediaDownloadUrl,
   searchCompanies,
   type Company,
   type ConditionOutcome,
@@ -19,6 +18,7 @@ import { Field } from '../components/Field';
 import { FormErrorSummary } from '../components/FormErrorSummary';
 import { markMediaAttached, MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
+import { ProtocolReceipt } from '../components/ProtocolReceipt';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 import { DraftConflictNotice, WorkflowWizard } from '../components/WorkflowWizard';
 import { useWorkflowDraft } from '../hooks/useWorkflowDraft';
@@ -69,7 +69,13 @@ export function IntakePage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{ vehicleId: string; label: string; pdfId?: string | null; pdfError?: string } | null>(null);
+  const [result, setResult] = useState<{
+    protocolId: string;
+    vehicleId: string;
+    label: string;
+    pdfId?: string | null;
+    pdfError?: string;
+  } | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState(() => randomKey('intake-submit'));
   const category = categories.find((item) => item.id === categoryId);
   const meterMode = category?.meter_mode || 'none';
@@ -273,6 +279,7 @@ export function IntakePage() {
       }, idempotencyKey);
       markMediaAttached([...mediaIds, ...damageMediaIds]);
       setResult({
+        protocolId: protocol.id,
         vehicleId: protocol.vehicle,
         label: [internalNumber, manufacturer, model].filter(Boolean).join(' · '),
         pdfId: protocol.pdf_media,
@@ -298,9 +305,13 @@ export function IntakePage() {
         <article className="content-card success-card" role="status" aria-live="polite">
           <h3 tabIndex={-1} autoFocus>{t('intake.completed')}</h3>
           <p>{result.label}</p>
-          {result.pdfError ? <p className="field-error">{t('pdf.automaticError', { error: result.pdfError })}</p> : null}
+          <ProtocolReceipt
+            mediaId={result.pdfId}
+            error={result.pdfError}
+            documentType="check_in_protocol_pdf"
+            recordId={result.protocolId}
+          />
           <div className="action-row">
-            {result.pdfId ? <a className="button-link" href={mediaDownloadUrl({ id: result.pdfId })}>{t('workflowRedesign.openReceipt')}</a> : null}
             <Link className="button-link secondary-button" to={`/app/vehicles/${result.vehicleId}`}>{t('workflowRedesign.openHistory')}</Link>
           </div>
         </article>

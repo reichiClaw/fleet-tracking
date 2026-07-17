@@ -337,6 +337,8 @@ def _document_register_rows():
 
 
 def _filter_document_register_rows(rows, params):
+    if params.get("record"):
+        rows = [row for row in rows if row["record_id"] == params["record"]]
     if params.get("status") == "attention":
         rows = [row for row in rows if row["status"] in {"failed", "missing"}]
     elif params.get("status"):

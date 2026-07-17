@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
+import { getDashboardTasks } from '../api/fleet';
 import { ConnectivityBanner } from '../components/ConnectivityBanner';
 import { LanguageSelector } from '../components/LanguageSelector';
 
@@ -148,8 +149,11 @@ export function AppLayout() {
   const location = useLocation();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [taskCount, setTaskCount] = useState(0);
   const mobileNavRef = useRef<HTMLElement>(null);
   const mobileNavButtonRef = useRef<HTMLButtonElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
+  const mobileBottomNavRef = useRef<HTMLElement>(null);
   const quickActionsButtonRef = useRef<HTMLButtonElement>(null);
   const quickActionsMenuRef = useRef<HTMLDivElement>(null);
   const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
@@ -166,6 +170,12 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!isMobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    mainContentRef.current?.setAttribute('inert', '');
+    mainContentRef.current?.setAttribute('aria-hidden', 'true');
+    mobileBottomNavRef.current?.setAttribute('inert', '');
+    mobileBottomNavRef.current?.setAttribute('aria-hidden', 'true');
     mobileNavRef.current?.querySelector<HTMLElement>('a, button')?.focus();
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -187,8 +197,41 @@ export function AppLayout() {
       }
     }
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      mainContentRef.current?.removeAttribute('inert');
+      mainContentRef.current?.removeAttribute('aria-hidden');
+      mobileBottomNavRef.current?.removeAttribute('inert');
+      mobileBottomNavRef.current?.removeAttribute('aria-hidden');
+    };
   }, [isMobileNavOpen]);
+
+  useEffect(() => {
+    let active = true;
+    let controller: AbortController | null = null;
+    const refresh = () => {
+      controller?.abort();
+      controller = new AbortController();
+      getDashboardTasks(1, controller.signal)
+        .then((tasks) => {
+          if (active) setTaskCount(Number(tasks.count) || 0);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 60_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isQuickActionsOpen) return;
@@ -259,13 +302,14 @@ export function AppLayout() {
               ref={quickActionsButtonRef}
               className="secondary-button top-bar__menu-trigger"
               type="button"
-              aria-label={t('layout.quickActions')}
+              aria-label={t('layout.accountMenu')}
               aria-expanded={isQuickActionsOpen}
               aria-controls="quick-actions-menu"
               onClick={() => setIsQuickActionsOpen((current) => !current)}
             >
               <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16M4 12h16M4 17h16" />
+                <circle cx="12" cy="8" r="3.25" />
+                <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
               </svg>
             </button>
             <div
@@ -296,12 +340,23 @@ export function AppLayout() {
             }}
           />
         ) : null}
-        <aside ref={mobileNavRef} className={`side-nav${isMobileNavOpen ? ' is-open' : ''}`} aria-label={t('navigation.primaryLabel')}>
+        <aside
+          ref={mobileNavRef}
+          className={`side-nav${isMobileNavOpen ? ' is-open' : ''}`}
+          aria-label={t('navigation.primaryLabel')}
+          aria-modal={isMobileNavOpen || undefined}
+          role={isMobileNavOpen ? 'dialog' : undefined}
+        >
           <nav id="primary-navigation">
             {visibleItems.map((item) => (
               <NavLink key={item.key} to={item.to} end={item.to === '/app'}>
                 <NavIcon name={item.key} />
                 {t(item.translationKey)}
+                {item.key === 'tasks' && taskCount > 0 ? (
+                  <span className="nav-task-count" aria-label={t('layout.taskCount', { count: taskCount })}>
+                    {taskCount > 99 ? '99+' : taskCount}
+                  </span>
+                ) : null}
               </NavLink>
             ))}
             {visibleSettings.length ? (
@@ -341,13 +396,21 @@ export function AppLayout() {
           </div>
         </aside>
 
-        <main id="main-content" className="content-panel" tabIndex={-1}>
+        <main ref={mainContentRef} id="main-content" className="content-panel" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
-      <nav className="mobile-bottom-nav" aria-label={t('navigation.mobileLabel')}>
+      <nav ref={mobileBottomNavRef} className="mobile-bottom-nav" aria-label={t('navigation.mobileLabel')}>
         <NavLink to="/app" end><NavIcon name="dashboard" /><span>{t('navigation.home')}</span></NavLink>
-        <NavLink to="/app/tasks"><NavIcon name="tasks" /><span>{t('navigation.tasks')}</span></NavLink>
+        <NavLink className="mobile-bottom-nav__tasks" to="/app/tasks">
+          <NavIcon name="tasks" />
+          <span>{t('navigation.tasks')}</span>
+          {taskCount > 0 ? (
+            <span className="nav-task-count" aria-label={t('layout.taskCount', { count: taskCount })}>
+              {taskCount > 99 ? '99+' : taskCount}
+            </span>
+          ) : null}
+        </NavLink>
         <NavLink className="mobile-bottom-nav__scan" to="/app/qr?mode=scan"><NavIcon name="qr" /><span>{t('navigation.scan')}</span></NavLink>
         <NavLink to="/app/vehicles"><NavIcon name="vehiclePool" /><span>{t('navigation.fleet')}</span></NavLink>
         <button

@@ -196,6 +196,8 @@
   "layout": {
     "signedInAs": "Signed in as",
     "quickActions": "Quick actions",
+    "accountMenu": "Account menu",
+    "taskCount": "{{count}} open tasks",
     "skipToContent": "Skip to main content",
     "navigationMenu": "Open navigation menu"
   },
@@ -210,6 +212,7 @@
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "connection": "Could not reach the server. Check your internet connection and try again.",
+    "timeout": "The request took too long. For completion actions, check the current status before trying again.",
     "permission": "You do not have permission to do this. Please sign in again or contact an administrator.",
     "notFound": "The requested item could not be found. It may have been changed or removed.",
     "tooLarge": "The upload is too large. Please use a smaller file.",
@@ -222,6 +225,7 @@
       "title": "Sign in",
       "intro": "Sign in with your backend username and password. If the backend is unavailable, the role selector keeps local demo access available for frontend work.",
       "introProduction": "Sign in with your username and password.",
+      "sessionExpired": "Your session expired. Sign in again and you will return to your previous page.",
       "usernameLabel": "Username",
       "usernamePlaceholder": "jane.doe",
       "roleLabel": "Demo role",
@@ -856,7 +860,14 @@
     "generateReturn": "Generate return PDF",
     "generated": "PDF generated",
     "error": "The PDF could not be generated.",
-    "automaticError": "The workflow completed, but automatic PDF generation failed: {{error}}"
+    "automaticError": "The workflow completed, but automatic PDF generation failed: {{error}}",
+    "status": {
+      "generated": "The protocol was generated and stored as an immutable document.",
+      "failed": "The workflow completed; protocol generation needs to be retried.",
+      "missing": "The workflow completed; no PDF exists for this protocol yet."
+    },
+    "openRegister": "View in document register",
+    "reviewRetry": "Review / retry protocol"
   },
   "archive": {
     "eyebrow": "Fleet",
@@ -902,6 +913,11 @@
   "partners": {
     "eyebrow": "Directory",
     "title": "Companies & Drivers",
+    "tabs": {
+      "label": "Directory view",
+      "companies": "Companies",
+      "drivers": "Drivers"
+    },
     "intro": "Manage your companies as groups and the drivers that belong to them — all in one place.",
     "summary": "{{companies}} companies · {{drivers}} drivers",
     "searchPlaceholder": "Search companies or drivers",

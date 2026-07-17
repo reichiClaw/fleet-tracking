@@ -166,6 +166,7 @@ describe('PartnersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Firma deaktivieren' }));
 
     await waitFor(() => expect(screen.getByText(/Acme · Inaktiv/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: 'Fahrer' }));
     expect(screen.getByText('Max Mustermann', { selector: 'strong' })).toBeInTheDocument();
   });
 
@@ -180,6 +181,7 @@ describe('PartnersPage', () => {
     fireEvent.change(within(form).getByLabelText('Nachname'), { target: { value: 'Mustermann' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Fahrer hinzufügen' }));
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Fahrer' }));
     await waitFor(() => expect(screen.getByText('Max Mustermann', { selector: 'strong' })).toBeInTheDocument());
     expect(lastDriverPost).toMatchObject({ first_name: 'Max', last_name: 'Mustermann', company: 'c-1' });
   });
@@ -197,8 +199,12 @@ describe('PartnersPage', () => {
 
     const card = (await screen.findByRole('heading', { name: 'Acme' })).closest('article') as HTMLElement;
 
-    expect(within(card).getAllByRole('button', { name: 'Bearbeiten' })).toHaveLength(2);
+    expect(within(card).getAllByRole('button', { name: 'Bearbeiten' })).toHaveLength(1);
     expect(within(card).queryByRole('button', { name: /deaktivieren/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Fahrer' }));
+    const row = (await screen.findByText('Max Mustermann', { selector: 'strong' })).closest('.driver-row') as HTMLElement;
+    expect(within(row).getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: /deaktivieren/i })).not.toBeInTheDocument();
   });
 
   it('deactivates a driver only after admin confirmation', async () => {
@@ -211,6 +217,7 @@ describe('PartnersPage', () => {
     }];
     renderPage();
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Fahrer' }));
     const row = (await screen.findByText('Max Mustermann', { selector: 'strong' })).closest('.driver-row') as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: 'Fahrer Max Mustermann deaktivieren' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fahrer deaktivieren' }));

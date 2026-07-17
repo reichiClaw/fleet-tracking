@@ -196,6 +196,8 @@
   "layout": {
     "signedInAs": "Angemeldet als",
     "quickActions": "Schnellaktionen",
+    "accountMenu": "Kontomenü",
+    "taskCount": "{{count}} offene Aufgaben",
     "skipToContent": "Zum Hauptinhalt springen",
     "navigationMenu": "Navigationsmenü öffnen"
   },
@@ -210,6 +212,7 @@
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
     "connection": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+    "timeout": "Die Anfrage hat zu lange gedauert. Prüfen Sie bei Abschlussaktionen zuerst den aktuellen Status, bevor Sie es erneut versuchen.",
     "permission": "Sie haben keine Berechtigung für diese Aktion. Bitte melden Sie sich erneut an oder wenden Sie sich an einen Administrator.",
     "notFound": "Der angeforderte Eintrag wurde nicht gefunden. Er wurde möglicherweise geändert oder entfernt.",
     "tooLarge": "Der Upload ist zu groß. Bitte verwenden Sie eine kleinere Datei.",
@@ -222,6 +225,7 @@
       "title": "Anmelden",
       "intro": "Melden Sie sich mit Backend-Benutzername und Passwort an. Wenn das Backend nicht erreichbar ist, hält die Rollenauswahl einen lokalen Demo-Zugang für Frontend-Arbeiten bereit.",
       "introProduction": "Melden Sie sich mit Benutzername und Passwort an.",
+      "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an; anschließend kehren Sie zu Ihrer vorherigen Seite zurück.",
       "usernameLabel": "Benutzername",
       "usernamePlaceholder": "max.mustermann",
       "roleLabel": "Demo-Rolle",
@@ -856,7 +860,14 @@
     "generateReturn": "Rückgabe-PDF erzeugen",
     "generated": "PDF erzeugt",
     "error": "Das PDF konnte nicht erzeugt werden.",
-    "automaticError": "Der Workflow wurde abgeschlossen, aber die automatische PDF-Erzeugung ist fehlgeschlagen: {{error}}"
+    "automaticError": "Der Workflow wurde abgeschlossen, aber die automatische PDF-Erzeugung ist fehlgeschlagen: {{error}}",
+    "status": {
+      "generated": "Protokoll wurde erstellt und unveränderlich gespeichert.",
+      "failed": "Der Workflow ist abgeschlossen; die Protokollerstellung muss erneut versucht werden.",
+      "missing": "Der Workflow ist abgeschlossen; für dieses Protokoll ist noch keine PDF-Datei vorhanden."
+    },
+    "openRegister": "Im Dokumentenregister anzeigen",
+    "reviewRetry": "Protokoll prüfen / erneut erstellen"
   },
   "archive": {
     "eyebrow": "Fuhrpark",
@@ -902,6 +913,11 @@
   "partners": {
     "eyebrow": "Verzeichnis",
     "title": "Firmen & Fahrer",
+    "tabs": {
+      "label": "Verzeichnisansicht",
+      "companies": "Firmen",
+      "drivers": "Fahrer"
+    },
     "intro": "Verwalten Sie Firmen als Gruppen und die zugehörigen Fahrer – alles an einem Ort.",
     "summary": "{{companies}} Firmen · {{drivers}} Fahrer",
     "searchPlaceholder": "Firmen oder Fahrer suchen",

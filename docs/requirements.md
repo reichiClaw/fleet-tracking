@@ -223,6 +223,32 @@ maintenance wizards may autosave owner-scoped drafts with optimistic versions,
 step, expiry, non-secret JSON, and staged media IDs. Drafts never mutate domain
 status. Signature bitmaps are uploaded as media and never stored in draft JSON.
 
+Draft recovery must distinguish resume, explicit discard, successful completion,
+offline save failure, and optimistic-version conflict. Staged media remains
+available while a draft can be resumed and is removed only after confirmed
+discard, successful attachment/completion, or expiry cleanup.
+
+## Operational reliability and scale
+
+- Read requests have a finite timeout and may retry once only when the operation
+  is safe (`GET`) and the failure is transient. Writes are never retried
+  automatically because their outcome may be ambiguous.
+- Cancelled stale requests do not trigger the offline banner. Lost connectivity
+  and expired sessions are reported globally while the application shell stays
+  available for recovery.
+- Large operational collections use server-side filtering, pagination, and
+  typeahead. Fully loading a collection is limited to explicitly bounded
+  reference data such as vehicle categories.
+- The Tasks view and navigation badge surface overdue loans, announced arrivals,
+  reservation handovers, condition/maintenance work, manufacturer due dates,
+  and failed or missing protocol documents.
+- Workflow completion receipts show protocol generation state. Missing or
+  failed PDFs link to the document register, where authorized users can retry
+  generation without repeating the domain workflow.
+- Generated protocol evidence includes authorized stored signatures and a
+  contact sheet of attached photos. Downloads always pass through the
+  authenticated media endpoint.
+
 ## User stories and acceptance criteria
 
 ### Check in a delivered vehicle

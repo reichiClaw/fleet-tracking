@@ -9,6 +9,7 @@ from drivers.models import Driver
 
 class DriverSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="__str__", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True, default="")
 
     def validate_is_active(self, value):
         request = self.context.get("request")
@@ -25,6 +26,7 @@ class DriverSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "company",
+            "company_name",
             "first_name",
             "last_name",
             "full_name",

@@ -35,7 +35,11 @@ export function ReportsPage() {
   const [rows, setRows] = useState<DocumentRegisterRow[]>([]);
   const [resultPage, setResultPage] = useState<PageResult<DocumentRegisterRow> | null>(null);
   const [page, setPage] = useState(1);
-  const [type, setType] = useState('');
+  const [type, setType] = useState(() => {
+    const requested = params.get('type');
+    return requested && REPORT_TYPES.includes(requested as typeof REPORT_TYPES[number]) ? requested : '';
+  });
+  const record = params.get('record') ?? '';
   const [language, setLanguage] = useState('');
   const [status, setStatus] = useState<DocumentRegisterFilters['status']>(() => {
     const requested = params.get('status');
@@ -58,7 +62,7 @@ export function ReportsPage() {
     const controller = new AbortController();
     setIsLoading(true);
     setError(null);
-    listDocumentRegisterPage({ search, type, language, status }, page, controller.signal)
+    listDocumentRegisterPage({ search, type, record, language, status }, page, controller.signal)
       .then((nextPage) => {
         if (!active) return;
         setRows(nextPage.results);
@@ -77,13 +81,13 @@ export function ReportsPage() {
       active = false;
       controller.abort();
     };
-  }, [language, page, reload, search, status, t, type]);
+  }, [language, page, record, reload, search, status, t, type]);
 
   const retryable = rows.filter((row) => row.retry);
   const selectedRows = useMemo(() => retryable.filter((row) => selected.has(rowKey(row))), [retryable, selected]);
   const canRetry = user?.role === 'admin' || user?.role === 'operations';
   const canBulkRetry = user?.role === 'admin';
-  const exportUrl = buildApiUrl('/documents/register-export-csv/', { search, type, language, status });
+  const exportUrl = buildApiUrl('/documents/register-export-csv/', { search, type, record, language, status });
 
   function apply(event: FormEvent) {
     event.preventDefault();

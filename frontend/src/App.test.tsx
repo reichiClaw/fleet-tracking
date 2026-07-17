@@ -207,7 +207,45 @@ describe('App smoke flow', () => {
     expect(more).toHaveAttribute('aria-controls', 'primary-navigation');
     expect(more).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(more);
-    expect(more).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(more).toHaveAttribute('aria-expanded', 'true'));
+    expect(document.body).toHaveStyle({ overflow: 'hidden' });
+    expect(document.querySelector('#main-content')).toHaveAttribute('inert');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(more).toHaveAttribute('aria-expanded', 'false'));
+    expect(document.querySelector('#main-content')).not.toHaveAttribute('inert');
+  });
+
+  it('polls and exposes the server task count in primary navigation', async () => {
+    window.history.pushState({}, '', '/app/change-password');
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/me/')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          id: 'ops-1',
+          username: 'ada',
+          display_name: 'Ada',
+          role: 'operations',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (url.includes('/dashboard/tasks/')) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 7, groups: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }));
+
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Passwort ändern' });
+    const primaryNavigation = screen.getByRole('complementary', { name: 'Hauptnavigation' });
+    const tasksLink = within(primaryNavigation).getByRole('link', { name: /Aufgaben/ });
+    expect(await within(tasksLink).findByLabelText('7 offene Aufgaben')).toHaveTextContent('7');
+    expect(screen.getByRole('button', { name: 'Kontomenü' })).toBeInTheDocument();
   });
 
   it('continues to the complete QR URL after backend login', async () => {

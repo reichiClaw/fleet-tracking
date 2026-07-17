@@ -71,6 +71,7 @@ class FirstRunReadinessView(APIView):
 
     def get(self, request):
         from accounts.permissions import is_admin
+        from drivers.models import Driver
         from parties.models import Company
         from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
         from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
@@ -82,6 +83,7 @@ class FirstRunReadinessView(APIView):
             company_type__in=[Company.CompanyType.SUPPLIER, Company.CompanyType.MANUFACTURER],
         ).count()
         user_count = users.objects.filter(is_active=True).count()
+        driver_count = Driver.objects.filter(is_active=True).count()
         vehicle_count = Vehicle.objects.count()
         announced_count = Vehicle.objects.filter(status=VehicleStatus.ANNOUNCED).count()
         qr_missing = Vehicle.objects.filter(Q(qr_code="") | Q(qr_code__isnull=True)).count()
@@ -130,6 +132,7 @@ class FirstRunReadinessView(APIView):
                 "ready": all(item["ready"] for item in checklist),
                 "effective_role": "admin" if is_admin(request.user) else request.user.role,
                 "capabilities": {"is_app_admin": is_admin(request.user)},
+                "driver_count": driver_count,
                 "admin_security": {
                     "active_admin_exists": users.objects.filter(
                         Q(is_superuser=True) | Q(role="admin"),

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.db import transaction
+from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
@@ -81,6 +82,31 @@ class UserViewSet(viewsets.ModelViewSet):
             queryset = self.queryset.filter(is_staff=False, is_superuser=False)
         else:
             queryset = self.queryset.filter(pk=self.request.user.pk)
+        params = getattr(self.request, "query_params", {})
+        search = params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search)
+                | Q(full_name__icontains=search)
+                | Q(email__icontains=search)
+            )
+        if params.get("role"):
+            queryset = queryset.filter(role=params["role"])
+        active = params.get("active")
+        if active is not None:
+            if active.lower() in {"1", "true", "yes"}:
+                queryset = queryset.filter(is_active=True)
+            elif active.lower() in {"0", "false", "no"}:
+                queryset = queryset.filter(is_active=False)
+        status_filter = params.get("status")
+        if status_filter == "must_change":
+            queryset = queryset.filter(must_change_password=True)
+        elif status_filter == "unused":
+            queryset = queryset.filter(is_active=True, last_login__isnull=True)
+        elif status_filter == "attention":
+            queryset = queryset.filter(
+                Q(is_active=False) | Q(last_login__isnull=True) | Q(must_change_password=True)
+            )
         if getattr(self, "action", None) in {"update", "partial_update"}:
             queryset = queryset.select_for_update()
         return queryset

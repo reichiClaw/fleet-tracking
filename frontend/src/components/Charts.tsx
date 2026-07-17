@@ -74,7 +74,7 @@ export function DonutChart({
     <table className="visually-hidden">
       <caption>{ariaLabel}</caption>
       <tbody>
-        {segments.map((segment) => <tr key={segment.key}><th>{segment.label}</th><td>{segment.value}</td></tr>)}
+        {segments.map((segment) => <tr key={segment.key}><th scope="row">{segment.label}</th><td>{segment.value}</td></tr>)}
       </tbody>
     </table>
     </>
@@ -140,7 +140,7 @@ export function ActivityChart({
     <table className="visually-hidden">
       <caption>{ariaLabel}</caption>
       <tbody>
-        {points.map((point) => <tr key={point.label}><th>{point.label}</th><td>{point.value}</td></tr>)}
+        {points.map((point) => <tr key={point.label}><th scope="row">{point.label}</th><td>{point.value}</td></tr>)}
       </tbody>
     </table>
     </>

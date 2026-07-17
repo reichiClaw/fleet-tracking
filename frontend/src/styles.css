@@ -500,6 +500,22 @@ small {
   color: var(--text);
 }
 
+.nav-task-count {
+  display: inline-flex;
+  min-width: 1.45rem;
+  min-height: 1.45rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.4rem;
+  color: #fff;
+  background: var(--danger-fg);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .side-nav a.active {
   color: var(--brand-contrast);
   background: var(--brand-600);
@@ -2524,6 +2540,24 @@ caption {
   font-size: 0.85rem;
 }
 
+.driver-directory-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.protocol-receipt {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.protocol-receipt p {
+  margin: 0;
+}
+
 .mobile-bottom-nav {
   display: none;
 }
@@ -2987,6 +3021,21 @@ caption {
   .mobile-bottom-nav .nav-icon {
     width: 1.3rem;
     height: 1.3rem;
+  }
+
+  .mobile-bottom-nav__tasks {
+    position: relative;
+  }
+
+  .mobile-bottom-nav .nav-task-count {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.35rem;
+    min-width: 1.15rem;
+    min-height: 1.15rem;
+    margin: 0;
+    padding: 0.05rem 0.25rem;
+    font-size: 0.6rem;
   }
 
   .wizard-progress {

@@ -37,6 +37,7 @@ describe('AuditLogPage', () => {
         return jsonResponse([{
           id: 'audit-1',
           actor: 'user-1',
+          actor_label: 'Site Admin',
           action: 'import.vehicle.committed',
           entity_type: 'import_job',
           entity_id: 'job-1',
@@ -63,7 +64,8 @@ describe('AuditLogPage', () => {
     expect(screen.getAllByText('committed').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.change(screen.getByLabelText('Area'), { target: { value: 'import.' } });
-    fireEvent.change(screen.getByLabelText('Actor'), { target: { value: 'user-1' } });
+    fireEvent.focus(screen.getByLabelText('Actor'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Site Admin' }));
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-07-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
 

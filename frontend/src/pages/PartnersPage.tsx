@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -8,18 +8,20 @@ import {
   deactivateCompany,
   deactivateDriver,
   displayDriverName,
-  listCompanies,
+  listCompanyPage,
   listCompanyDuplicates,
-  listDrivers,
+  listDriverPage,
   listDriverDuplicates,
   mergeCompany,
   mergeDriver,
+  searchCompanies,
   updateCompany,
   updateDriver,
   type Company,
   type CompanyType,
   type Driver,
   type MergePreview,
+  type PageResult,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
@@ -27,6 +29,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 const COMPANY_TYPES: CompanyType[] = ['subcontractor', 'manufacturer', 'supplier', 'internal'];
@@ -42,6 +46,11 @@ export function PartnersPage() {
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [companyResult, setCompanyResult] = useState<PageResult<Company> | null>(null);
+  const [driverResult, setDriverResult] = useState<PageResult<Driver> | null>(null);
+  const [companyPage, setCompanyPage] = useState(1);
+  const [driverPage, setDriverPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<'companies' | 'drivers'>('companies');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -49,65 +58,50 @@ export function PartnersPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [isCreatingDriver, setIsCreatingDriver] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function load() {
+  async function load(signal?: AbortSignal) {
     setIsLoading(true);
     setError(null);
     try {
-      const [nextCompanies, nextDrivers] = await Promise.all([listCompanies(), listDrivers()]);
-      setCompanies(nextCompanies);
-      setDrivers(nextDrivers);
+      const active = activeFilter === 'active' ? true : activeFilter === 'inactive' ? false : undefined;
+      const [nextCompanies, nextDrivers] = await Promise.all([
+        listCompanyPage(
+          { search: search.trim(), active, company_type: typeFilter as CompanyType | '' },
+          companyPage,
+          signal,
+        ),
+        listDriverPage(
+          {
+            search: search.trim(),
+            active,
+            company: companyFilter,
+            company_type: typeFilter as CompanyType | '',
+          },
+          driverPage,
+          signal,
+        ),
+      ]);
+      setCompanies(nextCompanies.results);
+      setDrivers(nextDrivers.results);
+      setCompanyResult(nextCompanies);
+      setDriverResult(nextDrivers);
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, t, t('management.loadError')));
+      if (!signal?.aborted) setError(getApiErrorMessage(loadError, t, t('management.loadError')));
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    void load();
-  }, []);
-
-  const filteredCompanies = useMemo(() => companies.filter((company) => {
-    if (activeFilter === 'active' && !company.is_active) return false;
-    if (activeFilter === 'inactive' && company.is_active) return false;
-    if (typeFilter && company.company_type !== typeFilter) return false;
-    if (companyFilter && company.id !== companyFilter) return false;
-    return true;
-  }), [activeFilter, companies, companyFilter, typeFilter]);
-  const filteredDrivers = useMemo(() => drivers.filter((driver) => {
-    if (activeFilter === 'active' && !driver.is_active) return false;
-    if (activeFilter === 'inactive' && driver.is_active) return false;
-    if (companyFilter === 'independent' && driver.company) return false;
-    if (companyFilter && companyFilter !== 'independent' && driver.company !== companyFilter) return false;
-    if (typeFilter && !companies.some((company) => company.id === driver.company && company.company_type === typeFilter)) return false;
-    return true;
-  }), [activeFilter, companies, companyFilter, drivers, typeFilter]);
-
-  const { byCompany, independent } = useMemo(() => {
-    const map = new Map<string, Driver[]>();
-    const loose: Driver[] = [];
-    filteredDrivers.forEach((driver) => {
-      if (driver.company) {
-        const current = map.get(driver.company) ?? [];
-        current.push(driver);
-        map.set(driver.company, current);
-      } else {
-        loose.push(driver);
-      }
-    });
-    return { byCompany: map, independent: loose };
-  }, [filteredDrivers]);
-
-  const query = search.trim().toLowerCase();
-
-  function visibleDrivers(list: Driver[], companyMatches: boolean) {
-    if (!query || companyMatches) {
-      return list;
-    }
-    return list.filter((driver) => displayDriverName(driver).toLowerCase().includes(query));
-  }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void load(controller.signal), search ? 250 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeFilter, companyFilter, companyPage, driverPage, search, typeFilter]);
 
   if (isLoading) {
     return <LoadingState />;
@@ -130,33 +124,67 @@ export function PartnersPage() {
           className="partners-search"
           placeholder={t('partners.searchPlaceholder')}
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => { setSearch(event.target.value); setCompanyPage(1); setDriverPage(1); }}
           aria-label={t('partners.searchPlaceholder')}
         />
         <span className="hint-text">
-          {t('partners.summary', { companies: companies.length, drivers: drivers.length })}
+          {t('partners.summary', { companies: companyResult?.count ?? 0, drivers: driverResult?.count ?? 0 })}
         </span>
-        {canCreate ? (
+        {canCreate && activeTab === 'companies' ? (
           <button type="button" className="success-button" onClick={() => setIsCreatingCompany((value) => !value)}>
             {isCreatingCompany ? t('management.cancel') : t('partners.newCompany')}
           </button>
         ) : null}
+        {canCreate && activeTab === 'drivers' ? (
+          <button type="button" className="success-button" onClick={() => setIsCreatingDriver((value) => !value)}>
+            {isCreatingDriver ? t('management.cancel') : t('partners.addDriver')}
+          </button>
+        ) : null}
+      </div>
+      <div className="tab-list" role="tablist" aria-label={t('partners.tabs.label')}>
+        {(['companies', 'drivers'] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={activeTab === tab ? 'is-active' : 'secondary-button'}
+            onClick={() => setActiveTab(tab)}
+          >
+            {t(`partners.tabs.${tab}`)}
+          </button>
+        ))}
       </div>
       <section className="filter-panel admin-filter-grid" aria-label={t('partners.filters.label')}>
-        <label><span>{t('partners.filters.status')}</span><select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}>
+        <label><span>{t('partners.filters.status')}</span><select value={activeFilter} onChange={(event) => { setActiveFilter(event.target.value); setCompanyPage(1); setDriverPage(1); }}>
           <option value="">{t('partners.filters.allStatuses')}</option>
           <option value="active">{t('management.activeBadge')}</option>
           <option value="inactive">{t('management.inactiveBadge')}</option>
         </select></label>
-        <label><span>{t('partners.filters.type')}</span><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+        <label><span>{t('partners.filters.type')}</span><select value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); setCompanyPage(1); setDriverPage(1); }}>
           <option value="">{t('partners.filters.allTypes')}</option>
           {COMPANY_TYPES.map((type) => <option value={type} key={type}>{t(`companyTypes.${type}`)}</option>)}
         </select></label>
-        <label><span>{t('partners.filters.company')}</span><select value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
-          <option value="">{t('partners.filters.allCompanies')}</option>
-          <option value="independent">{t('partners.independentTitle')}</option>
-          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-        </select></label>
+        <SearchableSelect
+          label={t('partners.filters.company')}
+          value={companyFilter}
+          onChange={(value) => { setCompanyFilter(value); setDriverPage(1); }}
+          options={[
+            { value: '', label: t('partners.filters.allCompanies') },
+            { value: 'independent', label: t('partners.independentTitle') },
+            ...companies.map((company) => ({ value: company.id, label: company.name })),
+          ]}
+          loadOptions={async (query, signal) => {
+            const result = await searchCompanies(query, signal);
+            return [
+              { value: '', label: t('partners.filters.allCompanies') },
+              { value: 'independent', label: t('partners.independentTitle') },
+              ...result.results.map((company) => ({ value: company.id, label: company.name })),
+            ];
+          }}
+          emptyText={t('partners.emptyCompanies')}
+          loadingText={t('states.loading')}
+        />
       </section>
 
       {user?.role === 'admin' ? <DuplicateManagement onMerged={async () => { await load(); setNotice(t('partners.merge.success')); }} /> : null}
@@ -171,52 +199,58 @@ export function PartnersPage() {
           }}
         />
       ) : null}
-
-      {companies.length === 0 && independent.length === 0 ? (
-        <p className="hint-text">{t('partners.emptyCompanies')}</p>
+      {canCreate && isCreatingDriver ? (
+        <DriverForm
+          defaultCompany={companyFilter === 'independent' ? '' : companyFilter}
+          companies={companies}
+          onCancel={() => setIsCreatingDriver(false)}
+          onSaved={async () => {
+            setIsCreatingDriver(false);
+            await load();
+            setNotice(t('management.saved'));
+          }}
+        />
       ) : null}
 
-      <div className="group-stack">
-        {filteredCompanies.map((company) => {
-          const companyMatches = !query || company.name.toLowerCase().includes(query);
-          const groupDrivers = byCompany.get(company.id) ?? [];
-          const shownDrivers = visibleDrivers(groupDrivers, companyMatches);
-          if (query && !companyMatches && shownDrivers.length === 0) {
-            return null;
-          }
-          return (
+      {activeTab === 'companies' ? (
+        companies.length ? (
+          <div className="group-stack">
+            {companies.map((company) => (
             <GroupCard
               key={company.id}
               company={company}
-              drivers={shownDrivers}
+              drivers={[]}
+              driverCount={company.driver_count ?? 0}
+              hideDrivers
               companies={companies}
               canCreate={canCreate}
               canEdit={canEdit}
               canDeactivate={canDeactivate}
               onChanged={async () => { await load(); setNotice(t('management.saved')); }}
             />
-          );
-        })}
-
-        {(() => {
-          const shownIndependent = visibleDrivers(independent, false);
-          const showIndependent = query ? shownIndependent.length > 0 : independent.length > 0 || canCreate;
-          if (!showIndependent) {
-            return null;
-          }
-          return (
-            <GroupCard
-              company={null}
-              drivers={shownIndependent}
-              companies={companies}
-              canCreate={canCreate}
-              canEdit={canEdit}
-              canDeactivate={canDeactivate}
-              onChanged={async () => { await load(); setNotice(t('management.saved')); }}
-            />
-          );
-        })()}
-      </div>
+            ))}
+            {companyResult ? <PaginationControls page={companyResult} onPageChange={setCompanyPage} /> : null}
+          </div>
+        ) : <p className="hint-text">{t('partners.emptyCompanies')}</p>
+      ) : (
+        drivers.length ? (
+          <section className="content-card">
+            <div className="driver-directory-list">
+              {drivers.map((driver) => (
+                <DriverRow
+                  key={driver.id}
+                  driver={driver}
+                  companies={companies}
+                  canEdit={canEdit}
+                  canDeactivate={canDeactivate}
+                  onChanged={async () => { await load(); setNotice(t('management.saved')); }}
+                />
+              ))}
+            </div>
+            {driverResult ? <PaginationControls page={driverResult} onPageChange={setDriverPage} /> : null}
+          </section>
+        ) : <p className="hint-text">{t('partners.emptyDrivers')}</p>
+      )}
     </section>
   );
 }
@@ -224,6 +258,8 @@ export function PartnersPage() {
 function GroupCard({
   company,
   drivers,
+  driverCount,
+  hideDrivers = false,
   companies,
   canCreate,
   canEdit,
@@ -232,6 +268,8 @@ function GroupCard({
 }: {
   company: Company | null;
   drivers: Driver[];
+  driverCount?: number;
+  hideDrivers?: boolean;
   companies: Company[];
   canCreate: boolean;
   canEdit: boolean;
@@ -285,7 +323,7 @@ function GroupCard({
           )}
         </div>
         <div className="group-card__header-actions">
-          <span className="driver-count">{t('partners.driverCount', { count: drivers.length })}</span>
+          <span className="driver-count">{t('partners.driverCount', { count: driverCount ?? drivers.length })}</span>
           {!isIndependent && canEdit ? (
             <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
               {isEditing ? t('management.cancel') : t('management.edit')}
@@ -329,7 +367,7 @@ function GroupCard({
         />
       ) : null}
 
-      <div className="group-card__drivers">
+      {!hideDrivers ? <div className="group-card__drivers">
         {drivers.length === 0 ? (
           <p className="hint-text">{t('partners.emptyDrivers')}</p>
         ) : (
@@ -344,7 +382,7 @@ function GroupCard({
             />
           ))
         )}
-      </div>
+      </div> : null}
 
       {canCreate ? (
         isAddingDriver ? (
@@ -367,7 +405,7 @@ function GroupCard({
       <ConfirmDialog
         open={!isIndependent && isConfirmingDeactivate}
         title={t('partners.confirmDeactivateTitle')}
-        description={t('partners.deactivateWarning', { company: title, count: drivers.length })}
+        description={t('partners.deactivateWarning', { company: title, count: driverCount ?? drivers.length })}
         confirmLabel={t('partners.confirmDeactivate')}
         busy={isDeactivating}
         onCancel={() => {
@@ -438,7 +476,7 @@ function DriverRow({
           {!driver.is_active ? ` · ${t('management.inactiveBadge')}` : ''}
         </strong>
         <span className="hint-text">
-          {[driver.license_classes, driver.phone || driver.email].filter(Boolean).join(' · ') ||
+          {[driver.company_name, driver.license_classes, driver.phone || driver.email].filter(Boolean).join(' · ') ||
             t('common.notAvailable')}
         </span>
         {deactivateError ? <span className="field-error">{deactivateError}</span> : null}
@@ -702,17 +740,27 @@ function DriverForm({
         </label>
       </div>
       {!lockCompany ? (
-        <label>
-          <span>{t('management.fields.company')}</span>
-          <select value={company} onChange={(event) => setCompany(event.target.value)}>
-            <option value="">{t('management.fields.noCompany')}</option>
-            {companies.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SearchableSelect
+          label={t('management.fields.company')}
+          value={company}
+          onChange={setCompany}
+          options={[
+            { value: '', label: t('management.fields.noCompany') },
+            ...companies.map((item) => ({ value: item.id, label: item.name })),
+            ...(initial?.company && !companies.some((item) => item.id === initial.company)
+              ? [{ value: initial.company, label: initial.company_name || initial.company }]
+              : []),
+          ]}
+          loadOptions={async (query, signal) => {
+            const result = await searchCompanies(query, signal);
+            return [
+              { value: '', label: t('management.fields.noCompany') },
+              ...result.results.map((item) => ({ value: item.id, label: item.name })),
+            ];
+          }}
+          emptyText={t('partners.emptyCompanies')}
+          loadingText={t('states.loading')}
+        />
       ) : null}
       <div className="form-grid form-grid--three">
         <label>

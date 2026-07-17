@@ -101,6 +101,18 @@ class UserHardeningTests(TestCase):
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_active)
 
+    def test_user_list_filters_are_server_paginated_for_admin_screens(self):
+        self.user.must_change_password = True
+        self.user.save(update_fields=["must_change_password"])
+
+        response = self.client_for(self.admin).get(
+            "/api/v1/users/?search=read&role=readonly&status=attention"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["username"], "reader")
+
     def test_user_update_queryset_locks_active_and_privilege_fields(self):
         view = UserViewSet()
         view.action = "partial_update"

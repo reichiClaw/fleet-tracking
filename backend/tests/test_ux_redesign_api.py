@@ -45,9 +45,9 @@ def tearDownModule():
     shutil.rmtree(MEDIA_ROOT, ignore_errors=True)
 
 
-def valid_png(name="evidence.png"):
+def valid_png(name="evidence.png", color=(30, 90, 160)):
     buffer = BytesIO()
-    PillowImage.new("RGB", (40, 24), color=(30, 90, 160)).save(buffer, "PNG")
+    PillowImage.new("RGB", (40, 24), color=color).save(buffer, "PNG")
     return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
 
 
@@ -100,6 +100,15 @@ class UXFoundationAPITests(TestCase):
         response = self.api_client(user).post(
             "/api/v1/media/",
             {"file": valid_png("signature.png"), "media_type": MediaType.SIGNATURE},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return response.data["id"]
+
+    def upload_photo(self, user=None):
+        response = self.api_client(user).post(
+            "/api/v1/media/",
+            {"file": valid_png("condition.png", color=(170, 80, 30)), "media_type": MediaType.PHOTO},
             format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
@@ -258,7 +267,7 @@ class UXFoundationAPITests(TestCase):
                 "expected_return_at": (start + timedelta(hours=10)).isoformat(),
                 "checkout_odometer_km": 101,
                 "checkout_operating_hours": "10.5",
-                "media_file_ids": [self.upload_signature()],
+                "media_file_ids": [self.upload_signature(), self.upload_photo()],
             },
             format="json",
         )
@@ -269,7 +278,7 @@ class UXFoundationAPITests(TestCase):
         self.assertEqual(checkout.data["borrower_name"], "Borrower Contact")
         pdf = MediaFile.objects.get(pk=checkout.data["checkout_pdf_media"])
         with default_storage.open(pdf.storage_key, "rb") as stored:
-            self.assertIn(b"/Subtype /Image", stored.read())
+            self.assertGreaterEqual(stored.read().count(b"/Subtype /Image"), 2)
 
     def test_checkout_blocks_current_reservation_without_conversion(self):
         vehicle = self.vehicle()

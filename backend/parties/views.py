@@ -3,7 +3,7 @@
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
@@ -19,7 +19,7 @@ from parties.serializers import CompanySerializer
 
 
 class CompanyViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
-    queryset = Company.objects.all().order_by("name")
+    queryset = Company.objects.annotate(driver_count=Count("drivers")).order_by("name")
     serializer_class = CompanySerializer
     permission_classes = [AuthenticatedReadAdminOperationsWriteNoDelete]
     http_method_names = ["get", "post", "put", "patch", "head", "options"]

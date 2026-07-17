@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 
 import {
   getSetupReadiness,
-  listDrivers,
   type SetupReadiness,
   type SetupReadinessItem,
 } from '../api/fleet';
@@ -35,11 +34,11 @@ export function SetupPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    Promise.all([getSetupReadiness(controller.signal), listDrivers()])
-      .then(([nextReadiness, drivers]) => {
+    getSetupReadiness(controller.signal)
+      .then((nextReadiness) => {
         if (!active) return;
         setReadiness(nextReadiness);
-        setDriverCount(drivers.length);
+        setDriverCount(nextReadiness.driver_count ?? 0);
       })
       .catch((loadError) => {
         if (active && !controller.signal.aborted) {

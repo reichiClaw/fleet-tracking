@@ -108,6 +108,9 @@ Nginx / reverse proxy
 - Role-aware navigation.
 - Global error handling.
 - API connectivity status.
+- Session-expiry recovery with the intended deep link preserved.
+- Route-level lazy loading and error recovery inside the mounted shell.
+- Polling task badge with cancellation on unmount and refresh on tab visibility.
 
 ### Dashboard
 
@@ -129,6 +132,8 @@ Nginx / reverse proxy
 - Loan return wizard.
 - Manufacturer check-out wizard.
 - Photo upload and signature capture steps.
+- Owner-scoped, versioned drafts with explicit resume/discard/conflict states.
+- Completion receipt with generated, missing, or failed protocol state.
 
 
 ### i18n
@@ -156,6 +161,22 @@ Nginx / reverse proxy
 - Generated PDFs should reflect immutable stored data, not current mutable form
   state.
 - Media records must belong to a vehicle, workflow, damage report, or document.
+- Staged media is locked before attachment or discard so concurrent completion
+  cannot delete evidence that has just been attached.
+- A write timeout is an ambiguous result: clients must reconcile state instead
+  of automatically repeating the write. Only safe reads receive a bounded
+  transient retry.
+
+## Collection and query strategy
+
+- Operational list endpoints are paginated and accept the filters used by their
+  corresponding screens.
+- Vehicle, loan, reservation, company, driver, and user selectors use dedicated
+  server-side typeahead or first-page search.
+- Small native-select reference data may be loaded across pages only with an
+  explicit record/page cap. Vehicle categories currently use a 200-record cap.
+- Dashboard task counts come from the task endpoint rather than loading domain
+  collections into the browser.
 
 ## Authentication choice
 
@@ -183,7 +204,12 @@ if the deployment requires separate domains or independent clients.
 - Store generated PDFs as media records.
 - Use a stable protocol number.
 - Treat generated PDFs as immutable.
-- Regenerate only through an explicit admin correction process.
+- Embed stored signature images and a size-bounded photo contact sheet after
+  validating storage content through the media service.
+- Record generation failures on the workflow record and expose a document
+  register. Authorized operators can retry one document; bulk retry is
+  administrator-only. A retry creates the missing immutable output and does not
+  repeat the workflow or alter its snapshot.
 
 ## Audit strategy
 

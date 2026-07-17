@@ -180,6 +180,7 @@ export type Company = {
   address?: string;
   notes?: string;
   is_active: boolean;
+  driver_count?: number;
 };
 
 export type Driver = {
@@ -188,6 +189,7 @@ export type Driver = {
   first_name: string;
   last_name: string;
   full_name?: string;
+  company_name?: string;
   phone?: string;
   email?: string;
   license_classes?: string;
@@ -487,6 +489,7 @@ export type SetupReadinessItem = {
 
 export type SetupReadiness = {
   ready: boolean;
+  driver_count: number;
   effective_role: UserRole;
   capabilities: { is_app_admin: boolean };
   admin_security: {
@@ -515,6 +518,7 @@ export type MergePreview = {
 export type AuditLogEntry = {
   id: string;
   actor: string | null;
+  actor_label?: string;
   action: string;
   entity_type: string;
   entity_id?: string | null;
@@ -671,8 +675,23 @@ export async function getCurrentUser() {
   return apiClient.get<CurrentUser>('/auth/me/');
 }
 
-export async function listUsers() {
-  return fetchAllPages<ManagedUser>('/users/');
+export type UserFilters = {
+  search?: string;
+  role?: UserRole | '';
+  active?: boolean;
+  status?: 'must_change' | 'unused' | 'attention' | '';
+};
+
+export async function listUserPage(
+  filters: UserFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<ManagedUser>> {
+  const response = await apiClient.get<ManagedUser[] | PaginatedResponse<ManagedUser>>(
+    pathWithQuery('/users/', { ...filters, page: page > 1 ? page : undefined }),
+    { signal },
+  );
+  return normalizePage(response, page);
 }
 
 export async function createUser(payload: CreateUserPayload) {
@@ -773,10 +792,6 @@ export async function listVehiclePage(
   return normalizePage(response, page);
 }
 
-export async function listVehicles(filters: VehicleFilters = {}) {
-  return fetchAllPages<Vehicle>(pathWithQuery('/vehicles/', filters));
-}
-
 export async function getVehicle(id: string, signal?: AbortSignal) {
   return apiClient.get<Vehicle>(`/vehicles/${id}/`, { signal });
 }
@@ -871,7 +886,9 @@ export async function getVehicleHistory(id: string, signal?: AbortSignal) {
 }
 
 export async function listVehicleCategories() {
-  return fetchAllPages<VehicleCategory>('/vehicle-categories/');
+  // Categories are bounded reference data used in native selectors. Fail
+  // visibly if an installation exceeds the supported selector size.
+  return fetchAllPages<VehicleCategory>('/vehicle-categories/', { maxPages: 4, maxRecords: 200 });
 }
 
 export async function getVehicleCategory(id: string, signal?: AbortSignal) {
@@ -894,8 +911,22 @@ export async function reactivateVehicleCategory(id: string) {
   return apiClient.post<VehicleCategory>(`/vehicle-categories/${id}/reactivate/`);
 }
 
-export async function listCompanies() {
-  return fetchAllPages<Company>('/companies/');
+export type CompanyFilters = {
+  search?: string;
+  active?: boolean;
+  company_type?: CompanyType | '';
+};
+
+export async function listCompanyPage(
+  filters: CompanyFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<Company>> {
+  const response = await apiClient.get<Company[] | PaginatedResponse<Company>>(
+    pathWithQuery('/companies/', { ...filters, page: page > 1 ? page : undefined }),
+    { signal },
+  );
+  return normalizePage(response, page);
 }
 
 export async function getCompany(id: string, signal?: AbortSignal) {
@@ -929,8 +960,23 @@ export async function mergeCompany(id: string, targetId: string, confirmationTok
   });
 }
 
-export async function listDrivers() {
-  return fetchAllPages<Driver>('/drivers/');
+export type DriverFilters = {
+  search?: string;
+  active?: boolean;
+  company?: string;
+  company_type?: CompanyType | '';
+};
+
+export async function listDriverPage(
+  filters: DriverFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<Driver>> {
+  const response = await apiClient.get<Driver[] | PaginatedResponse<Driver>>(
+    pathWithQuery('/drivers/', { ...filters, page: page > 1 ? page : undefined }),
+    { signal },
+  );
+  return normalizePage(response, page);
 }
 
 export async function getDriver(id: string, signal?: AbortSignal) {
@@ -964,10 +1010,6 @@ export async function mergeDriver(id: string, targetId: string, confirmationToke
   });
 }
 
-export async function listLoans() {
-  return fetchAllPages<Loan>('/loans/');
-}
-
 export async function getLoan(id: string, signal?: AbortSignal) {
   return apiClient.get<Loan>(`/loans/${id}/`, { signal });
 }
@@ -984,10 +1026,6 @@ export async function listReservationPage(
     { signal },
   );
   return normalizePage(response, page);
-}
-
-export async function listReservations(filters: ReservationFilters = {}) {
-  return fetchAllPages<Reservation>(pathWithQuery('/reservations/', filters));
 }
 
 export async function createReservation(payload: Record<string, unknown>) {
@@ -1157,6 +1195,7 @@ export async function listDocumentPage(filters: DocumentFilters = {}, page = 1):
 export type DocumentRegisterFilters = {
   status?: DocumentRegisterStatus | 'attention' | '';
   type?: string;
+  record?: string;
   language?: string;
   search?: string;
   plate?: string;
@@ -1180,10 +1219,6 @@ export async function retryDocuments(items: Array<{
   language: string;
 }>) {
   return apiClient.post<{ count: number; results: GeneratedDocument[] }>('/documents/retry/', { items });
-}
-
-export async function listDocuments(filters: DocumentFilters = {}) {
-  return fetchAllPages<GeneratedDocument>(pathWithQuery('/documents/', filters));
 }
 
 export async function uploadVehicleImport(file: File) {

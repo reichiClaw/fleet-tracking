@@ -9,7 +9,7 @@ import {
   listDocumentRegisterPage,
   listDriverDuplicates,
   listImportPage,
-  listUsers,
+  listUserPage,
   type SetupReadiness,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
@@ -73,7 +73,7 @@ export function AdminInbox({ compact = false }: { compact?: boolean }) {
       listDriverDuplicates(),
       listDocumentRegisterPage({ status: 'failed' }, 1),
       listDocumentRegisterPage({ status: 'missing' }, 1),
-      listUsers(),
+      listUserPage({ status: 'attention' }, 1),
     ])
       .then(([imports, tasks, companies, drivers, failed, missing, users]) => {
         if (!active) return;
@@ -82,7 +82,7 @@ export function AdminInbox({ compact = false }: { compact?: boolean }) {
           announced: tasks.groups?.arrivals_awaiting_check_in?.count ?? 0,
           duplicates: companies.length + drivers.length,
           documents: failed.count + missing.count,
-          accounts: users.filter((user) => !user.is_active || (user.is_active && !user.last_login)).length,
+          accounts: users.count,
         });
         setError(null);
       })

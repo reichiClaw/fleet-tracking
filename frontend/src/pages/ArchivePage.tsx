@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import {
   displayVehicleName,
   listVehicleCategories,
-  listVehicles,
+  listVehiclePage,
   type Vehicle,
   type VehicleCategory,
   type PageResult,
@@ -21,6 +21,7 @@ import { PaginationControls } from '../components/PaginationControls';
 export function ArchivePage() {
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [category, setCategory] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -33,13 +34,18 @@ export function ArchivePage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function load() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextCategories] = await Promise.all([listVehicles(), listVehicleCategories()]);
+        const [nextVehicles, nextCategories] = await Promise.all([
+          listVehiclePage({ status: tab, category, search }, page, controller.signal),
+          listVehicleCategories(),
+        ]);
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextVehicles.results);
+          setVehiclePage(nextVehicles);
           setCategories(nextCategories);
         }
       } catch (loadError) {
@@ -55,53 +61,15 @@ export function ArchivePage() {
     load();
     return () => {
       isMounted = false;
+      controller.abort();
     };
-  }, [reloadToken, t]);
+  }, [category, page, reloadToken, search, t, tab]);
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
     categories.forEach((item) => map.set(item.id, item.name));
     return map;
   }, [categories]);
-
-  const archivedVehicles = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return vehicles
-      .filter((vehicle) => vehicle.status === tab)
-      .filter((vehicle) => {
-        if (category) {
-          const categoryId = typeof vehicle.category === 'string' ? vehicle.category : vehicle.category?.id;
-          if (categoryId !== category) {
-            return false;
-          }
-        }
-        if (!query) {
-          return true;
-        }
-        return [
-          vehicle.internal_number,
-          vehicle.manufacturer,
-          vehicle.model,
-          vehicle.license_plate,
-          vehicle.serial_number,
-          vehicle.current_location,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(query);
-      });
-  }, [vehicles, category, search, tab]);
-  const pageSize = 50;
-  const visibleVehicles = archivedVehicles.slice((page - 1) * pageSize, page * pageSize);
-  const archivePage: PageResult<Vehicle> = {
-    count: archivedVehicles.length,
-    page,
-    pageSize,
-    results: visibleVehicles,
-    previous: page > 1 ? 'previous' : null,
-    next: page * pageSize < archivedVehicles.length ? 'next' : null,
-  };
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +119,7 @@ export function ArchivePage() {
       {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
       {!isLoading && !error ? <div className="vehicle-grid">
-        {visibleVehicles.map((vehicle) => {
+        {vehicles.map((vehicle) => {
           const categoryName =
             typeof vehicle.category === 'string'
               ? categoryNameById.get(vehicle.category)
@@ -187,11 +155,11 @@ export function ArchivePage() {
         })}
       </div> : null}
 
-      {!isLoading && !error && !archivedVehicles.length ? (
+      {!isLoading && !error && !vehicles.length ? (
         <EmptyState title={t(`archive.empty.${tab}.title`)} description={t(`archive.empty.${tab}.body`)} />
       ) : null}
-      {!isLoading && !error && archivedVehicles.length ? (
-        <PaginationControls page={archivePage} onPageChange={setPage} />
+      {!isLoading && !error && vehiclePage && vehiclePage.count > 0 ? (
+        <PaginationControls page={vehiclePage} onPageChange={setPage} />
       ) : null}
     </section>
   );

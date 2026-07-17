@@ -8,6 +8,8 @@ from parties.models import Company
 
 
 class CompanySerializer(serializers.ModelSerializer):
+    driver_count = serializers.IntegerField(read_only=True, default=0)
+
     def validate_is_active(self, value):
         request = self.context.get("request")
         actor_is_admin = bool(request and is_admin(request.user))
@@ -30,6 +32,7 @@ class CompanySerializer(serializers.ModelSerializer):
             "address",
             "notes",
             "is_active",
+            "driver_count",
             "created_at",
             "updated_at",
         ]

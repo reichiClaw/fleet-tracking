@@ -9,6 +9,9 @@ export const AUTH_EXPIRED_EVENT = 'fleet:auth-expired';
 export const AUTH_CONTINUATION_KEY = 'fleet-auth-continuation';
 export const API_CONNECTIVITY_EVENT = 'fleet:api-connectivity';
 const DEFAULT_GET_TIMEOUT_MS = 15_000;
+const DEFAULT_WRITE_TIMEOUT_MS = 60_000;
+const SAFE_GET_RETRY_DELAY_MS = 250;
+const RETRYABLE_GET_STATUSES = new Set([502, 503, 504]);
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
 
@@ -178,40 +181,69 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const csrfToken = isUnsafeMethod(requestInit.method) ? getCookie(CSRF_COOKIE_NAME) : undefined;
 
   const method = (requestInit.method ?? 'GET').toUpperCase();
-  const timeoutController = method === 'GET' ? new AbortController() : null;
-  const effectiveTimeout = timeoutMs ?? DEFAULT_GET_TIMEOUT_MS;
+  const timeoutController = new AbortController();
+  const effectiveTimeout = timeoutMs ?? (method === 'GET' ? DEFAULT_GET_TIMEOUT_MS : DEFAULT_WRITE_TIMEOUT_MS);
+  let didTimeout = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let removeAbortListener: (() => void) | undefined;
-  if (timeoutController) {
-    if (effectiveTimeout > 0) {
-      timeout = setTimeout(() => timeoutController.abort('timeout'), effectiveTimeout);
-    }
-    if (suppliedSignal) {
-      const forwardAbort = () => timeoutController.abort(suppliedSignal.reason);
-      if (suppliedSignal.aborted) forwardAbort();
-      else suppliedSignal.addEventListener('abort', forwardAbort, { once: true });
-      removeAbortListener = () => suppliedSignal.removeEventListener('abort', forwardAbort);
-    }
+  if (effectiveTimeout > 0) {
+    timeout = setTimeout(() => {
+      didTimeout = true;
+      timeoutController.abort();
+    }, effectiveTimeout);
+  }
+  if (suppliedSignal) {
+    const forwardAbort = () => timeoutController.abort(suppliedSignal.reason);
+    if (suppliedSignal.aborted) forwardAbort();
+    else suppliedSignal.addEventListener('abort', forwardAbort, { once: true });
+    removeAbortListener = () => suppliedSignal.removeEventListener('abort', forwardAbort);
   }
 
-  let response: Response;
+  let response: Response | undefined;
+  const attempts = method === 'GET' ? 2 : 1;
   try {
-    response = await fetch(buildApiUrl(path), {
-      credentials: 'include',
-      ...requestInit,
-      signal: timeoutController?.signal ?? suppliedSignal,
-      headers: {
-        Accept: 'application/json',
-        ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
-        ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
-        ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
-      },
-      body: body && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
-    });
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        response = await fetch(buildApiUrl(path), {
+          credentials: 'include',
+          ...requestInit,
+          signal: timeoutController.signal,
+          headers: {
+            Accept: 'application/json',
+            ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
+            ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+            ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
+            ...headers,
+          },
+          body: body && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
+        });
+      } catch (error) {
+        if (
+          attempt < attempts
+          && !timeoutController.signal.aborted
+          && error instanceof TypeError
+        ) {
+          await retryDelay(timeoutController.signal);
+          continue;
+        }
+        throw error;
+      }
+      if (
+        attempt < attempts
+        && RETRYABLE_GET_STATUSES.has(response.status)
+        && !timeoutController.signal.aborted
+      ) {
+        await retryDelay(timeoutController.signal);
+        continue;
+      }
+      break;
+    }
     notifyConnectivity(true);
   } catch (error) {
-    if (!(error instanceof DOMException && error.name === 'AbortError') && !suppliedSignal?.aborted) {
+    if (didTimeout) {
+      throw new ApiError(408, 'Request timed out.', undefined, 'request_timeout');
+    }
+    if (!timeoutController.signal.aborted && !suppliedSignal?.aborted) {
       notifyConnectivity(false);
     }
     throw error;
@@ -220,6 +252,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     removeAbortListener?.();
   }
 
+  if (!response) {
+    throw new ApiError(0, 'Request did not return a response.', undefined, 'no_response');
+  }
   if (!response.ok) {
     const error = await apiErrorFromResponse(response);
     // DRF's session authenticator returns 403 (rather than 401) when no
@@ -236,6 +271,24 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return response.json() as Promise<T>;
+}
+
+function retryDelay(signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Request cancelled.', 'AbortError'));
+      return;
+    }
+    const handleAbort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException('Request cancelled.', 'AbortError'));
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', handleAbort);
+      resolve();
+    }, SAFE_GET_RETRY_DELAY_MS);
+    signal.addEventListener('abort', handleAbort, { once: true });
+  });
 }
 
 function notifyConnectivity(online: boolean) {

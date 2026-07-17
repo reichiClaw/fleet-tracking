@@ -30,6 +30,7 @@ import {
   type SignatureInputHandle,
 } from '../components/MediaUploadField';
 import { PageHeader } from '../components/PageHeader';
+import { ProtocolReceipt } from '../components/ProtocolReceipt';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
 import {
   CurrentConditionPanel,
@@ -51,6 +52,8 @@ type WorkflowResult = {
   title: string;
   detail: string;
   vehicleId: string;
+  recordId: string;
+  documentType: string;
   receiptId?: string | null;
   pdfError?: string;
 };
@@ -409,6 +412,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           title: t('workflowRedesign.completed.checkIn'),
           detail: vehicleState.context?.vehicle.internal_number || vehicleId,
           vehicleId,
+          recordId: protocol.id,
+          documentType: 'check_in_protocol_pdf',
           receiptId: protocol.pdf_media,
           pdfError: protocol.pdf_generation_error,
         };
@@ -426,6 +431,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           title: t('workflowRedesign.completed.loanReturn'),
           detail: t('returnWorkflow.result', { status: t('status.returned') }),
           vehicleId: returnContext!.vehicle.id,
+          recordId: loan.id,
+          documentType: 'loan_return_pdf',
           receiptId: loan.return_pdf_media,
           pdfError: loan.return_pdf_generation_error,
         };
@@ -444,6 +451,8 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
           title: t('workflowRedesign.completed.manufacturerReturn'),
           detail: vehicleState.context?.vehicle.internal_number || vehicleId,
           vehicleId,
+          recordId: protocol.id,
+          documentType: 'manufacturer_checkout_protocol_pdf',
           receiptId: protocol.pdf_media,
           pdfError: protocol.pdf_generation_error,
         };
@@ -482,11 +491,13 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         <article className="content-card success-card" role="status" aria-live="polite">
           <h3 tabIndex={-1} autoFocus>{result.title}</h3>
           <p>{result.detail}</p>
-          {result.pdfError ? <p className="field-error">{t('pdf.automaticError', { error: result.pdfError })}</p> : null}
+          <ProtocolReceipt
+            mediaId={result.receiptId}
+            error={result.pdfError}
+            documentType={result.documentType}
+            recordId={result.recordId}
+          />
           <div className="action-row">
-            {result.receiptId ? (
-              <a className="button-link" href={mediaDownloadUrl({ id: result.receiptId })}>{t('workflowRedesign.openReceipt')}</a>
-            ) : null}
             <Link className="button-link secondary-button" to={`/app/vehicles/${result.vehicleId}`}>
               {t('workflowRedesign.openHistory')}
             </Link>
