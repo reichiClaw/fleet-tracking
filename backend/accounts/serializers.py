@@ -54,6 +54,11 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(list(exc.messages), code="invalid_password") from exc
         return value
 
+    def validate_is_active(self, value):
+        if self.instance and self.instance.is_active and not value:
+            raise serializers.ValidationError(_("Use the dedicated deactivate action."))
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop("password", None)
         user = User(**validated_data)

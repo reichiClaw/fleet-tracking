@@ -19,7 +19,7 @@ from rest_framework import serializers
 
 from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile, MediaType
-from mediafiles.services import create_media_file_from_bytes
+from mediafiles.services import cleanup_storage_file, create_media_file_from_bytes
 from vehicles.models import VehicleStatus
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
 
@@ -259,7 +259,13 @@ def _generate_document(
         language=language_code,
         request_meta=request_meta,
     )
-    _link_record_if_empty(record=record, media=media, language=language_code, link_fields=link_fields)
+    try:
+        _link_record_if_empty(record=record, media=media, language=language_code, link_fields=link_fields)
+    except Exception:
+        # Database rollback cannot undo a write to filesystem/SFTP/S3 storage.
+        # Remove the object before letting the atomic block roll back its row.
+        cleanup_storage_file(media.storage_key)
+        raise
     return media
 
 

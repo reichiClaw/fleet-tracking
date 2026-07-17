@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -41,6 +42,14 @@ function installFetchMock() {
   return fetchMock;
 }
 
+function renderPage() {
+  const router = createMemoryRouter(
+    [{ path: '*', element: <CategoryManagementPage /> }],
+    { initialEntries: ['/app/settings/categories'] },
+  );
+  return render(<RouterProvider router={router} />);
+}
+
 describe('CategoryManagementPage', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -52,7 +61,7 @@ describe('CategoryManagementPage', () => {
   });
 
   it('creates and edits categories through the category API', async () => {
-    render(<CategoryManagementPage />);
+    renderPage();
     await screen.findByRole('heading', { name: 'Lift' });
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Crane' } });
@@ -67,7 +76,7 @@ describe('CategoryManagementPage', () => {
   });
 
   it('confirms category deactivation and announces success', async () => {
-    render(<CategoryManagementPage />);
+    renderPage();
     const card = (await screen.findByRole('heading', { name: 'Lift' })).closest('article') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Deaktivieren' }));
     const dialog = await screen.findByRole('dialog');

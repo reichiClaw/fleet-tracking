@@ -24,6 +24,10 @@ The production override removes Nginx's host port, requires secrets with Compose
 override without the TLS overlay leaves the app unreachable rather than falling
 back to cleartext.
 
+The application and database networks are internal. Django and the one-shot
+release container additionally join an unexposed egress-only bridge so SMTP and
+configured SFTP/S3 storage remain reachable without publishing either service.
+
 ## Host preparation
 
 Recommended minimum: Ubuntu LTS, Docker Compose v2.24.4 or newer (required for
@@ -74,10 +78,12 @@ make prod-config
 
 `prod-check` rejects missing/sample secrets, weak file permissions, wildcard
 hosts, a non-HTTPS public URL, an inconsistent database URL, missing TLS
-settings, and unconfigured backup encryption. `.env.production` must be a
-regular file owned by the deployment user or root with no group/other access.
-Keep values compatible with both shell assignment and Compose dotenv syntax;
-quote values containing spaces or shell metacharacters.
+settings, invalid resource-limit values, unconfigured backup encryption, and
+incomplete remote-media backup/restore settings.
+`.env.production` must be a regular file owned by the deployment user or root
+with no group/other access. Keep values compatible with both shell assignment
+and Compose dotenv syntax; quote values containing spaces or shell
+metacharacters.
 
 At minimum, set:
 
@@ -87,6 +93,17 @@ At minimum, set:
 - `PUBLIC_BASE_URL=https://<TLS_DOMAIN>`.
 - SMTP values if password-reset or notification email is used.
 - An `age` or GPG backup recipient as described below.
+
+For SFTP media, create a pinned OpenSSH `known_hosts` file with the expected NAS
+host key and set `SFTP_KNOWN_HOSTS_PATH` to its absolute host path. Production
+Compose mounts that file read-only into the backend and release containers. The
+backend uses a rejecting host-key policy; unknown or changed keys fail the
+connection rather than being accepted automatically. The production Compose
+topology requires `SFTP_PASSWORD`; a host `SFTP_KEY_PATH` is deliberately
+rejected because the read-only, non-root backend container cannot safely read an
+arbitrary host private-key file. Direct/development backend deployments may
+still configure key authentication. `prod-check` also requires the SFTP
+host/user/authentication values and both remote-media backup hooks.
 
 There is no bootstrap administrator password in either template or Compose.
 Create the first administrator interactively after deployment:
@@ -144,6 +161,8 @@ The forwarding-header trust boundary is explicit:
    ("HTTP_X_FORWARDED_PROTO", "https")` is therefore safe for this topology.
    Production Compose enables `TRUST_X_FORWARDED_FOR=True` only because both
    proxy hops sanitize the value; leave it false for unsanitized direct traffic.
+   `SECURE_SSL_REDIRECT=True` remains enabled, and the internal readiness probe
+   supplies the same trusted HTTPS marker so it is not redirected.
 
 If a CDN/load balancer is placed before Caddy, do not simply start trusting all
 private ranges. Firewall Caddy so only the upstream can reach it, configure
@@ -174,14 +193,23 @@ Services receive explicit environment variables; no service imports the whole
 environment file. Networks are separated:
 
 - `edge`: Caddy and Nginx.
-- `app` (internal): Nginx, frontend, backend.
-- `db` (internal): backend and PostgreSQL only.
+- `app` (internal): Nginx, frontend, backend, and the one-shot release job.
+- `db` (internal): backend, release job, and PostgreSQL only.
+- `egress`: backend and the one-shot release job; outbound connectivity only,
+  with no published service ports.
 
 Containers use read-only root filesystems where feasible, dropped capabilities,
 `no-new-privileges`, bounded PID/memory/CPU settings, tmpfs runtime paths, and
 rotated `json-file` logs. Named volumes are the only persistent writable paths.
 Resource limits are safety ceilings, not capacity planning; tune them after
-observing production load.
+observing production load. `MAX_UPLOAD_SIZE_MB` may be lowered but cannot exceed
+25 in the supported topology because Caddy and Nginx enforce a fixed 30 MB
+decimal request-body ceiling. Keep `GUNICORN_WORKERS` at four or fewer with the
+shipped 1 GB memory and 128 MB upload-spool tmpfs limits.
+
+Staged photo/signature quotas are serialized per uploader. When that uploader
+next uploads a file, unattached files older than `STAGED_MEDIA_TTL_HOURS` are
+expired from metadata and storage before the quota is evaluated.
 
 ## Encrypted backups
 
@@ -243,18 +271,23 @@ For SFTP/S3 media, `BACKUP_REMOTE_MEDIA_HOOK` must create the requested
 `media.tar.gz` while the app is quiesced. Prefer storage-native immutable
 versions/snapshots and make the hook export the matching generation.
 
-Install daily backup and monitoring timers:
+Install backup, monitoring, and staged-media cleanup timers:
 
 ```bash
 sudo cp deploy/systemd/fleet-tracking-{backup,monitor}.{service,timer} \
   /etc/systemd/system/
+sudo cp deploy/systemd/fleet-tracking-media-cleanup.{service,timer} \
+  /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now fleet-tracking-backup.timer \
-  fleet-tracking-monitor.timer
+  fleet-tracking-monitor.timer fleet-tracking-media-cleanup.timer
 systemctl list-timers 'fleet-tracking-*'
 ```
 
-Adjust paths/users in the units if the deployment differs.
+Adjust paths/users in the units if the deployment differs. The hourly cleanup
+runs `cleanup_staged_media`, which removes unattached photos/signatures older
+than `STAGED_MEDIA_TTL_HOURS` from both metadata and configured storage. New
+uploads also opportunistically expire stale files owned by the same uploader.
 
 ## Validated restore and rollback
 
@@ -279,7 +312,7 @@ Before touching active data, the script:
 Only then does cutover stop the app, preserve the active database under a
 timestamped rollback name, copy active volumes into timestamped rollback
 volumes, and switch in the staged data. The backend must return healthy
-(database readiness plus a local-media write probe) or the script automatically
+(database plus configured-media connectivity) or the script automatically
 switches back. A successful restore writes an owner-only
 `restore-rollback-<id>.json`.
 
@@ -327,11 +360,11 @@ an alert by itself. Also monitor VM availability, memory pressure, Docker daemon
 health, database growth, media growth, HTTP 5xx/latency, failed logins, and PBS
 jobs.
 
-`/api/health/` is liveness. `/api/health/ready/` checks the database. The
-Compose backend healthcheck calls readiness and creates/deletes a temporary file
-in local media, so Nginx/Caddy do not become healthy with an unavailable local
-media volume. The application endpoint does not yet probe SFTP/S3; see
-"Remaining application changes".
+`/api/health/` is liveness. `/api/health/ready/` checks the database and performs
+a harmless metadata lookup through the configured local, SFTP, or S3 media
+backend. It returns separate `database`/`media` fields and HTTP 503 when either
+operation fails. The Compose backend healthcheck calls this endpoint before
+Nginx/Caddy can become healthy.
 
 Compose rotates each container's local JSON logs at 10 MB, retaining five
 files. Forward stdout/stderr and host journal logs to a separate log system
@@ -420,11 +453,10 @@ These were intentionally not changed in this deployment-only hardening pass:
    empty/non-HTTPS CSRF origins, insecure session/CSRF cookies, non-HTTPS
    `PUBLIC_BASE_URL`, and zero HSTS. Compose and `prod-check` enforce these
    today, but direct process launches can bypass them.
-2. `/api/health/ready/` should probe the configured media backend. For local
-   storage it should perform a bounded write/read/delete; for SFTP/S3 it should
-   use a low-cost provider operation with a strict timeout. Return separate
-   database/media fields and 503 on either failure. The current endpoint checks
-   only PostgreSQL; Compose adds only a local-volume probe.
+2. `/api/health/ready/` intentionally uses a low-cost metadata request. It proves
+   backend reachability but not write/delete permission. Deployment acceptance
+   must still upload and download a disposable photo against the real storage
+   backend; adding an infrequent bounded write probe is future operational work.
 3. `backend/Dockerfile` still contains migrate/collectstatic in its image
    default command. Compose overrides it, but direct `docker run` does not.
    Replace the image CMD with Gunicorn only and expose a separate release

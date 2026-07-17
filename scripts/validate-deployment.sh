@@ -43,6 +43,16 @@ backend_command = Path("docker-compose.yml").read_text().split("  backend:", 1)[
 )[0]
 if "manage.py migrate" in backend_command:
     raise SystemExit("backend runtime command must not run migrations")
+if "X-Forwarded-Proto':'https'" not in backend_command:
+    raise SystemExit("backend readiness probe must identify the trusted HTTPS proxy")
+
+production_compose = Path("docker-compose.prod.yml").read_text()
+if 'SECURE_SSL_REDIRECT: "True"' not in production_compose:
+    raise SystemExit("production must enable Django HTTPS redirects")
+
+caddyfile = Path("deploy/caddy/Caddyfile").read_text()
+if "camera=(self)" not in caddyfile:
+    raise SystemExit("production Permissions-Policy must allow the same-origin QR scanner")
 
 settings = Path("backend/config/settings.py").read_text()
 configured = set(
@@ -71,6 +81,35 @@ DEFAULT_FROM_EMAIL=fleet@example.test
 EOF
 chmod 600 "$work_dir/production.env"
 ENV_FILE="$work_dir/production.env" ./scripts/check-production-env.sh >/dev/null
+
+cp "$work_dir/production.env" "$work_dir/invalid-limits.env"
+printf '\nMAX_UPLOAD_SIZE_MB=0\n' >>"$work_dir/invalid-limits.env"
+chmod 600 "$work_dir/invalid-limits.env"
+if ENV_FILE="$work_dir/invalid-limits.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted an invalid resource limit." >&2
+  exit 1
+fi
+
+cp "$work_dir/production.env" "$work_dir/oversized-upload.env"
+printf '\nMAX_UPLOAD_SIZE_MB=26\n' >>"$work_dir/oversized-upload.env"
+chmod 600 "$work_dir/oversized-upload.env"
+if ENV_FILE="$work_dir/oversized-upload.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted an upload larger than the edge limit." >&2
+  exit 1
+fi
+
+cp "$work_dir/production.env" "$work_dir/insecure-sftp.env"
+cat >>"$work_dir/insecure-sftp.env" <<'EOF'
+MEDIA_STORAGE_BACKEND=sftp
+SFTP_HOST=nas.example.test
+SFTP_USER=fleet
+SFTP_PASSWORD=test-only-password
+EOF
+chmod 600 "$work_dir/insecure-sftp.env"
+if ENV_FILE="$work_dir/insecure-sftp.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted SFTP without pinned host keys." >&2
+  exit 1
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is unavailable; Compose/Caddy/Nginx runtime validation skipped."
@@ -111,6 +150,11 @@ if services["db"]["networks"].keys() != {"db"}:
     raise SystemExit("database must attach only to the db network")
 if set(services["caddy"]["networks"]) != {"edge"}:
     raise SystemExit("Caddy must attach only to the edge network")
+for name in ("backend", "release"):
+    if set(services[name]["networks"]) != {"app", "db", "egress"}:
+        raise SystemExit(f"{name} must use isolated app/db networks plus outbound egress")
+if config["networks"]["egress"].get("internal"):
+    raise SystemExit("backend egress network must permit outbound connectivity")
 PY
 
 docker run --rm \

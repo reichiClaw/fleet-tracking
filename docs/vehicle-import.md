@@ -17,14 +17,14 @@ The first worksheet must contain a header row. Supported columns are:
 
 | Column | Required | Behavior |
 |---|---:|---|
-| `internal_number` | Yes | Unique fleet number; used as the create/update key. |
-| `category` | Yes | Must match an active vehicle category by name. |
+| `internal_number` | No | Unique fleet number and update key when present; generated for a new row when blank. |
+| `category` | No | Active category name; unknown, inactive, or blank values use the `Sonstiges` fallback. |
 | `manufacturer` | Yes | Stored on the vehicle. |
 | `model` | Yes | Stored on the vehicle. |
 | `serial_number` | No | Must be unique when present. Blank clears the field on update. |
 | `license_plate` | No | Must be unique when present. Blank clears the field on update. |
-| `current_odometer_km` | No | Non-negative integer. Must not decrease for existing vehicles. |
-| `current_operating_hours` | No | Non-negative decimal. Must not decrease for existing vehicles. |
+| `current_odometer_km` | No | Non-negative integer applied when a vehicle is created. Existing readings are not overwritten by imports. |
+| `current_operating_hours` | No | Non-negative decimal applied when a vehicle is created. Existing readings are not overwritten by imports. |
 | `current_location` | No | Stored on the vehicle. Blank clears the field on update. |
 | `supplier` | No | Captured in import results for audit; no vehicle field exists yet. |
 | `notes` | No | Stored on the vehicle. Blank clears the field on update. |
@@ -36,5 +36,7 @@ The first worksheet must contain a header row. Supported columns are:
 - If any row has an error, the job status is `failed` and commit is blocked.
 - New vehicles are created with status `announced`.
 - Existing vehicles are matched by `internal_number` and updated in place.
+- Existing odometer and operating-hour readings remain workflow-owned and are
+  deliberately not changed by a delayed import commit.
 - Import validation and commit actions are recorded in the audit log.
 

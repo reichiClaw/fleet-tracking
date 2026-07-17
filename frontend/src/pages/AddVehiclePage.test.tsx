@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -45,6 +45,14 @@ function installFetchMock() {
   vi.stubGlobal('fetch', fetchMock);
 }
 
+function renderPage() {
+  const router = createMemoryRouter(
+    [{ path: '*', element: <AddVehiclePage /> }],
+    { initialEntries: ['/app/vehicles/new'] },
+  );
+  return render(<RouterProvider router={router} />);
+}
+
 describe('AddVehiclePage', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -61,11 +69,7 @@ describe('AddVehiclePage', () => {
   });
 
   it('creates a new vehicle with master-data fields and adds it to the pool', async () => {
-    render(
-      <MemoryRouter>
-        <AddVehiclePage />
-      </MemoryRouter>,
-    );
+    renderPage();
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Kategorie'), { target: { value: 'cat-1' } });
@@ -89,11 +93,7 @@ describe('AddVehiclePage', () => {
       { id: 'cat-1', name: 'Steiger', is_active: true },
       { id: 'cat-2', name: 'Stapler', is_active: true },
     ];
-    render(
-      <MemoryRouter>
-        <AddVehiclePage />
-      </MemoryRouter>,
-    );
+    renderPage();
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug hinzufügen' }));
@@ -106,11 +106,7 @@ describe('AddVehiclePage', () => {
   });
 
   it('blocks adding a damaged vehicle without a damage photo', async () => {
-    render(
-      <MemoryRouter>
-        <AddVehiclePage />
-      </MemoryRouter>,
-    );
+    renderPage();
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Hersteller'), { target: { value: 'Acme' } });
@@ -124,11 +120,7 @@ describe('AddVehiclePage', () => {
   });
 
   it('creates a damaged vehicle and its staged damage photo atomically', async () => {
-    render(
-      <MemoryRouter>
-        <AddVehiclePage />
-      </MemoryRouter>,
-    );
+    renderPage();
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Hersteller'), { target: { value: 'Acme' } });
@@ -153,11 +145,7 @@ describe('AddVehiclePage', () => {
   });
 
   it('autofills the category when only one is available', async () => {
-    render(
-      <MemoryRouter>
-        <AddVehiclePage />
-      </MemoryRouter>,
-    );
+    renderPage();
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     expect((screen.getByLabelText('Kategorie') as HTMLSelectElement).value).toBe('cat-1');

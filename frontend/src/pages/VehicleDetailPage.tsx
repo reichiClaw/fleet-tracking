@@ -144,7 +144,7 @@ export function VehicleDetailPage() {
 
   async function handleCreateReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!vehicleId) {
+    if (!vehicleId || isReserving) {
       return;
     }
     setReservationError(null);
@@ -182,6 +182,7 @@ export function VehicleDetailPage() {
   }
 
   async function handleQuickAddDriver() {
+    if (isSavingDriver) return;
     if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
       setQuickDriverError(t('management.validation.driverNameRequired'));
       return;
@@ -209,6 +210,7 @@ export function VehicleDetailPage() {
   }
 
   async function handleCancelReservation(id: string) {
+    if (pendingReservationId) return;
     setReservationError(null);
     setPendingReservationId(id);
     try {
@@ -224,7 +226,7 @@ export function VehicleDetailPage() {
   }
 
   async function handleArchive() {
-    if (!vehicleId) return;
+    if (!vehicleId || isArchiving) return;
     setIsArchiving(true);
     setError(null);
     try {
@@ -241,7 +243,7 @@ export function VehicleDetailPage() {
 
   async function handleSaveReturnDue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!vehicleId) {
+    if (!vehicleId || isSavingReturn) {
       return;
     }
     setReturnError(null);
@@ -743,6 +745,7 @@ function VehicleEditForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
     if (!manufacturer.trim() || !model.trim()) {
       setError(t('vehicles.detail.editValidation'));
       return;

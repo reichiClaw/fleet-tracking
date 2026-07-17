@@ -1,0 +1,11 @@
+[Unit]
+Description=Clean expired Fleet Tracking staged media hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=10m
+Unit=fleet-tracking-media-cleanup.service
+
+[Install]
+WantedBy=timers.target

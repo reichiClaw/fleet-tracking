@@ -169,6 +169,7 @@ export function AddVehiclePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setCreated(null);
     if (!validate()) {

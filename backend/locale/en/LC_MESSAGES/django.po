@@ -25,6 +25,18 @@ msgstr "This privilege flag cannot be changed through the application API."
 msgid "Use the password update endpoint to change a password."
 msgstr "Use the password update endpoint to change a password."
 
+msgid "Only administrators may change active status."
+msgstr "Only administrators may change active status."
+
+msgid "Use the dedicated deactivate action."
+msgstr "Use the dedicated deactivate action."
+
+msgid "You cannot deactivate your own account."
+msgstr "You cannot deactivate your own account."
+
+msgid "Use the dedicated archive action."
+msgstr "Use the dedicated archive action."
+
 msgid "The current password is incorrect."
 msgstr "The current password is incorrect."
 
@@ -45,6 +57,9 @@ msgstr "Media can only be attached once."
 
 msgid "You may only attach media that you uploaded."
 msgstr "You may only attach media that you uploaded."
+
+msgid "You may only discard media that you uploaded."
+msgstr "You may only discard media that you uploaded."
 
 msgid "One or more media files are unavailable."
 msgstr "One or more media files are unavailable."
@@ -90,6 +105,24 @@ msgstr "Expected return must be after checkout."
 
 msgid "Return timestamp must not be earlier than checkout."
 msgstr "Return timestamp must not be earlier than checkout."
+
+msgid "Return timestamp cannot be in the future."
+msgstr "Return timestamp cannot be in the future."
+
+msgid "Workflow timestamp cannot be in the future."
+msgstr "Workflow timestamp cannot be in the future."
+
+msgid "A vehicle with reported damage cannot be marked available."
+msgstr "A vehicle with reported damage cannot be marked available."
+
+msgid "Damaged status requires at least one damage report."
+msgstr "Damaged status requires at least one damage report."
+
+msgid "Enter a valid date (YYYY-MM-DD)."
+msgstr "Enter a valid date (YYYY-MM-DD)."
+
+msgid "Vehicle QR code was not found."
+msgstr "Vehicle QR code was not found."
 
 msgid "The selected company is inactive."
 msgstr "The selected company is inactive."

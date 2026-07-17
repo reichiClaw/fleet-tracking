@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Field } from './Field';
@@ -27,7 +27,7 @@ describe('accessible form errors', () => {
     expect(input).toHaveAccessibleDescription('Serial number is required');
   });
 
-  it('focuses the first invalid field after rendering the error summary', async () => {
+  it('focuses the error summary without immediately moving focus again', () => {
     render(
       <form>
         <FormErrorSummary errors={{ first: 'First is required', second: 'Second is required' }} />
@@ -37,6 +37,7 @@ describe('accessible form errors', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('First is required');
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'First' })).toHaveFocus());
+    expect(screen.getByRole('alert')).toHaveFocus();
+    expect(screen.getByRole('textbox', { name: 'First' })).not.toHaveFocus();
   });
 });

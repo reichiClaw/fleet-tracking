@@ -3,7 +3,6 @@ import type { Loan, UserRole, VehicleStatus } from '../api/fleet';
 export const MANUFACTURER_CHECKOUT_STATUSES = new Set<VehicleStatus>([
   'checked_in',
   'available',
-  'reserved',
   'maintenance',
   'damaged',
 ]);

@@ -14,6 +14,13 @@ const adminSession = {
   role: 'admin',
   is_active: true,
 };
+const operationsSession = {
+  ...adminSession,
+  username: 'ops',
+  full_name: 'Operations User',
+  display_name: 'Operations User',
+  role: 'operations',
+};
 
 type MockCompany = { id: string; name: string; company_type: string; is_active: boolean };
 type MockDriver = {
@@ -27,6 +34,7 @@ type MockDriver = {
 let companies: MockCompany[];
 let drivers: MockDriver[];
 let lastDriverPost: Record<string, unknown> | null = null;
+let currentSession = adminSession;
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
@@ -39,7 +47,7 @@ function installFetchMock() {
     const method = (init?.method ?? 'GET').toUpperCase();
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
 
-    if (url.endsWith('/auth/me/')) return jsonResponse(adminSession);
+    if (url.endsWith('/auth/me/')) return jsonResponse(currentSession);
     if (url.endsWith('/companies/') && method === 'GET') return jsonResponse(companies);
     if (url.endsWith('/drivers/') && method === 'GET') return jsonResponse(drivers);
     if (url.endsWith('/companies/') && method === 'POST') {
@@ -47,11 +55,21 @@ function installFetchMock() {
       companies = [...companies, created];
       return jsonResponse(created, 201);
     }
-    const companyDetail = url.match(/\/companies\/([^/]+)\/$/);
-    if (companyDetail && method === 'DELETE') {
-      companies = companies.filter((company) => company.id !== companyDetail[1]);
-      drivers = drivers.filter((driver) => driver.company !== companyDetail[1]);
-      return Promise.resolve(new Response(null, { status: 204 }));
+    const companyDeactivate = url.match(/\/companies\/([^/]+)\/deactivate\/$/);
+    if (companyDeactivate && method === 'POST') {
+      const company = companies.find((item) => item.id === companyDeactivate[1]);
+      if (!company) return jsonResponse({ detail: 'not found' }, 404);
+      const deactivated = { ...company, is_active: false };
+      companies = companies.map((item) => item.id === deactivated.id ? deactivated : item);
+      return jsonResponse(deactivated);
+    }
+    const driverDeactivate = url.match(/\/drivers\/([^/]+)\/deactivate\/$/);
+    if (driverDeactivate && method === 'POST') {
+      const driver = drivers.find((item) => item.id === driverDeactivate[1]);
+      if (!driver) return jsonResponse({ detail: 'not found' }, 404);
+      const deactivated = { ...driver, is_active: false };
+      drivers = drivers.map((item) => item.id === deactivated.id ? deactivated : item);
+      return jsonResponse(deactivated);
     }
     if (url.endsWith('/drivers/') && method === 'POST') {
       lastDriverPost = body;
@@ -80,6 +98,7 @@ describe('PartnersPage', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     lastDriverPost = null;
+    currentSession = adminSession;
     companies = [{ id: 'c-1', name: 'Acme', company_type: 'subcontractor', is_active: true }];
     drivers = [];
     installFetchMock();
@@ -101,14 +120,22 @@ describe('PartnersPage', () => {
     expect(await screen.findByText('Globex')).toBeInTheDocument();
   });
 
-  it('deletes a company after confirmation', async () => {
+  it('deactivates a company after confirmation without removing its drivers', async () => {
+    drivers = [{
+      id: 'd-1',
+      first_name: 'Max',
+      last_name: 'Mustermann',
+      company: 'c-1',
+      is_active: true,
+    }];
     renderPage();
 
     const card = (await screen.findByText('Acme')).closest('article') as HTMLElement;
-    fireEvent.click(within(card).getByRole('button', { name: 'Löschen' }));
-    fireEvent.click(within(card).getByRole('button', { name: 'Ja, Firma und Fahrer löschen' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Firma Acme deaktivieren' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Firma deaktivieren' }));
 
-    await waitFor(() => expect(screen.queryByText('Acme')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Acme · Inaktiv/)).toBeInTheDocument());
+    expect(screen.getByText('Max Mustermann', { selector: 'strong' })).toBeInTheDocument();
   });
 
   it('adds a driver inside a company group', async () => {
@@ -122,7 +149,41 @@ describe('PartnersPage', () => {
     fireEvent.change(within(form).getByLabelText('Nachname'), { target: { value: 'Mustermann' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Fahrer hinzufügen' }));
 
-    await waitFor(() => expect(screen.getByText(/Max Mustermann/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Max Mustermann', { selector: 'strong' })).toBeInTheDocument());
     expect(lastDriverPost).toMatchObject({ first_name: 'Max', last_name: 'Mustermann', company: 'c-1' });
+  });
+
+  it('lets operations edit partner data without exposing deactivation actions', async () => {
+    currentSession = operationsSession;
+    drivers = [{
+      id: 'd-1',
+      first_name: 'Max',
+      last_name: 'Mustermann',
+      company: 'c-1',
+      is_active: true,
+    }];
+    renderPage();
+
+    const card = (await screen.findByText('Acme')).closest('article') as HTMLElement;
+
+    expect(within(card).getAllByRole('button', { name: 'Bearbeiten' })).toHaveLength(2);
+    expect(within(card).queryByRole('button', { name: /deaktivieren/i })).not.toBeInTheDocument();
+  });
+
+  it('deactivates a driver only after admin confirmation', async () => {
+    drivers = [{
+      id: 'd-1',
+      first_name: 'Max',
+      last_name: 'Mustermann',
+      company: 'c-1',
+      is_active: true,
+    }];
+    renderPage();
+
+    const row = (await screen.findByText('Max Mustermann', { selector: 'strong' })).closest('.driver-row') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Fahrer Max Mustermann deaktivieren' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrer deaktivieren' }));
+
+    await waitFor(() => expect(screen.getByText(/Max Mustermann · Inaktiv/, { selector: 'strong' })).toBeInTheDocument());
   });
 });

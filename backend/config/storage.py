@@ -13,16 +13,37 @@ endpoints, so the chosen backend never needs to expose public URLs.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 
+import paramiko
 from django.core.exceptions import ImproperlyConfigured
+from storages.backends.sftpstorage import SFTPStorage
 
 WHITENOISE_STATIC_BACKEND = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 FILESYSTEM_BACKEND = "django.core.files.storage.FileSystemStorage"
 S3_BACKEND = "storages.backends.s3.S3Storage"
-SFTP_BACKEND = "storages.backends.sftpstorage.SFTPStorage"
+SFTP_BACKEND = "config.storage.StrictSFTPStorage"
 
 _TRUTHY = {"1", "true", "yes", "on"}
+
+
+class StrictSFTPStorage(SFTPStorage):
+    """SFTP backend that rejects unknown or changed SSH host keys."""
+
+    def _connect(self):
+        known_host_file = self.known_host_file
+        if not known_host_file:
+            raise ImproperlyConfigured("SFTP_KNOWN_HOSTS is required for strict host-key verification.")
+        if not os.path.isfile(known_host_file):
+            raise ImproperlyConfigured(f"SFTP known_hosts file does not exist: {known_host_file}")
+
+        self._ssh = paramiko.SSHClient()
+        self._ssh.load_host_keys(known_host_file)
+        self._ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+        self._ssh.connect(self.host, **self.params)
+        if self._ssh.get_transport():
+            self._sftp = self._ssh.open_sftp()
 
 
 def _drop_empty(options: dict) -> dict:
@@ -85,7 +106,7 @@ def build_storages(env: Mapping[str, str]) -> dict:
                     "host": get("SFTP_HOST", required=True),
                     "root_path": get("SFTP_ROOT", "/fleet-media/"),
                     "params": params,
-                    "known_host_file": get("SFTP_KNOWN_HOSTS", "") or None,
+                    "known_host_file": get("SFTP_KNOWN_HOSTS", required=True),
                 }
             ),
         }

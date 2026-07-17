@@ -57,30 +57,22 @@ def complete_check_in(
         if idempotency_key:
             existing = CheckInProtocol.objects.select_for_update().filter(idempotency_key=idempotency_key).first()
             if existing:
-                if (
-                    existing.performed_by_id != actor.id
-                    or existing.vehicle_id != data["vehicle"].id
-                    or existing.request_fingerprint != request_fingerprint
-                ):
-                    raise serializers.ValidationError(
-                        {"idempotency_key": [_("This idempotency key was already used for another request.")]}
-                    )
-                existing._idempotent_replay = True
-                return existing
+                return _check_in_idempotent_replay(
+                    existing=existing,
+                    actor=actor,
+                    vehicle_id=data["vehicle"].id,
+                    request_fingerprint=request_fingerprint,
+                )
         vehicle = _locked_vehicle(data["vehicle"])
         if idempotency_key:
             existing = CheckInProtocol.objects.filter(idempotency_key=idempotency_key).first()
             if existing:
-                if (
-                    existing.performed_by_id != actor.id
-                    or existing.vehicle_id != vehicle.id
-                    or existing.request_fingerprint != request_fingerprint
-                ):
-                    raise serializers.ValidationError(
-                        {"idempotency_key": [_("This idempotency key was already used for another request.")]}
-                    )
-                existing._idempotent_replay = True
-                return existing
+                return _check_in_idempotent_replay(
+                    existing=existing,
+                    actor=actor,
+                    vehicle_id=vehicle.id,
+                    request_fingerprint=request_fingerprint,
+                )
         before = _vehicle_snapshot(vehicle)
         if vehicle.status != VehicleStatus.ANNOUNCED:
             raise serializers.ValidationError({"vehicle": [_("Only announced vehicles can be checked in.")]})
@@ -97,21 +89,42 @@ def complete_check_in(
             hours_field="operating_hours",
         )
 
+        performed_at = data.get("performed_at") or timezone.now()
+        if performed_at > timezone.now():
+            raise serializers.ValidationError({"performed_at": [_("Workflow timestamp cannot be in the future.")]})
         damage_payloads = data.get("damage_reports", [])
-        target_status = data.get("target_status") or (
-            VehicleStatus.DAMAGED if damage_payloads else VehicleStatus.AVAILABLE
-        )
-        protocol = CheckInProtocol.objects.create(
+        target_status = _condition_target_status(
             vehicle=vehicle,
-            performed_by=actor,
-            performed_at=data.get("performed_at") or timezone.now(),
-            supplier_company=data.get("supplier_company"),
-            odometer_km=data.get("odometer_km"),
-            operating_hours=data.get("operating_hours"),
-            condition_notes=data.get("condition_notes", ""),
-            idempotency_key=idempotency_key,
-            request_fingerprint=request_fingerprint,
+            requested_status=data.get("target_status"),
+            damage_payloads=damage_payloads,
         )
+        try:
+            # The savepoint keeps the outer transaction usable if another
+            # request concurrently commits the same globally unique key.
+            with transaction.atomic():
+                protocol = CheckInProtocol.objects.create(
+                    vehicle=vehicle,
+                    performed_by=actor,
+                    performed_at=performed_at,
+                    supplier_company=data.get("supplier_company"),
+                    odometer_km=data.get("odometer_km"),
+                    operating_hours=data.get("operating_hours"),
+                    condition_notes=data.get("condition_notes", ""),
+                    idempotency_key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                )
+        except IntegrityError:
+            if not idempotency_key:
+                raise
+            existing = CheckInProtocol.objects.select_for_update().filter(idempotency_key=idempotency_key).first()
+            if existing is None:
+                raise
+            return _check_in_idempotent_replay(
+                existing=existing,
+                actor=actor,
+                vehicle_id=vehicle.id,
+                request_fingerprint=request_fingerprint,
+            )
         damages = _create_damage_reports(
             vehicle=vehicle,
             actor=actor,
@@ -136,15 +149,6 @@ def complete_check_in(
         )
         protocol.snapshot = _check_in_snapshot(protocol=protocol, vehicle=vehicle, damages=damages)
         protocol.save(update_fields=["snapshot", "updated_at"])
-        _auto_generate_pdf(
-            generator=lambda: pdf.generate_check_in_pdf(
-                protocol=protocol, actor=actor, language=language, request_meta=request_meta
-            ),
-            record=protocol,
-            error_field="pdf_generation_error",
-            actor=actor,
-            request_meta=request_meta,
-        )
         _create_audit_log(
             actor=actor,
             action="workflow.check_in.completed",
@@ -156,6 +160,15 @@ def complete_check_in(
                 "protocol_id": str(protocol.id),
                 "damage_report_ids": [str(damage.id) for damage in damages],
             },
+            request_meta=request_meta,
+        )
+        _auto_generate_pdf(
+            generator=lambda: pdf.generate_check_in_pdf(
+                protocol=protocol, actor=actor, language=language, request_meta=request_meta
+            ),
+            record=protocol,
+            error_field="pdf_generation_error",
+            actor=actor,
             request_meta=request_meta,
         )
         return protocol
@@ -246,15 +259,6 @@ def complete_loan_checkout(
             media=attached,
         )
         loan.save(update_fields=["checkout_snapshot", "updated_at"])
-        _auto_generate_pdf(
-            generator=lambda: pdf.generate_loan_checkout_pdf(
-                loan=loan, actor=actor, language=language, request_meta=request_meta
-            ),
-            record=loan,
-            error_field="checkout_pdf_generation_error",
-            actor=actor,
-            request_meta=request_meta,
-        )
         _create_audit_log(
             actor=actor,
             action="workflow.loan_checkout.completed",
@@ -266,6 +270,15 @@ def complete_loan_checkout(
                 "loan_id": str(loan.id),
                 "damage_report_ids": [str(damage.id) for damage in damages],
             },
+            request_meta=request_meta,
+        )
+        _auto_generate_pdf(
+            generator=lambda: pdf.generate_loan_checkout_pdf(
+                loan=loan, actor=actor, language=language, request_meta=request_meta
+            ),
+            record=loan,
+            error_field="checkout_pdf_generation_error",
+            actor=actor,
             request_meta=request_meta,
         )
         return loan
@@ -287,6 +300,8 @@ def complete_loan_return(
             raise serializers.ValidationError(
                 {"actual_return_at": [_("Return timestamp must not be earlier than checkout.")]}
             )
+        if actual_return_at > timezone.now():
+            raise serializers.ValidationError({"actual_return_at": [_("Return timestamp cannot be in the future.")]})
         _validate_readings_do_not_decrease(
             vehicle,
             odometer=data.get("return_odometer_km"),
@@ -296,8 +311,10 @@ def complete_loan_return(
         )
 
         damage_payloads = data.get("damage_reports", [])
-        target_status = data.get("target_status") or (
-            VehicleStatus.DAMAGED if damage_payloads else VehicleStatus.AVAILABLE
+        target_status = _condition_target_status(
+            vehicle=vehicle,
+            requested_status=data.get("target_status"),
+            damage_payloads=damage_payloads,
         )
         locked_loan.return_odometer_km = data.get("return_odometer_km")
         locked_loan.return_operating_hours = data.get("return_operating_hours")
@@ -338,15 +355,6 @@ def complete_loan_return(
             media=attached,
         )
         locked_loan.save(update_fields=["return_snapshot", "updated_at"])
-        _auto_generate_pdf(
-            generator=lambda: pdf.generate_loan_return_pdf(
-                loan=locked_loan, actor=actor, language=language, request_meta=request_meta
-            ),
-            record=locked_loan,
-            error_field="return_pdf_generation_error",
-            actor=actor,
-            request_meta=request_meta,
-        )
         _create_audit_log(
             actor=actor,
             action="workflow.loan_return.completed",
@@ -358,6 +366,15 @@ def complete_loan_return(
                 "loan_id": str(locked_loan.id),
                 "damage_report_ids": [str(damage.id) for damage in damages],
             },
+            request_meta=request_meta,
+        )
+        _auto_generate_pdf(
+            generator=lambda: pdf.generate_loan_return_pdf(
+                loan=locked_loan, actor=actor, language=language, request_meta=request_meta
+            ),
+            record=locked_loan,
+            error_field="return_pdf_generation_error",
+            actor=actor,
             request_meta=request_meta,
         )
         return locked_loan
@@ -396,10 +413,13 @@ def complete_manufacturer_checkout(
             hours_field="operating_hours",
         )
 
+        performed_at = data.get("performed_at") or timezone.now()
+        if performed_at > timezone.now():
+            raise serializers.ValidationError({"performed_at": [_("Workflow timestamp cannot be in the future.")]})
         protocol = ManufacturerCheckOutProtocol.objects.create(
             vehicle=vehicle,
             performed_by=actor,
-            performed_at=data.get("performed_at") or timezone.now(),
+            performed_at=performed_at,
             recipient_company=data.get("recipient_company"),
             odometer_km=data.get("odometer_km"),
             operating_hours=data.get("operating_hours"),
@@ -434,15 +454,6 @@ def complete_manufacturer_checkout(
             media=attached,
         )
         protocol.save(update_fields=["snapshot", "updated_at"])
-        _auto_generate_pdf(
-            generator=lambda: pdf.generate_manufacturer_checkout_pdf(
-                protocol=protocol, actor=actor, language=language, request_meta=request_meta
-            ),
-            record=protocol,
-            error_field="pdf_generation_error",
-            actor=actor,
-            request_meta=request_meta,
-        )
         _create_audit_log(
             actor=actor,
             action="workflow.manufacturer_checkout.completed",
@@ -454,6 +465,15 @@ def complete_manufacturer_checkout(
                 "protocol_id": str(protocol.id),
                 "damage_report_ids": [str(damage.id) for damage in damages],
             },
+            request_meta=request_meta,
+        )
+        _auto_generate_pdf(
+            generator=lambda: pdf.generate_manufacturer_checkout_pdf(
+                protocol=protocol, actor=actor, language=language, request_meta=request_meta
+            ),
+            record=protocol,
+            error_field="pdf_generation_error",
+            actor=actor,
             request_meta=request_meta,
         )
         return protocol
@@ -488,6 +508,49 @@ def _validate_readings_do_not_decrease(
         errors[hours_field] = [_("Operating hours must not decrease.")]
     if errors:
         raise serializers.ValidationError(errors)
+
+
+def _condition_target_status(
+    *,
+    vehicle: Vehicle,
+    requested_status: str | None,
+    damage_payloads: list[dict[str, Any]],
+) -> str:
+    has_unresolved_damage = bool(damage_payloads) or DamageReport.objects.filter(
+        vehicle=vehicle,
+        resolved_at__isnull=True,
+    ).exists()
+    target_status = requested_status or (
+        VehicleStatus.DAMAGED if has_unresolved_damage else VehicleStatus.AVAILABLE
+    )
+    if has_unresolved_damage and target_status == VehicleStatus.AVAILABLE:
+        raise serializers.ValidationError(
+            {"target_status": [_("A vehicle with reported damage cannot be marked available.")]}
+        )
+    if target_status == VehicleStatus.DAMAGED and not has_unresolved_damage:
+        raise serializers.ValidationError(
+            {"damage_reports": [_("Damaged status requires at least one damage report.")]}
+        )
+    return target_status
+
+
+def _check_in_idempotent_replay(
+    *,
+    existing: CheckInProtocol,
+    actor,
+    vehicle_id,
+    request_fingerprint: str,
+) -> CheckInProtocol:
+    if (
+        existing.performed_by_id != actor.id
+        or existing.vehicle_id != vehicle_id
+        or existing.request_fingerprint != request_fingerprint
+    ):
+        raise serializers.ValidationError(
+            {"idempotency_key": [_("This idempotency key was already used for another request.")]}
+        )
+    existing._idempotent_replay = True
+    return existing
 
 
 def _transition_vehicle(
@@ -603,6 +666,7 @@ def _create_damage_reports(
             related_id=damage.id,
             existing_media=existing_media,
             actor=actor,
+            allowed_types={MediaType.PHOTO},
             request_meta=request_meta,
         )
         audit_event(
@@ -626,6 +690,7 @@ def _attach_media(
     loan: Loan | None = None,
     damage_report: DamageReport | None = None,
     actor=None,
+    allowed_types: set[str] | None = None,
     request_meta: dict[str, str] | None = None,
 ) -> list[MediaFile]:
     return attach_media_files(
@@ -636,6 +701,7 @@ def _attach_media(
         damage_report=damage_report,
         related_type=related_type,
         related_id=related_id,
+        allowed_types=allowed_types,
         request_meta=request_meta,
     )
 

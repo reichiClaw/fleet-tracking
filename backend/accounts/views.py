@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
+from django.db import transaction
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
@@ -75,10 +76,18 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_superuser:
-            return self.queryset
-        if is_admin(self.request.user):
-            return self.queryset.filter(is_staff=False, is_superuser=False)
-        return self.queryset.filter(pk=self.request.user.pk)
+            queryset = self.queryset
+        elif is_admin(self.request.user):
+            queryset = self.queryset.filter(is_staff=False, is_superuser=False)
+        else:
+            queryset = self.queryset.filter(pk=self.request.user.pk)
+        if getattr(self, "action", None) in {"update", "partial_update"}:
+            queryset = queryset.select_for_update()
+        return queryset
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -107,6 +116,8 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAdminRole])
     def deactivate(self, request, pk=None):
         user = self.get_object()
+        if user.pk == request.user.pk:
+            raise serializers.ValidationError({"user": _("You cannot deactivate your own account.")})
         before = _user_snapshot(user)
         user.is_active = False
         user.save(update_fields=["is_active"])

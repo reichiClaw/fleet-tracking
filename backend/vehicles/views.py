@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.translation import gettext as _
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -109,7 +110,12 @@ class VehicleViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def archive(self, request, pk=None):
         vehicle = self.get_object()
         before = self._audit_snapshot(vehicle)
-        serializer = self.get_serializer(vehicle, data={"status": VehicleStatus.ARCHIVED}, partial=True)
+        serializer = self.get_serializer(
+            vehicle,
+            data={"status": VehicleStatus.ARCHIVED},
+            partial=True,
+            context={**self.get_serializer_context(), "allow_archive": True},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save(archived_at=timezone.now())
         audit_event(
@@ -134,7 +140,9 @@ class VehicleViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         else:
             parsed = parse_date(str(raw))
             if parsed is None:
-                raise serializers.ValidationError({"manufacturer_return_due": "Enter a valid date (YYYY-MM-DD)."})
+                raise serializers.ValidationError(
+                    {"manufacturer_return_due": _("Enter a valid date (YYYY-MM-DD).")}
+                )
             vehicle.manufacturer_return_due = parsed
         vehicle.save(update_fields=["manufacturer_return_due", "updated_at"])
         audit_event(
@@ -189,7 +197,7 @@ class VehicleViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def qr(self, request, qr_code=None):
         vehicle = self.get_queryset().filter(qr_code__iexact=qr_code).first()
         if vehicle is None:
-            raise NotFound("Vehicle QR code was not found.")
+            raise NotFound(_("Vehicle QR code was not found."))
         active_loan = vehicle.loans.filter(status=LoanStatus.ACTIVE).order_by("-created_at").first()
         return Response(
             {
@@ -215,7 +223,7 @@ class PublicVehicleStatusView(APIView):
             Vehicle.objects.select_related("category").filter(qr_code__iexact=qr_code).first()
         )
         if vehicle is None:
-            raise NotFound("Vehicle QR code was not found.")
+            raise NotFound(_("Vehicle QR code was not found."))
         return Response(
             {
                 "qr_code": vehicle.qr_code,

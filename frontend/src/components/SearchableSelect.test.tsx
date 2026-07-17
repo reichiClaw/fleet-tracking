@@ -45,6 +45,8 @@ describe('SearchableSelect', () => {
 
     expect(input).toHaveValue('Gamma');
     expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect(input).not.toHaveAttribute('aria-controls');
+    expect(input).not.toHaveAttribute('aria-activedescendant');
     expect(input).toHaveFocus();
 
     fireEvent.focus(input);

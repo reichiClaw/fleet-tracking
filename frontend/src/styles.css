@@ -2091,11 +2091,13 @@ tbody tr:hover td {
     background: var(--surface);
     box-shadow: var(--shadow-lg);
     transform: translateX(-105%);
+    visibility: hidden;
     transition: transform var(--transition);
   }
 
   .side-nav.is-open {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .side-nav nav {

@@ -22,7 +22,7 @@ from openpyxl import load_workbook
 from audit.services import audit_event
 from imports.models import ImportJob
 from mediafiles.models import MediaType
-from mediafiles.services import attach_media_files, create_media_file_from_upload
+from mediafiles.services import attach_media_files, cleanup_storage_file, create_media_file_from_upload
 from vehicles.models import Vehicle, VehicleCategory
 
 
@@ -146,15 +146,38 @@ class ImportValidationResult:
     result: dict[str, Any]
 
 
-@transaction.atomic
 def create_vehicle_import_job(*, uploaded_file, actor, request_meta: dict[str, str]) -> ImportJob:
     """Create media metadata, validate the workbook, and persist an ImportJob."""
+    storage_keys: list[str] = []
+    try:
+        with transaction.atomic():
+            return _create_vehicle_import_job(
+                uploaded_file=uploaded_file,
+                actor=actor,
+                request_meta=request_meta,
+                storage_keys=storage_keys,
+            )
+    except Exception:
+        # A database rollback cannot undo the source workbook storage write.
+        for storage_key in storage_keys:
+            cleanup_storage_file(storage_key)
+        raise
+
+
+def _create_vehicle_import_job(
+    *,
+    uploaded_file,
+    actor,
+    request_meta: dict[str, str],
+    storage_keys: list[str],
+) -> ImportJob:
     source_media = create_media_file_from_upload(
         uploaded_file=uploaded_file,
         actor=actor,
         media_type=MediaType.IMPORT,
         request_meta=request_meta,
     )
+    storage_keys.append(source_media.storage_key)
     job = ImportJob.objects.create(
         import_type=ImportJob.ImportType.VEHICLES,
         source_media=source_media,
@@ -798,29 +821,6 @@ def _validate_unique_optional_value(
     conflict = Vehicle.objects.filter(**{field: value}).only("id").first()
     if conflict and (current_vehicle is None or conflict.id != current_vehicle.id):
         errors.append(_field_error(field, "unique_conflict", conflict_message))
-    return errors
-
-
-def _validate_reading_decreases(
-    values: dict[str, Any],
-    vehicle_by_internal: dict[str, Vehicle],
-) -> list[dict[str, str]]:
-    vehicle = vehicle_by_internal.get(values.get("internal_number", ""))
-    if not vehicle:
-        return []
-
-    errors: list[dict[str, str]] = []
-    odometer = values.get("current_odometer_km")
-    if vehicle.current_odometer_km is not None and odometer is not None and odometer < vehicle.current_odometer_km:
-        errors.append(
-            _field_error("current_odometer_km", "decreasing_reading", _("Odometer value must not decrease."))
-        )
-
-    hours = _decimal_or_none(values.get("current_operating_hours"))
-    if vehicle.current_operating_hours is not None and hours is not None and hours < vehicle.current_operating_hours:
-        errors.append(
-            _field_error("current_operating_hours", "decreasing_reading", _("Operating hours must not decrease."))
-        )
     return errors
 
 

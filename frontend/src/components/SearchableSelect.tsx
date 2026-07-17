@@ -146,7 +146,7 @@ export function SearchableSelect({
           role="combobox"
           aria-label={label}
           aria-expanded={open}
-          aria-controls={listId}
+          aria-controls={open ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={open && activeIndex >= 0 ? `${inputId}-option-${activeIndex}` : undefined}
           aria-invalid={Boolean(error)}
@@ -172,7 +172,9 @@ export function SearchableSelect({
         {open ? (
           <ul id={listId} className="searchable-select__list" role="listbox" aria-label={label}>
             {filtered.length === 0 ? (
-              <li className="searchable-select__empty">{emptyText}</li>
+              <li className="searchable-select__empty" role="option" aria-disabled="true">
+                {emptyText}
+              </li>
             ) : (
               filtered.map((option, index) => (
                 <li

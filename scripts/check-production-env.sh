@@ -11,6 +11,12 @@ fail() {
   exit 1
 }
 
+require_positive_integer() {
+  local name="$1"
+  local value="${!name:-}"
+  [[ "$value" =~ ^[1-9][0-9]*$ ]] || fail "$name must be a positive integer"
+}
+
 [ -f "$ENV_FILE" ] || fail "missing $ENV_FILE (run 'make prod-init-env')"
 [ ! -L "$ENV_FILE" ] || fail "$ENV_FILE must not be a symbolic link"
 
@@ -53,6 +59,34 @@ done
 [ "${#POSTGRES_PASSWORD}" -ge 24 ] || fail "POSTGRES_PASSWORD must contain at least 24 characters"
 [[ "$DJANGO_ALLOWED_HOSTS" != *"*"* ]] || fail "DJANGO_ALLOWED_HOSTS must not contain a wildcard"
 [[ "$DATABASE_URL" == postgres://* ]] || fail "DATABASE_URL must be a PostgreSQL URL"
+for name in \
+  GUNICORN_WORKERS \
+  SECURE_HSTS_SECONDS \
+  MAX_UPLOAD_SIZE_MB \
+  MAX_STAGED_MEDIA_FILES \
+  MAX_STAGED_MEDIA_SIZE_MB \
+  STAGED_MEDIA_TTL_HOURS \
+  MAX_IMPORT_ROWS \
+  MAX_IMPORT_COLUMNS \
+  MAX_IMPORT_UNCOMPRESSED_SIZE_MB \
+  MAX_IMPORT_ZIP_ENTRIES \
+  MAX_IMPORT_RESULT_SIZE_MB \
+  EMAIL_PORT \
+  SFTP_PORT \
+  BACKUP_MAX_AGE_HOURS \
+  CERT_MIN_VALID_DAYS; do
+  require_positive_integer "$name"
+done
+[ "$GUNICORN_WORKERS" -le 4 ] ||
+  fail "GUNICORN_WORKERS must not exceed 4 with the fixed backend memory/tmpfs limits"
+[ "$MAX_UPLOAD_SIZE_MB" -le 25 ] ||
+  fail "MAX_UPLOAD_SIZE_MB must not exceed 25 behind the fixed 30 MB production edge limit"
+[[ "${BACKUP_RETENTION_DAYS:-}" =~ ^[0-9]+$ ]] ||
+  fail "BACKUP_RETENTION_DAYS must be a non-negative integer"
+if [[ ! "${DISK_USAGE_CRITICAL_PERCENT:-}" =~ ^[1-9][0-9]*$ ]] ||
+  [ "$DISK_USAGE_CRITICAL_PERCENT" -gt 100 ]; then
+  fail "DISK_USAGE_CRITICAL_PERCENT must be an integer from 1 to 100"
+fi
 if ! DATABASE_URL="$DATABASE_URL" \
   POSTGRES_USER="$POSTGRES_USER" \
   POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
@@ -85,6 +119,38 @@ fi
 [[ "$BACKUP_DIR" == /* ]] || fail "BACKUP_DIR must be an absolute host path in production"
 [ -z "${DJANGO_SUPERUSER_PASSWORD:-}" ] ||
   fail "persistent DJANGO_SUPERUSER_PASSWORD is forbidden"
+
+case "${MEDIA_STORAGE_BACKEND:-}" in
+  local)
+    ;;
+  sftp)
+    [ -n "${SFTP_HOST:-}" ] || fail "SFTP_HOST is required for SFTP media"
+    [ -n "${SFTP_USER:-}" ] || fail "SFTP_USER is required for SFTP media"
+    [ -n "${SFTP_PASSWORD:-}" ] ||
+      fail "SFTP_PASSWORD is required for SFTP media in production Compose"
+    [ -z "${SFTP_KEY_PATH:-}" ] ||
+      fail "SFTP_KEY_PATH is not mounted by production Compose; use SFTP_PASSWORD"
+    [[ "${SFTP_KNOWN_HOSTS_PATH:-}" == /* ]] ||
+      fail "SFTP_KNOWN_HOSTS_PATH must be an absolute host path for SFTP media"
+    [ -f "${SFTP_KNOWN_HOSTS_PATH:-}" ] ||
+      fail "SFTP_KNOWN_HOSTS_PATH must reference a regular file"
+    [ ! -L "${SFTP_KNOWN_HOSTS_PATH:-}" ] ||
+      fail "SFTP_KNOWN_HOSTS_PATH must not be a symbolic link"
+    ;;
+  s3)
+    [ -n "${AWS_STORAGE_BUCKET_NAME:-}" ] ||
+      fail "AWS_STORAGE_BUCKET_NAME is required for S3 media"
+    ;;
+  *)
+    fail "MEDIA_STORAGE_BACKEND must be local, sftp, or s3"
+    ;;
+esac
+if [ "${MEDIA_STORAGE_BACKEND:-}" != local ]; then
+  [ -n "${BACKUP_REMOTE_MEDIA_HOOK:-}" ] ||
+    fail "BACKUP_REMOTE_MEDIA_HOOK is required for non-local media"
+  [ -n "${RESTORE_REMOTE_MEDIA_HOOK:-}" ] ||
+    fail "RESTORE_REMOTE_MEDIA_HOOK is required for non-local media"
+fi
 
 case "$BACKUP_ENCRYPTION" in
   age)

@@ -3,8 +3,10 @@ from __future__ import annotations
 from io import BytesIO
 import shutil
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from openpyxl import Workbook
@@ -12,8 +14,10 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from audit.models import AuditLog
+from imports.services import create_vehicle_import_job
 from imports.models import ImportJob
 from mediafiles.models import MediaFile, MediaType
+from mediafiles.services import cleanup_storage_file
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 
 
@@ -374,6 +378,25 @@ class VehicleImportAPITests(TestCase):
         self.assertEqual(response.data["status"], ImportJob.Status.FAILED)
         self.assertEqual(response.data["error_count"], 1)
         self.assertEqual(Vehicle.objects.count(), 0)
+
+    def test_unexpected_import_failure_cleans_up_source_storage(self):
+        uploaded_file = self.workbook_upload([["VH-001", "Steiger", "Acme", "TH100"]])
+
+        with (
+            patch("imports.services.validate_vehicle_workbook", side_effect=RuntimeError("validation crashed")),
+            patch("imports.services.cleanup_storage_file", wraps=cleanup_storage_file) as cleanup,
+            self.assertRaises(RuntimeError),
+        ):
+            create_vehicle_import_job(
+                uploaded_file=uploaded_file,
+                actor=self.admin_user,
+                request_meta={},
+            )
+
+        storage_key = cleanup.call_args.args[0]
+        self.assertFalse(default_storage.exists(storage_key))
+        self.assertFalse(MediaFile.objects.filter(storage_key=storage_key).exists())
+        self.assertEqual(ImportJob.objects.count(), 0)
 
     @override_settings(MAX_IMPORT_ROWS=1)
     def test_workbook_row_limit_is_enforced(self):

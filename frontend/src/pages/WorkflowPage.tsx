@@ -78,6 +78,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
   const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
   const [signatureDrawn, setSignatureDrawn] = useState(false);
   const signatureRef = useRef<SignatureInputHandle>(null);
+  const checkInIdempotencyKeyRef = useRef(createIdempotencyKey());
 
   const initialVehicle = searchParams.get('vehicle') ?? '';
   const initialLoan = searchParams.get('loan') ?? '';
@@ -281,6 +282,9 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
     if (damageActive && !damageDescription.trim()) {
       nextErrors.damageDescription = t('workflows.validation.damageDescriptionRequired');
     }
+    if (damageActive && targetStatus === 'available') {
+      nextErrors.targetStatus = t('workflows.validation.damageStatusRequired');
+    }
 
     // A damage report must be backed by at least one photo of the damage.
     if (damageActive && damagePhotoIds.length === 0) {
@@ -341,7 +345,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
       }
       const payload = buildPayload(signatureMediaId ? [signatureMediaId] : []);
       if (kind === 'check-in') {
-        const protocol = await createCheckIn(payload);
+        const protocol = await createCheckIn(payload, checkInIdempotencyKeyRef.current);
         setResult({
           id: protocol.id,
           titleKey: 'workflows.checkIn.completed',
@@ -583,7 +587,7 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
         </div>
 
         {kind === 'check-in' || kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.targetStatus')}>
+          <Field label={t('workflows.fields.targetStatus')} error={fieldErrors.targetStatus}>
             <select value={targetStatus} onChange={(event) => setTargetStatus(event.target.value)}>
               {targetStatuses.map((status) => (
                 <option key={status} value={status}>
@@ -625,7 +629,10 @@ export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
                 name="workflow-has-damage"
                 checked={damageActive}
                 disabled={damageRequiredByStatus}
-                onChange={() => setHasDamage(true)}
+                onChange={() => {
+                  setHasDamage(true);
+                  if (targetStatus === 'available') setTargetStatus('damaged');
+                }}
               />
               <span>{t('common.yes')}</span>
             </label>
@@ -758,6 +765,13 @@ function nowForDateTimeLocal() {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().slice(0, 16);
+}
+
+function createIdempotencyKey() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `check-in-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function loanLabel(loan: Loan, vehicles: Vehicle[], fallback: string) {

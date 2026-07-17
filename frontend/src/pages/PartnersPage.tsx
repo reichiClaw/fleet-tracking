@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
   createCompany,
   createDriver,
-  deleteCompany,
+  deactivateCompany,
+  deactivateDriver,
   displayDriverName,
   listCompanies,
   listDrivers,
@@ -16,6 +17,7 @@ import {
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
@@ -28,7 +30,8 @@ export function PartnersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const canCreate = user?.role === 'admin' || user?.role === 'operations';
-  const canEdit = user?.role === 'admin';
+  const canEdit = canCreate;
+  const canDeactivate = user?.role === 'admin';
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -142,6 +145,7 @@ export function PartnersPage() {
               companies={companies}
               canCreate={canCreate}
               canEdit={canEdit}
+              canDeactivate={canDeactivate}
               onChanged={load}
             />
           );
@@ -160,6 +164,7 @@ export function PartnersPage() {
               companies={companies}
               canCreate={canCreate}
               canEdit={canEdit}
+              canDeactivate={canDeactivate}
               onChanged={load}
             />
           );
@@ -175,6 +180,7 @@ function GroupCard({
   companies,
   canCreate,
   canEdit,
+  canDeactivate,
   onChanged,
 }: {
   company: Company | null;
@@ -182,30 +188,33 @@ function GroupCard({
   companies: Company[];
   canCreate: boolean;
   canEdit: boolean;
+  canDeactivate: boolean;
   onChanged: Reload;
 }) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
 
   const isIndependent = company === null;
   const title = isIndependent ? t('partners.independentTitle') : company.name;
 
-  async function handleDelete() {
-    if (isIndependent) {
+  async function handleDeactivate() {
+    if (isIndependent || isDeactivating) {
       return;
     }
-    setIsDeleting(true);
-    setDeleteError(null);
+    setIsDeactivating(true);
+    setDeactivateError(null);
     try {
-      await deleteCompany(company.id);
+      await deactivateCompany(company.id);
+      setIsConfirmingDeactivate(false);
       await onChanged();
     } catch (error) {
-      setDeleteError(getApiErrorMessage(error, t, t('partners.deleteError')));
-      setIsDeleting(false);
+      setDeactivateError(getApiErrorMessage(error, t, t('partners.deactivateError')));
+    } finally {
+      setIsDeactivating(false);
     }
   }
 
@@ -231,49 +240,30 @@ function GroupCard({
         <div className="group-card__header-actions">
           <span className="driver-count">{t('partners.driverCount', { count: drivers.length })}</span>
           {!isIndependent && canEdit ? (
-            <>
-              <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
-                {isEditing ? t('management.cancel') : t('management.edit')}
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                disabled={isDeleting}
-                onClick={() => setIsConfirmingDelete(true)}
-              >
-                {t('partners.delete')}
-              </button>
-            </>
+            <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
+              {isEditing ? t('management.cancel') : t('management.edit')}
+            </button>
+          ) : null}
+          {!isIndependent && canDeactivate && company.is_active ? (
+            <button
+              type="button"
+              className="danger-button"
+              aria-label={t('partners.deactivateCompanyLabel', { company: company.name })}
+              disabled={isDeactivating}
+              onClick={() => setIsConfirmingDeactivate(true)}
+            >
+              {t('partners.deactivate')}
+            </button>
           ) : null}
         </div>
       </header>
 
-      {!isIndependent && isConfirmingDelete ? (
-        <div className="quick-add quick-add--danger">
-          <p className="field-error">{t('partners.deleteWarning', { company: title })}</p>
-          {deleteError ? <ErrorState message={deleteError} /> : null}
-          <div className="action-row">
-            <button type="button" className="danger-button" disabled={isDeleting} onClick={handleDelete}>
-              {isDeleting ? t('partners.deleting') : t('partners.confirmDelete')}
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={isDeleting}
-              onClick={() => {
-                setIsConfirmingDelete(false);
-                setDeleteError(null);
-              }}
-            >
-              {t('management.cancel')}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {deactivateError ? <ErrorState message={deactivateError} /> : null}
 
       {!isIndependent && isEditing ? (
         <CompanyForm
           initial={company}
+          canReactivate={canDeactivate}
           onCancel={() => setIsEditing(false)}
           onSaved={async () => {
             setIsEditing(false);
@@ -292,6 +282,7 @@ function GroupCard({
               driver={driver}
               companies={companies}
               canEdit={canEdit}
+              canDeactivate={canDeactivate}
               onChanged={onChanged}
             />
           ))
@@ -316,6 +307,18 @@ function GroupCard({
           </button>
         )
       ) : null}
+      <ConfirmDialog
+        open={!isIndependent && isConfirmingDeactivate}
+        title={t('partners.confirmDeactivateTitle')}
+        description={t('partners.deactivateWarning', { company: title })}
+        confirmLabel={t('partners.confirmDeactivate')}
+        busy={isDeactivating}
+        onCancel={() => {
+          setIsConfirmingDeactivate(false);
+          setDeactivateError(null);
+        }}
+        onConfirm={() => void handleDeactivate()}
+      />
     </article>
   );
 }
@@ -324,15 +327,35 @@ function DriverRow({
   driver,
   companies,
   canEdit,
+  canDeactivate,
   onChanged,
 }: {
   driver: Driver;
   companies: Company[];
   canEdit: boolean;
+  canDeactivate: boolean;
   onChanged: Reload;
 }) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isConfirmingDeactivate, setIsConfirmingDeactivate] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+
+  async function handleDeactivate() {
+    if (isDeactivating) return;
+    setIsDeactivating(true);
+    setDeactivateError(null);
+    try {
+      await deactivateDriver(driver.id);
+      setIsConfirmingDeactivate(false);
+      await onChanged();
+    } catch (error) {
+      setDeactivateError(getApiErrorMessage(error, t, t('partners.deactivateDriverError')));
+    } finally {
+      setIsDeactivating(false);
+    }
+  }
 
   if (isEditing) {
     return (
@@ -340,6 +363,7 @@ function DriverRow({
         initial={driver}
         defaultCompany={driver.company ?? ''}
         companies={companies}
+        canReactivate={canDeactivate}
         onCancel={() => setIsEditing(false)}
         onSaved={async () => {
           setIsEditing(false);
@@ -360,22 +384,50 @@ function DriverRow({
           {[driver.license_classes, driver.phone || driver.email].filter(Boolean).join(' · ') ||
             t('common.notAvailable')}
         </span>
+        {deactivateError ? <span className="field-error">{deactivateError}</span> : null}
       </div>
-      {canEdit ? (
-        <button type="button" className="secondary-button" onClick={() => setIsEditing(true)}>
-          {t('management.edit')}
-        </button>
-      ) : null}
+      <div className="action-row">
+        {canEdit ? (
+          <button type="button" className="secondary-button" onClick={() => setIsEditing(true)}>
+            {t('management.edit')}
+          </button>
+        ) : null}
+        {canDeactivate && driver.is_active ? (
+          <button
+            type="button"
+            className="danger-button"
+            aria-label={t('partners.deactivateDriverLabel', { driver: displayDriverName(driver) })}
+            disabled={isDeactivating}
+            onClick={() => setIsConfirmingDeactivate(true)}
+          >
+            {t('partners.deactivateDriver')}
+          </button>
+        ) : null}
+      </div>
+      <ConfirmDialog
+        open={isConfirmingDeactivate}
+        title={t('partners.confirmDeactivateDriverTitle')}
+        description={t('partners.deactivateDriverWarning', { driver: displayDriverName(driver) })}
+        confirmLabel={t('partners.confirmDeactivateDriver')}
+        busy={isDeactivating}
+        onCancel={() => {
+          setIsConfirmingDeactivate(false);
+          setDeactivateError(null);
+        }}
+        onConfirm={() => void handleDeactivate()}
+      />
     </div>
   );
 }
 
 function CompanyForm({
   initial,
+  canReactivate,
   onCancel,
   onSaved,
 }: {
   initial?: Company | null;
+  canReactivate?: boolean;
   onCancel: () => void;
   onSaved: Reload;
 }) {
@@ -395,6 +447,7 @@ function CompanyForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
     if (!name.trim()) {
       setError(t('management.validation.nameRequired'));
       return;
@@ -409,7 +462,7 @@ function CompanyForm({
       email,
       address,
       notes,
-      is_active: isActive,
+      ...(canReactivate && initial && !initial.is_active ? { is_active: isActive } : {}),
     };
     try {
       if (isEdit && initial) {
@@ -467,10 +520,12 @@ function CompanyForm({
         <span>{t('management.fields.notes')}</span>
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
       </label>
-      <label className="checkbox-inline">
-        <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
-        <span>{t('management.fields.active')}</span>
-      </label>
+      {canReactivate && initial && !initial.is_active ? (
+        <label className="checkbox-inline">
+          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+          <span>{t('management.fields.active')}</span>
+        </label>
+      ) : null}
       <div className="action-row">
         <button type="submit" className="success-button" disabled={isSaving}>
           {isSaving ? t('management.saving') : isEdit ? t('management.save') : t('management.addCompany')}
@@ -488,6 +543,7 @@ function DriverForm({
   defaultCompany,
   lockCompany,
   companies,
+  canReactivate,
   onCancel,
   onSaved,
 }: {
@@ -495,6 +551,7 @@ function DriverForm({
   defaultCompany: string;
   lockCompany?: boolean;
   companies: Company[];
+  canReactivate?: boolean;
   onCancel: () => void;
   onSaved: Reload;
 }) {
@@ -514,6 +571,7 @@ function DriverForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
     if (!firstName.trim() || !lastName.trim()) {
       setError(t('management.validation.driverNameRequired'));
       return;
@@ -528,7 +586,7 @@ function DriverForm({
       email,
       license_classes: licenseClasses,
       notes,
-      is_active: isActive,
+      ...(canReactivate && initial && !initial.is_active ? { is_active: isActive } : {}),
     };
     try {
       if (isEdit && initial) {
@@ -589,10 +647,12 @@ function DriverForm({
         <span>{t('management.fields.notes')}</span>
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
       </label>
-      <label className="checkbox-inline">
-        <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
-        <span>{t('management.fields.active')}</span>
-      </label>
+      {canReactivate && initial && !initial.is_active ? (
+        <label className="checkbox-inline">
+          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+          <span>{t('management.fields.active')}</span>
+        </label>
+      ) : null}
       <div className="action-row">
         <button type="submit" className="success-button" disabled={isSaving}>
           {isSaving ? t('management.saving') : isEdit ? t('management.save') : t('management.addDriver')}

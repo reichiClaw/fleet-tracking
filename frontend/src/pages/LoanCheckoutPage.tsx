@@ -37,6 +37,7 @@ import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 type BorrowerType = 'driver' | 'company' | 'other';
 type FieldErrors = Record<string, string>;
+const LOAN_COMPANY_TYPES = new Set<Company['company_type']>(['subcontractor', 'internal']);
 
 function defaultReturnDate() {
   const date = new Date();
@@ -102,6 +103,7 @@ export function LoanCheckoutPage() {
   );
 
   async function handleQuickAddDriver() {
+    if (isSavingDriver) return;
     if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
       setQuickDriverError(t('management.validation.driverNameRequired'));
       return;
@@ -141,10 +143,23 @@ export function LoanCheckoutPage() {
           listVehicleCategories(),
         ]);
         if (isMounted) {
+          const eligibleCompanies = nextCompanies.filter(
+            (item) => item.is_active && LOAN_COMPANY_TYPES.has(item.company_type),
+          );
+          const eligibleCompanyIds = new Set(eligibleCompanies.map((item) => item.id));
+          const eligibleDrivers = nextDrivers.filter(
+            (item) => item.is_active && (!item.company || eligibleCompanyIds.has(item.company)),
+          );
           setVehicles(nextVehicles);
-          setDrivers(nextDrivers.filter((item) => item.is_active));
-          setCompanies(nextCompanies.filter((item) => item.is_active));
+          setDrivers(eligibleDrivers);
+          setCompanies(eligibleCompanies);
           setCategories(nextCategories);
+          if (presetDriver && !eligibleDrivers.some((item) => item.id === presetDriver)) {
+            setDriver('');
+          }
+          if (presetCompany && !eligibleCompanyIds.has(presetCompany)) {
+            setCompany('');
+          }
           const presetVehicle = searchParams.get('vehicle');
           if (presetVehicle && nextVehicles.find((item) => item.id === presetVehicle)?.status !== 'available') {
             setVehicle('');
@@ -426,6 +441,7 @@ export function LoanCheckoutPage() {
                 <button
                   key={type}
                   type="button"
+                  aria-pressed={borrowerType === type}
                   className={`segmented__option${borrowerType === type ? ' is-active' : ''}`}
                   onClick={() => setBorrowerType(type)}
                 >

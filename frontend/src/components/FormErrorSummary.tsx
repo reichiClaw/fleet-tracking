@@ -9,9 +9,6 @@ export function FormErrorSummary({ errors }: { errors: Record<string, string> })
   useEffect(() => {
     if (messages.length) {
       ref.current?.focus();
-      window.setTimeout(() => {
-        ref.current?.closest('form')?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-      }, 0);
     }
   }, [messages.join('|')]);
 

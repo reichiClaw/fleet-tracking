@@ -352,7 +352,11 @@ export async function createUser(payload: CreateUserPayload) {
   return apiClient.post<ManagedUser>('/users/', payload as unknown as Record<string, unknown>);
 }
 
-export async function updateUser(id: string, payload: Partial<ManagedUser> & { password?: string }) {
+export type UpdateUserPayload = Partial<
+  Pick<ManagedUser, 'username' | 'email' | 'full_name' | 'role' | 'is_active'>
+>;
+
+export async function updateUser(id: string, payload: UpdateUserPayload) {
   return apiClient.patch<ManagedUser>(`/users/${id}/`, payload as Record<string, unknown>);
 }
 
@@ -484,8 +488,8 @@ export async function updateCompany(id: string, payload: Partial<Company>) {
   return apiClient.patch<Company>(`/companies/${id}/`, payload as Record<string, unknown>);
 }
 
-export async function deleteCompany(id: string) {
-  return apiClient.delete<void>(`/companies/${id}/`);
+export async function deactivateCompany(id: string) {
+  return apiClient.post<Company>(`/companies/${id}/deactivate/`);
 }
 
 export async function listDrivers() {
@@ -498,6 +502,10 @@ export async function createDriver(payload: Partial<Driver>) {
 
 export async function updateDriver(id: string, payload: Partial<Driver>) {
   return apiClient.patch<Driver>(`/drivers/${id}/`, payload as Record<string, unknown>);
+}
+
+export async function deactivateDriver(id: string) {
+  return apiClient.post<Driver>(`/drivers/${id}/deactivate/`);
 }
 
 export async function listLoans() {
@@ -531,8 +539,10 @@ export async function uploadMedia(file: File | Blob, metadata: { media_type: 'ph
   return apiClient.post<MediaFile>('/media/', formData);
 }
 
-export async function createCheckIn(payload: Record<string, unknown>) {
-  return apiClient.post<CheckInProtocol>('/workflows/check-ins/', payload);
+export async function createCheckIn(payload: Record<string, unknown>, idempotencyKey: string) {
+  return apiClient.post<CheckInProtocol>('/workflows/check-ins/', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
 }
 
 export async function createLoanCheckout(payload: Record<string, unknown>) {

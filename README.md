@@ -126,7 +126,8 @@ backup configuration. See the production checklist in `docs/deployment.md`.
 Uploaded media is stored via `MEDIA_STORAGE_BACKEND`:
 
 - `local` (default): the `media_data` Docker volume.
-- `sftp`: a remote SFTP/NAS server (set the `SFTP_*` variables).
+- `sftp`: a remote SFTP/NAS server (set the `SFTP_*` variables and pin its SSH
+  host key; unknown keys are rejected).
 - `s3`: S3-compatible storage / MinIO (set the `AWS_*` variables).
 
 See "Media storage backend" in `docs/deployment.md`.
@@ -149,6 +150,7 @@ make prod-deploy         # build, migrate, and start mandatory-TLS production
 make prod-logs           # follow production logs
 make backup-prod         # encrypted database/media/Caddy-state backup
 make monitor-prod        # HTTPS, certificate, backup-age, and disk checks
+make cleanup-media-prod  # remove expired unattached uploads
 ```
 
 ### Local development

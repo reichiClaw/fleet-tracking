@@ -21,6 +21,7 @@ describe('workflow capability matrix', () => {
     expect(canManufacturerCheckout('operations', 'available')).toBe(true);
     expect(canManufacturerCheckout('operations', 'damaged')).toBe(true);
     expect(canManufacturerCheckout('operations', 'announced')).toBe(false);
+    expect(canManufacturerCheckout('operations', 'reserved')).toBe(false);
     expect(canManufacturerCheckout('operations', 'loaned')).toBe(false);
     expect(canManufacturerCheckout('operations', 'archived')).toBe(false);
   });

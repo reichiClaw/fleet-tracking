@@ -1,8 +1,11 @@
+from types import SimpleNamespace
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from accounts.views import UserViewSet
 from audit.models import AuditLog
 
 
@@ -73,3 +76,34 @@ class UserHardeningTests(TestCase):
         self.assertEqual(superuser_reset.status_code, status.HTTP_404_NOT_FOUND)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("Reader-reset-9284!"))
+
+    def test_application_admin_must_use_user_deactivation_action(self):
+        direct = self.client_for(self.admin).patch(
+            f"/api/v1/users/{self.user.id}/",
+            {"is_active": False},
+            format="json",
+        )
+        deactivated = self.client_for(self.admin).post(
+            f"/api/v1/users/{self.user.id}/deactivate/",
+        )
+
+        self.assertEqual(direct.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(deactivated.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
+    def test_application_admin_cannot_deactivate_own_account(self):
+        response = self.client_for(self.admin).post(
+            f"/api/v1/users/{self.admin.id}/deactivate/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+
+    def test_user_update_queryset_locks_active_and_privilege_fields(self):
+        view = UserViewSet()
+        view.action = "partial_update"
+        view.request = SimpleNamespace(user=self.admin)
+
+        self.assertTrue(view.get_queryset().query.select_for_update)

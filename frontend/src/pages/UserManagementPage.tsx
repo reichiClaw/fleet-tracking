@@ -55,6 +55,7 @@ export function UserManagementPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setNotice(null);
     if (!username.trim()) {
       setError(t('users.validation.usernameRequired'));

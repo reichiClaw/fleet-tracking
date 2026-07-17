@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -19,6 +19,9 @@ const vehicles = [
 const companies = [{ id: 'supplier-1', name: 'Acme Supply', company_type: 'supplier', is_active: true }];
 
 let lastCheckInPayload: Record<string, unknown> | null = null;
+let lastCheckInIdempotencyKey: string | null = null;
+let checkInIdempotencyKeys: string[] = [];
+let checkInFailuresRemaining = 0;
 let lastReturnPayload: Record<string, unknown> | null = null;
 let mediaSequence = 0;
 
@@ -60,6 +63,12 @@ function installFetchMock() {
     }
     if (url.endsWith('/workflows/check-ins/') && method === 'POST') {
       lastCheckInPayload = JSON.parse(String(init?.body));
+      lastCheckInIdempotencyKey = new Headers(init?.headers).get('Idempotency-Key');
+      checkInIdempotencyKeys.push(lastCheckInIdempotencyKey ?? '');
+      if (checkInFailuresRemaining > 0) {
+        checkInFailuresRemaining -= 1;
+        return jsonResponse({ error: { code: 'temporary', message: 'Temporary failure.', details: {} } }, 500);
+      }
       return jsonResponse({ id: 'checkin-1', vehicle: 'veh-1' }, 201);
     }
     if (url.endsWith('/loans/loan-1/return/') && method === 'POST') {
@@ -71,11 +80,22 @@ function installFetchMock() {
   vi.stubGlobal('fetch', fetchMock);
 }
 
+function renderPage(kind: 'check-in' | 'loan-return') {
+  const router = createMemoryRouter(
+    [{ path: '*', element: <WorkflowPage kind={kind} /> }],
+    { initialEntries: ['/'] },
+  );
+  return render(<RouterProvider router={router} />);
+}
+
 describe('WorkflowPage damage handling', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     lastCheckInPayload = null;
+    lastCheckInIdempotencyKey = null;
+    checkInIdempotencyKeys = [];
+    checkInFailuresRemaining = 0;
     lastReturnPayload = null;
     mediaSequence = 0;
     installFetchMock();
@@ -87,11 +107,7 @@ describe('WorkflowPage damage handling', () => {
   });
 
   it('allows check-in submission without any damage report', async () => {
-    render(
-      <MemoryRouter>
-        <WorkflowPage kind="check-in" />
-      </MemoryRouter>,
-    );
+    renderPage('check-in');
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
@@ -109,15 +125,35 @@ describe('WorkflowPage damage handling', () => {
       supplier_company: 'supplier-1',
       media_file_ids: ['photo-1'],
     });
+    expect(lastCheckInIdempotencyKey).toBeTruthy();
     expect(lastCheckInPayload).not.toHaveProperty('damage_reports');
   });
 
+  it('reuses the check-in idempotency key when a failed submission is retried', async () => {
+    checkInFailuresRemaining = 1;
+    renderPage('check-in');
+
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
+    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
+    fireEvent.click(screen.getByRole('option', { name: /FZ-00001/ }));
+    fireEvent.change(screen.getByLabelText('Lieferant / Hersteller'), { target: { value: 'supplier-1' } });
+    fireEvent.change(screen.getByLabelText('Allgemeines Fahrzeugfoto'), {
+      target: { files: [new File(['photo'], 'vehicle.jpg', { type: 'image/jpeg' })] },
+    });
+    await screen.findByText('Hochgeladen: vehicle.jpg');
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
+    await screen.findByText('Temporary failure.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
+    await screen.findByText('Fahrzeug zum Pool hinzugefügt');
+
+    expect(checkInIdempotencyKeys).toHaveLength(2);
+    expect(checkInIdempotencyKeys[0]).toBeTruthy();
+    expect(checkInIdempotencyKeys[1]).toBe(checkInIdempotencyKeys[0]);
+  });
+
   it('requires a damage photo when damage is reported on check-in', async () => {
-    render(
-      <MemoryRouter>
-        <WorkflowPage kind="check-in" />
-      </MemoryRouter>,
-    );
+    renderPage('check-in');
 
     await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
     fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
@@ -130,12 +166,37 @@ describe('WorkflowPage damage handling', () => {
     expect(lastCheckInPayload).toBeNull();
   });
 
+  it('marks a damaged check-in as damaged before submitting it', async () => {
+    renderPage('check-in');
+
+    await screen.findByRole('heading', { name: 'Fahrzeug zum Pool hinzufügen' });
+    fireEvent.change(screen.getByLabelText('Fahrzeug'), { target: { value: 'FZ-00001' } });
+    fireEvent.click(screen.getByRole('option', { name: /FZ-00001/ }));
+    fireEvent.change(screen.getByLabelText('Lieferant / Hersteller'), { target: { value: 'supplier-1' } });
+    fireEvent.click(screen.getByLabelText('Ja'));
+    fireEvent.change(screen.getByLabelText('Schadensbeschreibung'), { target: { value: 'Delle vorne' } });
+    fireEvent.change(screen.getByLabelText('Foto des Schadens'), {
+      target: { files: [new File(['damage'], 'damage.jpg', { type: 'image/jpeg' })] },
+    });
+    fireEvent.change(screen.getByLabelText('Allgemeines Fahrzeugfoto'), {
+      target: { files: [new File(['vehicle'], 'vehicle.jpg', { type: 'image/jpeg' })] },
+    });
+    await waitFor(() => expect(screen.getAllByText('Hochgeladen: vehicle.jpg')).toHaveLength(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Fahrzeug einchecken' }));
+
+    await screen.findByText('Fahrzeug zum Pool hinzugefügt');
+    expect(lastCheckInPayload).toMatchObject({
+      target_status: 'damaged',
+      damage_reports: [{
+        description: 'Delle vorne',
+        media_file_ids: ['photo-1'],
+      }],
+      media_file_ids: ['photo-2'],
+    });
+  });
+
   it('completes a loan return without a signature', async () => {
-    render(
-      <MemoryRouter>
-        <WorkflowPage kind="loan-return" />
-      </MemoryRouter>,
-    );
+    renderPage('loan-return');
 
     await screen.findByRole('heading', { name: 'Ausleihe zurückgeben' });
     fireEvent.change(screen.getByLabelText('Aktive Ausleihe'), { target: { value: 'loan-1' } });

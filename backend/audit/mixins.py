@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+from django.db import transaction
+
 from audit.services import audit_event
 from config.request import request_metadata
 
 
 class AuditedModelViewSetMixin:
     audit_entity_type: str | None = None
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if getattr(self, "action", None) in {"update", "partial_update"}:
+            # ModelSerializer.update() saves the full model instance. Reload it
+            # under a row lock so stale fields cannot undo a concurrent
+            # workflow transition or dedicated deactivation action.
+            queryset = queryset.select_for_update()
+        return queryset
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
 
     def _audit_type(self) -> str:
         return self.audit_entity_type or self.queryset.model._meta.model_name

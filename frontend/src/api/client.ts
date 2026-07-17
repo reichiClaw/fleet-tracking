@@ -189,7 +189,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (!response.ok) {
     const error = await apiErrorFromResponse(response);
-    if (response.status === 401) notifyAuthExpired(path);
+    // DRF's session authenticator returns 403 (rather than 401) when no
+    // session exists because it does not advertise a WWW-Authenticate scheme.
+    // Distinguish that response from legitimate permission denials by code.
+    if (response.status === 401 || (response.status === 403 && error.code === 'not_authenticated')) {
+      notifyAuthExpired(path);
+    }
     throw error;
   }
 

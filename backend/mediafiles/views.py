@@ -14,7 +14,7 @@ from audit.services import audit_event
 from config.request import request_metadata
 from mediafiles.models import MediaFile, MediaType
 from mediafiles.serializers import GeneratedDocumentSerializer, MediaFileSerializer, MediaFileUploadSerializer
-from mediafiles.services import validate_existing_media_file
+from mediafiles.services import cleanup_storage_file, validate_existing_media_file
 
 
 class MediaDownloadMixin:
@@ -66,11 +66,20 @@ class MediaFileViewSet(MediaDownloadMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def discard(self, request, pk=None):
-        media = self.get_object()
-        if not media.is_staged:
-            raise serializers.ValidationError({"media": _("Only staged media can be discarded.")})
-        storage_key = media.storage_key
         with transaction.atomic():
+            # Re-read under the same row lock used by workflow attachment. This
+            # prevents a stale "staged" instance from deleting media that a
+            # concurrent workflow has just attached.
+            media = self.get_queryset().select_for_update().filter(pk=pk).first()
+            if media is None:
+                raise Http404
+            if media.uploaded_by_id != request.user.pk:
+                raise serializers.ValidationError(
+                    {"media": _("You may only discard media that you uploaded.")}
+                )
+            if not media.is_staged:
+                raise serializers.ValidationError({"media": _("Only staged media can be discarded.")})
+            storage_key = media.storage_key
             audit_event(
                 actor=request.user,
                 action="media.discarded",
@@ -80,7 +89,7 @@ class MediaFileViewSet(MediaDownloadMixin, viewsets.ModelViewSet):
                 request_meta=request_metadata(request),
             )
             media.delete()
-            transaction.on_commit(lambda: default_storage.delete(storage_key))
+            transaction.on_commit(lambda: cleanup_storage_file(storage_key))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

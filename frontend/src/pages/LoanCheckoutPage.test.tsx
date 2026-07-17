@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -50,11 +50,11 @@ function installFetchMock() {
 }
 
 function renderPage(initialPath = '/app/workflows/loan-checkout') {
-  return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <LoanCheckoutPage />
-    </MemoryRouter>,
+  const router = createMemoryRouter(
+    [{ path: '*', element: <LoanCheckoutPage /> }],
+    { initialEntries: [initialPath] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 async function uploadSignature() {

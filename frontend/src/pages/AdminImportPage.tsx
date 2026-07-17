@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -27,6 +27,13 @@ const FALLBACK_TARGET_COLUMNS = [
   'notes',
 ];
 
+function mappingFromJob(job: ImportJob): Record<string, string> {
+  const active = job.result?.mapping ?? job.result?.suggested_mapping ?? {};
+  return Object.fromEntries(
+    Object.entries(active).map(([column, index]) => [column, String(index)]),
+  );
+}
+
 export function AdminImportPage() {
   const { i18n, t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
@@ -39,18 +46,6 @@ export function AdminImportPage() {
   const [rowPage, setRowPage] = useState(1);
   const [confirmCommit, setConfirmCommit] = useState(false);
 
-  useEffect(() => {
-    const active = job?.result?.mapping ?? job?.result?.suggested_mapping;
-    if (!active) {
-      return;
-    }
-    const next: Record<string, string> = {};
-    Object.entries(active).forEach(([column, index]) => {
-      next[column] = String(index);
-    });
-    setMapping(next);
-  }, [job]);
-
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     setFile(event.target.files?.[0] ?? null);
     setJob(null);
@@ -60,6 +55,9 @@ export function AdminImportPage() {
   }
 
   async function handleUpload() {
+    if (isUploading) {
+      return;
+    }
     if (!file) {
       setError(t('imports.validation.fileRequired'));
       return;
@@ -67,7 +65,9 @@ export function AdminImportPage() {
     setIsUploading(true);
     setError(null);
     try {
-      setJob(await uploadVehicleImport(file));
+      const nextJob = await uploadVehicleImport(file);
+      setMapping(mappingFromJob(nextJob));
+      setJob(nextJob);
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('imports.uploadError')));
     } finally {
@@ -76,7 +76,7 @@ export function AdminImportPage() {
   }
 
   async function handleApplyMapping() {
-    if (!job) {
+    if (!job || isRemapping) {
       return;
     }
     const numericMapping: Record<string, number> = {};
@@ -88,7 +88,9 @@ export function AdminImportPage() {
     setIsRemapping(true);
     setError(null);
     try {
-      setJob(await remapVehicleImport(job.id, numericMapping));
+      const nextJob = await remapVehicleImport(job.id, numericMapping);
+      setMapping(mappingFromJob(nextJob));
+      setJob(nextJob);
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('imports.uploadError')));
     } finally {
@@ -97,7 +99,7 @@ export function AdminImportPage() {
   }
 
   async function handleCommit() {
-    if (!job) {
+    if (!job || isCommitting) {
       return;
     }
     setIsCommitting(true);

@@ -88,19 +88,33 @@ describe('apiClient', () => {
     });
   });
 
-  it('dispatches auth expiry once and preserves the full continuation URL', async () => {
+  it.each([401, 403])('dispatches auth expiry once for a %s unauthenticated response', async (status) => {
     window.history.pushState({}, '', '/app/qr?mode=scan#camera');
     const expired = vi.fn();
     window.addEventListener(AUTH_EXPIRED_EVENT, expired);
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
       error: { code: 'not_authenticated', message: 'Authentication required.', details: {} },
-    }), { status: 401, headers: { 'Content-Type': 'application/json' } }))));
+    }), { status, headers: { 'Content-Type': 'application/json' } }))));
 
     await expect(apiClient.get('/vehicles/')).rejects.toBeInstanceOf(ApiError);
     await expect(apiClient.get('/vehicles/')).rejects.toBeInstanceOf(ApiError);
 
     expect(expired).toHaveBeenCalledTimes(1);
     expect(window.sessionStorage.getItem(AUTH_CONTINUATION_KEY)).toBe('/app/qr?mode=scan#camera');
+    window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+  });
+
+  it('does not treat an authenticated permission denial as session expiry', async () => {
+    document.cookie = 'csrftoken=test-token; path=/';
+    const expired = vi.fn();
+    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: { code: 'permission_denied', message: 'Permission denied.', details: {} },
+    }), { status: 403, headers: { 'Content-Type': 'application/json' } }))));
+
+    await expect(apiClient.post('/users/', {})).rejects.toBeInstanceOf(ApiError);
+
+    expect(expired).not.toHaveBeenCalled();
     window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
   });
 });

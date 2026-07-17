@@ -130,6 +130,49 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(CheckInProtocol.objects.get().pdf_media_id, pdf_doc.id)
         self.assertTrue(AuditLog.objects.filter(action="workflow.check_in.completed").exists())
 
+    def test_check_in_rejects_condition_status_inconsistent_with_damage_reports(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
+        client = self.api_client()
+
+        available_with_damage = client.post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(vehicle.id),
+                "target_status": VehicleStatus.AVAILABLE,
+                "damage_reports": [{"description": "Visible dent", "severity": "minor"}],
+            },
+            format="json",
+        )
+        damaged_without_report = client.post(
+            "/api/v1/workflows/check-ins/",
+            {"vehicle": str(vehicle.id), "target_status": VehicleStatus.DAMAGED},
+            format="json",
+        )
+
+        self.assertEqual(available_with_damage.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(damaged_without_report.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.ANNOUNCED)
+        self.assertEqual(CheckInProtocol.objects.count(), 0)
+        self.assertEqual(DamageReport.objects.count(), 0)
+
+    def test_check_in_rejects_future_workflow_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
+
+        response = self.api_client().post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(vehicle.id),
+                "performed_at": (timezone.now() + timedelta(minutes=5)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.ANNOUNCED)
+        self.assertEqual(CheckInProtocol.objects.count(), 0)
+
     def test_check_in_rejects_decreasing_odometer_atomically(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=100)
 
@@ -161,9 +204,16 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
             format="json",
             HTTP_IDEMPOTENCY_KEY="checkin-123",
         )
+        conflict = client.post(
+            "/api/v1/workflows/check-ins/",
+            {**payload, "condition_notes": "Different request"},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="checkin-123",
+        )
 
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)
         self.assertEqual(replay.status_code, status.HTTP_200_OK)
+        self.assertEqual(conflict.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(first.data["id"], replay.data["id"])
         self.assertEqual(CheckInProtocol.objects.count(), 1)
 
@@ -366,6 +416,61 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.current_odometer_km, 130)
         self.assertTrue(AuditLog.objects.filter(action="workflow.loan_return.completed").exists())
 
+    def test_loan_return_rejects_available_status_when_damage_is_reported(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {
+                "target_status": VehicleStatus.AVAILABLE,
+                "damage_reports": [{"description": "New dent", "severity": "minor"}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+        self.assertEqual(DamageReport.objects.count(), 0)
+
+    def test_loan_return_preserves_damaged_status_for_existing_unresolved_damage(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+        DamageReport.objects.create(
+            vehicle=vehicle,
+            loan=loan,
+            workflow_phase="loan_checkout",
+            description="Damage recorded at checkout",
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.RETURNED)
+        self.assertEqual(vehicle.status, VehicleStatus.DAMAGED)
+
     def test_loan_return_rejects_non_active_loan(self):
         vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE, odometer=120)
         loan = Loan.objects.create(
@@ -434,6 +539,28 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         loan.refresh_from_db()
         self.assertEqual(loan.status, LoanStatus.ACTIVE)
 
+    def test_loan_return_rejects_future_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {"actual_return_at": (timezone.now() + timedelta(minutes=5)).isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
 
 class GeneratedReportsTests(WorkflowAPITestCase):
     def _results(self, response):
@@ -497,6 +624,23 @@ class ManufacturerCheckoutWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.current_odometer_km, 205)
         self.assertEqual(ManufacturerCheckOutProtocol.objects.count(), 1)
         self.assertTrue(AuditLog.objects.filter(action="workflow.manufacturer_checkout.completed").exists())
+
+    def test_manufacturer_checkout_rejects_future_workflow_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+
+        response = self.api_client().post(
+            "/api/v1/workflows/manufacturer-checkouts/",
+            {
+                "vehicle": str(vehicle.id),
+                "performed_at": (timezone.now() + timedelta(minutes=5)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+        self.assertEqual(ManufacturerCheckOutProtocol.objects.count(), 0)
 
     def test_manufacturer_checkout_rejects_loaned_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED)

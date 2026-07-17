@@ -30,9 +30,12 @@
 
 ```json
 {
-  "type": "validation_error",
-  "errors": {
-    "field": ["Message"]
+  "error": {
+    "code": "invalid",
+    "message": "Request validation failed.",
+    "details": {
+      "field": ["Message"]
+    }
   }
 }
 ```
@@ -41,8 +44,11 @@
 
 ```json
 {
-  "type": "permission_denied",
-  "detail": "You do not have permission to perform this action."
+  "error": {
+    "code": "permission_denied",
+    "message": "You do not have permission to perform this action.",
+    "details": {}
+  }
 }
 ```
 
@@ -69,9 +75,13 @@ Example:
 
 | Method | Path | Description |
 |---|---|---|
+| GET | `/auth/csrf/` | Issue the CSRF cookie required for writes |
 | POST | `/auth/login/` | Authenticate user |
 | POST | `/auth/logout/` | End session/token |
 | GET | `/auth/me/` | Current user profile |
+
+The browser client uses a same-origin Django session. Every unsafe request sends
+the CSRF cookie value in `X-CSRFToken`.
 
 ## Users
 
@@ -84,6 +94,11 @@ Admin only except own profile.
 | GET | `/users/{id}/` | Retrieve user |
 | PATCH | `/users/{id}/` | Update user |
 | POST | `/users/{id}/deactivate/` | Deactivate user |
+| POST | `/users/{id}/set-password/` | Change/reset a password |
+
+Passwords cannot be changed through `PATCH`. A user changing their own password
+must send `current_password` and `new_password`; an application admin resetting
+a non-superuser sends `new_password`.
 
 ## Vehicle categories
 
@@ -145,8 +160,9 @@ Recommended filters:
 | GET | `/workflows/check-ins/{id}/` | Retrieve check-in |
 | POST | `/workflows/check-ins/{id}/generate-pdf/` | Generate protocol PDF |
 
-Completion can happen in the create request for MVP. If drafts are needed later,
-split creation and completion into separate endpoints.
+Check-in completion is atomic. Clients should send an `Idempotency-Key` header
+(maximum 128 characters) and reuse it when retrying the same request. Reusing a
+key for a different actor, vehicle, or payload is rejected.
 
 ## Loan workflow
 
@@ -156,7 +172,6 @@ split creation and completion into separate endpoints.
 | GET | `/loans/` | List loans |
 | GET | `/loans/{id}/` | Retrieve loan |
 | POST | `/loans/{id}/return/` | Return active loan |
-| POST | `/loans/{id}/cancel/` | Cancel active loan, admin only |
 | POST | `/loans/{id}/generate-checkout-pdf/` | Generate loan checkout PDF |
 | POST | `/loans/{id}/generate-return-pdf/` | Generate loan return PDF |
 
@@ -182,22 +197,25 @@ split creation and completion into separate endpoints.
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/media/` | Upload file |
+| POST | `/media/` | Stage a photo or signature upload |
 | GET | `/media/{id}/` | Retrieve media metadata |
 | GET | `/media/{id}/download/` | Download file |
-| DELETE | `/media/{id}/` | Delete file if allowed |
+| POST | `/media/{id}/discard/` | Discard an uploader-owned staged file |
 
 Upload request should use multipart form data with:
 
 - `file`
-- `media_type` (`photo`, `signature`, `pdf`, `import`)
-- optional `vehicle`
-- optional `loan`
-- optional `damage_report`
-- optional `related_type`
-- optional `related_id`
+- `media_type` (`photo` or `signature`)
 
-Files are downloaded through authenticated API endpoints. Deployments should not
+The upload endpoint never accepts relationship fields. It returns a staged media
+ID, which a vehicle/workflow request attaches through `media_file_ids` (or a
+damage report's nested `media_file_ids`). Only the uploader can attach or
+discard it, and a file can be attached once. PDF and import records are created
+only by their dedicated server workflows.
+
+Files are downloaded through authorized API endpoints. Import workbooks are
+admin-only, read-only users see generated PDFs and attached photos, and
+signature access is limited to operational/admin roles. Deployments must not
 serve the media volume directly.
 
 ## Documents
@@ -205,6 +223,7 @@ serve the media volume directly.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/documents/` | List generated PDFs |
+| GET | `/documents/{id}/` | Retrieve generated PDF metadata |
 | GET | `/documents/{id}/download/` | Download generated PDF |
 
 PDF generation endpoints accept JSON `{ "language": "de" }` or `{ "language": "en" }`.
@@ -218,6 +237,7 @@ Admin only.
 | Method | Path | Description |
 |---|---|---|
 | POST | `/imports/vehicles/` | Upload and validate vehicle Excel file |
+| POST | `/imports/{id}/remap/` | Revalidate with an explicit column mapping |
 | POST | `/imports/{id}/commit/` | Commit validated import |
 | GET | `/imports/{id}/` | Retrieve import result |
 | GET | `/imports/` | List import jobs |
@@ -226,16 +246,14 @@ Admin only.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/dashboard/status-summary/` | Counts by status |
-| GET | `/dashboard/overdue-loans/` | Loans past expected return |
-| GET | `/dashboard/recent-activity/` | Recent workflow events |
+| GET | `/dashboard/summary/` | Status counts, active/overdue loans, returns, and recent activity |
 
 ## Permission matrix
 
 | Area | Admin | Operations | Read-only |
 |---|---:|---:|---:|
 | Users | Full | Own profile | Own profile |
-| Vehicles | Full | Read/update workflow fields | Read |
+| Vehicles | Full | Read and execute workflows | Read |
 | Categories | Full | Read | Read |
 | Companies | Full | Read/create/update | Read |
 | Drivers | Full | Read/create/update | Read |
@@ -259,7 +277,7 @@ Validation messages must be translatable in German and English when shown to end
 - Odometer and operating hours must not decrease without admin correction.
 - At least one of odometer or operating hours should be required per vehicle,
   depending on vehicle category settings.
-- Damage reports must include a description or photo.
+- Damage reports must include a description and may attach staged photos.
 - Signatures are required for loan checkout unless configuration says otherwise.
 - Uploaded files must be restricted by content type, extension, and size.
 - Excel imports should validate all rows before committing changes.

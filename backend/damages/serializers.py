@@ -1,6 +1,7 @@
 """Serializers for damage report APIs."""
 
 from rest_framework import serializers
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from damages.models import DamageReport
@@ -55,6 +56,11 @@ class DamageReportSerializer(serializers.ModelSerializer):
                 {field: _("This field is managed by its workflow endpoint.") for field in forbidden}
             )
         return attrs
+
+    def validate_discovered_at(self, value):
+        if value > timezone.now():
+            raise serializers.ValidationError(_("Damage discovery time cannot be in the future."))
+        return value
 
 
 class DamageResolutionSerializer(serializers.Serializer):

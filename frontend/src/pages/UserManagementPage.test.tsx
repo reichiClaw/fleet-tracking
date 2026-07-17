@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -66,13 +66,18 @@ function installFetchMock() {
 }
 
 function renderPage() {
-  return render(
-    <MemoryRouter>
+  const router = createMemoryRouter(
+    [{
+      path: '*',
+      element: (
       <AuthProvider>
         <UserManagementPage />
       </AuthProvider>
-    </MemoryRouter>,
+      ),
+    }],
+    { initialEntries: ['/app/settings/users'] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 describe('UserManagementPage', () => {

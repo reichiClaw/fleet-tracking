@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -17,9 +18,11 @@ from django.utils.text import get_valid_filename
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from accounts.permissions import is_admin
 from audit.services import audit_event
 from mediafiles.models import MediaFile, MediaType
+
+
+logger = logging.getLogger("fleet")
 
 
 _ALLOWED_UPLOADS = {
@@ -53,6 +56,7 @@ _ALLOWED_UPLOADS = {
 }
 
 
+@transaction.atomic
 def create_media_file_from_upload(
     *,
     uploaded_file,
@@ -85,6 +89,9 @@ def create_media_file_from_upload(
         prefix=_file_prefix(uploaded_file),
     )
     if media_type in {MediaType.PHOTO, MediaType.SIGNATURE}:
+        # Serialize staged quota checks per uploader. Without a stable row lock,
+        # concurrent uploads could all observe the same pre-upload count.
+        type(actor).objects.select_for_update().only("pk").get(pk=actor.pk)
         _enforce_staged_quota(actor=actor, incoming_size=size_bytes)
     content_sha256 = _upload_sha256(uploaded_file)
     try:
@@ -120,7 +127,7 @@ def create_media_file_from_upload(
         )
         return media
     except Exception:
-        default_storage.delete(saved_key)
+        cleanup_storage_file(saved_key)
         raise
     finally:
         try:
@@ -189,8 +196,48 @@ def create_media_file_from_bytes(
         )
         return media
     except Exception:
-        default_storage.delete(saved_key)
+        cleanup_storage_file(saved_key)
         raise
+
+
+def cleanup_storage_file(storage_key: str) -> None:
+    """Best-effort cleanup without masking the transaction's original error."""
+    try:
+        default_storage.delete(storage_key)
+    except Exception:  # pragma: no cover - depends on an unavailable external backend
+        logger.exception("Failed to clean up media storage object %s", storage_key)
+
+
+@transaction.atomic
+def expire_staged_media(*, actor=None, cutoff=None) -> int:
+    """Delete expired, unattached user uploads under row locks."""
+    cutoff = cutoff or (timezone.now() - timedelta(hours=int(settings.STAGED_MEDIA_TTL_HOURS)))
+    queryset = MediaFile.objects.select_for_update().filter(
+        attached_at__isnull=True,
+        created_at__lt=cutoff,
+        media_type__in=[MediaType.PHOTO, MediaType.SIGNATURE],
+    )
+    if actor is not None:
+        queryset = queryset.filter(uploaded_by=actor)
+
+    expired = list(queryset)
+    for media in expired:
+        storage_key = media.storage_key
+        audit_event(
+            actor=actor,
+            action="media.expired",
+            entity_type="media_file",
+            entity_id=media.id,
+            before={
+                "media_type": media.media_type,
+                "size_bytes": media.size_bytes,
+                "sha256": media.content_sha256,
+                "uploaded_by_id": str(media.uploaded_by_id),
+            },
+        )
+        media.delete()
+        transaction.on_commit(lambda key=storage_key: cleanup_storage_file(key))
+    return len(expired)
 
 
 def validate_existing_media_file(media: MediaFile) -> None:
@@ -234,7 +281,7 @@ def attach_media_files(
             raise serializers.ValidationError(
                 {"media_file_ids": _("This media type cannot be attached to the requested record.")}
             )
-        if media.uploaded_by_id != actor.pk and not is_admin(actor):
+        if media.uploaded_by_id != actor.pk:
             raise serializers.ValidationError({"media_file_ids": _("You may only attach media that you uploaded.")})
         if not media.is_staged:
             raise serializers.ValidationError({"media_file_ids": _("Media can only be attached once.")})
@@ -326,8 +373,11 @@ def _validate_attachment_target(*, vehicle, loan, damage_report, related_type: s
 
 
 def _enforce_staged_quota(*, actor, incoming_size: int) -> None:
-    cutoff = timezone.now() - timedelta(hours=int(settings.STAGED_MEDIA_TTL_HOURS))
-    staged = MediaFile.objects.filter(uploaded_by=actor, attached_at__isnull=True, created_at__gte=cutoff)
+    expire_staged_media(actor=actor)
+
+    # Count every remaining staged file. This keeps the quota fail-closed even
+    # if an old row could not be selected by a previous cleanup attempt.
+    staged = MediaFile.objects.filter(uploaded_by=actor, attached_at__isnull=True)
     if staged.count() >= int(settings.MAX_STAGED_MEDIA_FILES):
         raise serializers.ValidationError({"file": _("The staged upload file quota has been reached.")})
     current_size = staged.aggregate(total=Sum("size_bytes"))["total"] or 0

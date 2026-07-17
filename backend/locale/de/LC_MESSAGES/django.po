@@ -427,6 +427,18 @@ msgstr "Dieses Berechtigungsmerkmal kann nicht über die Anwendungs-API geänder
 msgid "Use the password update endpoint to change a password."
 msgstr "Verwenden Sie zum Ändern eines Passworts den Passwort-Endpunkt."
 
+msgid "Only administrators may change active status."
+msgstr "Nur Administratoren dürfen den Aktivstatus ändern."
+
+msgid "Use the dedicated deactivate action."
+msgstr "Verwenden Sie die dafür vorgesehene Deaktivierungsaktion."
+
+msgid "You cannot deactivate your own account."
+msgstr "Sie können Ihr eigenes Konto nicht deaktivieren."
+
+msgid "Use the dedicated archive action."
+msgstr "Verwenden Sie die dafür vorgesehene Archivierungsaktion."
+
 msgid "The current password is incorrect."
 msgstr "Das aktuelle Passwort ist falsch."
 
@@ -447,6 +459,9 @@ msgstr "Medien dürfen nur einmal zugeordnet werden."
 
 msgid "You may only attach media that you uploaded."
 msgstr "Sie dürfen nur selbst hochgeladene Medien zuordnen."
+
+msgid "You may only discard media that you uploaded."
+msgstr "Sie dürfen nur selbst hochgeladene Medien verwerfen."
 
 msgid "One or more media files are unavailable."
 msgstr "Eine oder mehrere Mediendateien sind nicht verfügbar."
@@ -492,6 +507,24 @@ msgstr "Die erwartete Rückgabe muss nach der Ausleihe liegen."
 
 msgid "Return timestamp must not be earlier than checkout."
 msgstr "Der Rückgabezeitpunkt darf nicht vor der Ausleihe liegen."
+
+msgid "Return timestamp cannot be in the future."
+msgstr "Der Rückgabezeitpunkt darf nicht in der Zukunft liegen."
+
+msgid "Workflow timestamp cannot be in the future."
+msgstr "Der Workflow-Zeitpunkt darf nicht in der Zukunft liegen."
+
+msgid "A vehicle with reported damage cannot be marked available."
+msgstr "Ein Fahrzeug mit gemeldetem Schaden kann nicht als verfügbar markiert werden."
+
+msgid "Damaged status requires at least one damage report."
+msgstr "Der Status „Beschädigt“ erfordert mindestens eine Schadensmeldung."
+
+msgid "Enter a valid date (YYYY-MM-DD)."
+msgstr "Geben Sie ein gültiges Datum ein (JJJJ-MM-TT)."
+
+msgid "Vehicle QR code was not found."
+msgstr "Der Fahrzeug-QR-Code wurde nicht gefunden."
 
 msgid "The selected company is inactive."
 msgstr "Das ausgewählte Unternehmen ist inaktiv."
