@@ -3,16 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import {
-  displayDriverName,
   displayVehicleName,
-  listDrivers,
-  listLoans,
   listVehicleCategories,
   listVehiclePage,
-  listVehicles,
   type PageResult,
-  type Driver,
-  type Loan,
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
@@ -52,8 +46,6 @@ export function VehiclePoolPage() {
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [searchInput, setSearchInput] = useState('');
@@ -65,15 +57,9 @@ export function VehiclePoolPage() {
     let isMounted = true;
     async function loadSupportData() {
       try {
-        const [nextCategories, nextLoans, nextDrivers] = await Promise.all([
-          listVehicleCategories(),
-          listLoans(),
-          listDrivers(),
-        ]);
+        const nextCategories = await listVehicleCategories();
         if (isMounted) {
           setCategories(nextCategories);
-          setLoans(nextLoans);
-          setDrivers(nextDrivers);
         }
       } catch (error) {
         if (isMounted) {
@@ -90,47 +76,22 @@ export function VehiclePoolPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function loadVehicles() {
       setIsLoading(true);
       setError(null);
       try {
-        let nextPage: PageResult<Vehicle>;
-        if (status) {
-          nextPage = await listVehiclePage({ status, category, search }, page);
-        } else {
-          // The backend currently has no "active fleet only" filter, so its
-          // unfiltered count includes archived/manufacturer-returned records.
-          // Follow all pages and paginate the filtered active set locally to
-          // keep counts and page boundaries correct.
-          const allVehicles = await listVehicles({ category });
-          const query = search.trim().toLowerCase();
-          const activeVehicles = allVehicles
-            .filter((item) => !ARCHIVED_STATUSES.has(item.status))
-            .filter((item) => !query || [
-              item.internal_number,
-              item.manufacturer,
-              item.model,
-              item.license_plate,
-              item.serial_number,
-              item.current_location,
-            ].filter(Boolean).join(' ').toLowerCase().includes(query));
-          const pageSize = 50;
-          const results = activeVehicles.slice((page - 1) * pageSize, page * pageSize);
-          nextPage = {
-            count: activeVehicles.length,
-            next: page * pageSize < activeVehicles.length ? 'next' : null,
-            previous: page > 1 ? 'previous' : null,
-            results,
-            page,
-            pageSize,
-          };
-        }
+        const nextPage = await listVehiclePage(
+          { status, category, search, active: status ? undefined : true },
+          page,
+          controller.signal,
+        );
         if (isMounted) {
           setVehicles(nextPage.results);
           setVehiclePage(nextPage);
         }
       } catch (error) {
-        if (isMounted) {
+        if (isMounted && !controller.signal.aborted) {
           setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
           setVehicles([]);
         }
@@ -144,23 +105,9 @@ export function VehiclePoolPage() {
     loadVehicles();
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [category, page, reloadToken, search, status, t]);
-
-  const activeLoansByVehicle = useMemo(() => {
-    const driverNames = new Map(drivers.map((driver) => [driver.id, displayDriverName(driver)]));
-    return new Map(
-      loans
-        .filter((loan) => loan.status === 'active')
-        .map((loan) => [
-          loan.vehicle,
-          {
-            ...loan,
-            borrower_name: loan.driver ? driverNames.get(loan.driver) || loan.borrower_name : loan.borrower_name,
-          },
-        ]),
-    );
-  }, [drivers, loans]);
 
   const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => !ARCHIVED_STATUSES.has(vehicle.status)), [vehicles]);
 
@@ -219,7 +166,7 @@ export function VehiclePoolPage() {
 
       {!isLoading && !error ? <div className="vehicle-grid">
         {visibleVehicles.map((vehicle) => {
-          const activeLoan = activeLoansByVehicle.get(vehicle.id);
+          const activeLoan = vehicle.active_loan;
           return (
             <article className="content-card vehicle-card" key={vehicle.id}>
               <div className="card-title-row">

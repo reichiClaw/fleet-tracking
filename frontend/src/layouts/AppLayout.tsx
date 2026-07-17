@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
+import { ConnectivityBanner } from '../components/ConnectivityBanner';
 import { LanguageSelector } from '../components/LanguageSelector';
 
 type NavigationItem = {
@@ -13,20 +14,19 @@ type NavigationItem = {
 };
 
 const navigationItems: NavigationItem[] = [
-  { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'dashboard', to: '/app', translationKey: 'navigation.home', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'tasks', to: '/app/tasks', translationKey: 'navigation.tasks', roles: ['admin', 'operations', 'readonly'] },
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'loanWorkflows', to: '/app/workflows/loans', translationKey: 'navigation.loanWorkflows', roles: ['admin', 'operations'] },
-  { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'qr', to: '/app/qr?mode=scan', translationKey: 'navigation.scan', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'checkIn', to: '/app/workflows/check-in', translationKey: 'navigation.checkIn', roles: ['admin', 'operations'] },
+  { key: 'loanWorkflows', to: '/app/workflows/loan-checkout', translationKey: 'navigation.loanVehicle', roles: ['admin', 'operations'] },
+  { key: 'loanReturn', to: '/app/workflows/loan-return', translationKey: 'navigation.returnLoan', roles: ['admin', 'operations'] },
+  { key: 'manufacturerWorkflows', to: '/app/workflows/manufacturer-return', translationKey: 'navigation.returnManufacturer', roles: ['admin', 'operations'] },
+  { key: 'maintenance', to: '/app/tasks#condition_attention', translationKey: 'navigation.conditionTasks', roles: ['admin', 'operations'] },
   { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
   { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
   { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
   { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
-  {
-    key: 'manufacturerWorkflows',
-    to: '/app/workflows/manufacturer',
-    translationKey: 'navigation.manufacturerWorkflows',
-    roles: ['admin', 'operations'],
-  },
 ];
 
 // Grouped under a "Settings" submenu at the bottom of the navigation.
@@ -39,6 +39,10 @@ const settingsNavItems: NavigationItem[] = [
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
     dashboard: <path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z" />,
+    tasks: <path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8" />,
+    checkIn: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
+    loanReturn: <path d="M20 7H9l2-2M4 17h11l-2 2M20 7l-3 3M4 17l3-3" />,
+    maintenance: <path d="M14 7a4 4 0 0 1-5 5l-5 5 2 2 5-5a4 4 0 0 0 5-5l-2 2-2-2 2-2z" />,
     vehiclePool: (
       <>
         <path d="M3 13l2-5a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 8l2 5" />
@@ -215,6 +219,7 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">{t('layout.skipToContent')}</a>
+      <ConnectivityBanner />
       <header className="top-bar">
         <button
           ref={mobileNavButtonRef}
@@ -319,12 +324,33 @@ export function AppLayout() {
               </div>
             ) : null}
           </nav>
+          <div className="side-nav__account">
+            <p>{t('layout.signedInAs')} <strong>{user?.name}</strong></p>
+            <LanguageSelector />
+            <button className="secondary-button" type="button" onClick={() => void logout()}>
+              {t('navigation.logout')}
+            </button>
+          </div>
         </aside>
 
         <main id="main-content" className="content-panel" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
+      <nav className="mobile-bottom-nav" aria-label={t('navigation.mobileLabel')}>
+        <NavLink to="/app" end><NavIcon name="dashboard" /><span>{t('navigation.home')}</span></NavLink>
+        <NavLink to="/app/tasks"><NavIcon name="tasks" /><span>{t('navigation.tasks')}</span></NavLink>
+        <NavLink className="mobile-bottom-nav__scan" to="/app/qr?mode=scan"><NavIcon name="qr" /><span>{t('navigation.scan')}</span></NavLink>
+        <NavLink to="/app/vehicles"><NavIcon name="vehiclePool" /><span>{t('navigation.fleet')}</span></NavLink>
+        <button
+          type="button"
+          aria-expanded={isMobileNavOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMobileNavOpen(true)}
+        >
+          <NavIcon name="settings" /><span>{t('navigation.more')}</span>
+        </button>
+      </nav>
     </div>
   );
 }

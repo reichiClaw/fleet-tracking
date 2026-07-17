@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
 import { LoadingState } from '../components/LoadingState';
+import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
 import { AppLayout } from '../layouts/AppLayout';
 
 const AddVehiclePage = lazy(() => import('../pages/AddVehiclePage').then((module) => ({ default: module.AddVehiclePage })));
@@ -18,6 +19,10 @@ const PartnersPage = lazy(() => import('../pages/PartnersPage').then((module) =>
 const QRAccessPage = lazy(() => import('../pages/QRAccessPage').then((module) => ({ default: module.QRAccessPage })));
 const QRPrintPage = lazy(() => import('../pages/QRPrintPage').then((module) => ({ default: module.QRPrintPage })));
 const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })));
+const TasksPage = lazy(() => import('../pages/TasksPage').then((module) => ({ default: module.TasksPage })));
+const IntakePage = lazy(() => import('../pages/IntakePage').then((module) => ({ default: module.IntakePage })));
+const MaintenanceTaskPage = lazy(() => import('../pages/MaintenanceTaskPage').then((module) => ({ default: module.MaintenanceTaskPage })));
+const ReservationsPage = lazy(() => import('../pages/ReservationsPage').then((module) => ({ default: module.ReservationsPage })));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage').then((module) => ({ default: module.UserManagementPage })));
 const VehicleDetailPage = lazy(() => import('../pages/VehicleDetailPage').then((module) => ({ default: module.VehicleDetailPage })));
 const VehicleHistoryPage = lazy(() => import('../pages/VehicleHistoryPage').then((module) => ({ default: module.VehicleHistoryPage })));
@@ -55,14 +60,21 @@ function RequireRole({ children, roles }: { children: ReactElement; roles: UserR
 const workflowRoles: UserRole[] = ['admin', 'operations'];
 const adminRoles: UserRole[] = ['admin'];
 
+function RouteContent({ children }: { children: ReactElement }) {
+  return (
+    <RouteErrorBoundary>
+      <Suspense fallback={<LoadingState />}>{children}</Suspense>
+    </RouteErrorBoundary>
+  );
+}
+
 export function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingState />}>
-      <Routes>
+    <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<RouteContent><LoginPage /></RouteContent>} />
       {/* Public, no-login-required vehicle status page reached by scanning the QR code. */}
-      <Route path="/v/:qrCode" element={<VehicleStatusPage />} />
+      <Route path="/v/:qrCode" element={<RouteContent><VehicleStatusPage /></RouteContent>} />
       <Route
         path="/app"
         element={
@@ -71,31 +83,35 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="vehicles" element={<VehiclePoolPage />} />
-        <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
-        <Route path="history" element={<VehicleHistoryPage />} />
-        <Route path="archive" element={<ArchivePage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route path="qr" element={<QRAccessPage />} />
-        <Route path="qr/print" element={<QRPrintPage />} />
-        <Route path="workflows/loans" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole>} />
-        <Route path="workflows/manufacturer" element={<RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole>} />
-        <Route path="workflows/add-vehicle" element={<RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole>} />
-        <Route path="workflows/check-in" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="check-in" /></RequireRole>} />
-        <Route path="workflows/loan-checkout" element={<RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole>} />
-        <Route path="workflows/loan-return" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole>} />
-        <Route path="workflows/manufacturer-checkout" element={<RequireRole roles={workflowRoles}><WorkflowPage kind="manufacturer-checkout" /></RequireRole>} />
-        <Route path="partners" element={<PartnersPage />} />
+        <Route index element={<RouteContent><DashboardPage /></RouteContent>} />
+        <Route path="tasks" element={<RouteContent><TasksPage /></RouteContent>} />
+        <Route path="vehicles" element={<RouteContent><VehiclePoolPage /></RouteContent>} />
+        <Route path="vehicles/:vehicleId" element={<RouteContent><VehicleDetailPage /></RouteContent>} />
+        <Route path="history" element={<RouteContent><VehicleHistoryPage /></RouteContent>} />
+        <Route path="archive" element={<RouteContent><ArchivePage /></RouteContent>} />
+        <Route path="reports" element={<RouteContent><ReportsPage /></RouteContent>} />
+        <Route path="qr" element={<RouteContent><QRAccessPage /></RouteContent>} />
+        <Route path="qr/print" element={<RouteContent><QRPrintPage /></RouteContent>} />
+        <Route path="workflows/loans" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole></RouteContent>} />
+        <Route path="workflows/manufacturer" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole></RouteContent>} />
+        <Route path="workflows/add-vehicle" element={<RouteContent><RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole></RouteContent>} />
+        <Route path="workflows/intake" element={<RouteContent><RequireRole roles={workflowRoles}><IntakePage /></RequireRole></RouteContent>} />
+        <Route path="workflows/check-in" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowPage kind="check-in" /></RequireRole></RouteContent>} />
+        <Route path="workflows/loan-checkout" element={<RouteContent><RequireRole roles={workflowRoles}><LoanCheckoutPage /></RequireRole></RouteContent>} />
+        <Route path="workflows/loan-return" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowPage kind="loan-return" /></RequireRole></RouteContent>} />
+        <Route path="workflows/manufacturer-return" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowPage kind="manufacturer-checkout" /></RequireRole></RouteContent>} />
+        <Route path="workflows/manufacturer-checkout" element={<Navigate to="/app/workflows/manufacturer-return" replace />} />
+        <Route path="tasks/maintenance" element={<RouteContent><RequireRole roles={workflowRoles}><MaintenanceTaskPage /></RequireRole></RouteContent>} />
+        <Route path="reservations" element={<RouteContent><RequireRole roles={workflowRoles}><ReservationsPage /></RequireRole></RouteContent>} />
+        <Route path="partners" element={<RouteContent><PartnersPage /></RouteContent>} />
         {/* Legacy paths kept as redirects so existing links keep working. */}
         <Route path="drivers" element={<Navigate to="/app/partners" replace />} />
         <Route path="companies" element={<Navigate to="/app/partners" replace />} />
-        <Route path="imports" element={<RequireRole roles={adminRoles}><AdminImportPage /></RequireRole>} />
-        <Route path="users" element={<RequireRole roles={adminRoles}><UserManagementPage /></RequireRole>} />
-        <Route path="categories" element={<RequireRole roles={adminRoles}><CategoryManagementPage /></RequireRole>} />
+        <Route path="imports" element={<RouteContent><RequireRole roles={adminRoles}><AdminImportPage /></RequireRole></RouteContent>} />
+        <Route path="users" element={<RouteContent><RequireRole roles={adminRoles}><UserManagementPage /></RequireRole></RouteContent>} />
+        <Route path="categories" element={<RouteContent><RequireRole roles={adminRoles}><CategoryManagementPage /></RequireRole></RouteContent>} />
       </Route>
-      <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
+      <Route path="*" element={<RouteContent><NotFoundPage /></RouteContent>} />
+    </Routes>
   );
 }

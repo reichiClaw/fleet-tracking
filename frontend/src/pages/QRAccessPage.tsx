@@ -2,11 +2,17 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { displayVehicleName, listVehicles, type Vehicle } from '../api/fleet';
+import {
+  displayVehicleName,
+  listVehiclePage,
+  type PageResult,
+  type Vehicle,
+} from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -69,6 +75,8 @@ export function QRAccessPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stopScannerRef = useRef<(() => void) | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [manualValue, setManualValue] = useState('');
@@ -77,13 +85,15 @@ export function QRAccessPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function loadData() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextVehicles = await listVehicles();
+        const nextPage = await listVehiclePage({ active: true }, page, controller.signal);
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextPage.results);
+          setVehiclePage(nextPage);
         }
       } catch (loadError) {
         if (isMounted) {
@@ -99,9 +109,10 @@ export function QRAccessPage() {
     loadData();
     return () => {
       isMounted = false;
+      controller.abort();
       stopScanner();
     };
-  }, [t]);
+  }, [page, t]);
 
   function appUrl(path: string) {
     if (typeof window === 'undefined') {
@@ -254,7 +265,7 @@ export function QRAccessPage() {
               {t('qr.print')}
             </Link>
             <button type="button" className="secondary-button" disabled={!vehicles.length} onClick={exportCsv}>
-              {t('qr.export')}
+              {t('qr.exportPage')}
             </button>
           </div>
         }
@@ -319,6 +330,9 @@ export function QRAccessPage() {
             </article>
           ))}
         </div>
+        {vehiclePage && vehiclePage.count > 0 ? (
+          <PaginationControls page={vehiclePage} onPageChange={setPage} />
+        ) : null}
       </section>
     </section>
   );

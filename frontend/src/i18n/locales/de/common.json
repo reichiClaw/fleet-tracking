@@ -15,7 +15,8 @@
     "edit": "Bearbeiten",
     "back": "Zurück",
     "close": "Schließen",
-    "pending": "Wird ausgeführt..."
+    "pending": "Wird ausgeführt...",
+    "retry": "Erneut versuchen"
   },
   "language": {
     "label": "Sprache",
@@ -31,6 +32,17 @@
   },
   "navigation": {
     "primaryLabel": "Hauptnavigation",
+    "mobileLabel": "Mobile Navigation",
+    "home": "Start",
+    "tasks": "Aufgaben",
+    "scan": "Scannen",
+    "fleet": "Fuhrpark",
+    "more": "Mehr",
+    "checkIn": "Fahrzeug einchecken",
+    "loanVehicle": "Fahrzeug ausleihen",
+    "returnLoan": "Fahrzeug zurückgeben",
+    "returnManufacturer": "Rückgabe an Hersteller",
+    "conditionTasks": "Wartung / Schäden",
     "dashboard": "Dashboard",
     "vehiclePool": "Fahrzeugpool",
     "history": "Historie",
@@ -48,6 +60,131 @@
     "settings": "Einstellungen",
     "logout": "Abmelden",
     "categories": "Fahrzeugkategorien"
+  },
+  "connectivity": {
+    "offlineTitle": "Sie sind offline.",
+    "offlineDescription": "Ihr Entwurf bleibt erhalten, bis die Verbindung wiederhergestellt ist. Wiederholen Sie Abschlussaktionen erst nach Prüfung des Status."
+  },
+  "routeError": {
+    "title": "Diese Seite konnte nicht geladen werden",
+    "description": "Möglicherweise ist eine neue Anwendungsversion verfügbar. Laden Sie die Seite zur Wiederherstellung neu.",
+    "reload": "Seite neu laden"
+  },
+  "wizard": {
+    "progressLabel": "Workflow-Fortschritt",
+    "stepCount": "Schritt {{current}} von {{total}}",
+    "next": "Weiter",
+    "consequenceTitle": "Folge der Bestätigung",
+    "steps": {
+      "identify": "Identifizieren",
+      "partyTiming": "Partei / Zeitpunkt",
+      "conditionEvidence": "Zustand / Nachweise",
+      "reviewConfirm": "Prüfen / bestätigen"
+    }
+  },
+  "drafts": {
+    "title": "Arbeit fortsetzen",
+    "description": "Unvollständige Workflows werden automatisch gespeichert.",
+    "updated": "Gespeichert {{date}}",
+    "resume": "Fortsetzen",
+    "discard": "Verwerfen",
+    "discardError": "Der Entwurf konnte nicht verworfen werden.",
+    "status": {
+      "loading": "Entwurf wird geladen …",
+      "idle": "Noch nicht gespeichert",
+      "saving": "Wird gespeichert …",
+      "saved": "Gespeichert",
+      "offline": "Offline – Änderungen warten",
+      "error": "Speichern fehlgeschlagen – erneut versuchen",
+      "conflict": "Ein neuerer Entwurf ist vorhanden"
+    },
+    "types": {
+      "check_in": "Fahrzeug einchecken",
+      "loan_checkout": "Fahrzeug ausleihen",
+      "loan_return": "Fahrzeug zurückgeben",
+      "manufacturer_return": "Rückgabe an Hersteller",
+      "reservation": "Reservierung",
+      "maintenance": "Wartung / Schäden"
+    },
+    "conflict": {
+      "title": "Dieser Entwurf wurde anderweitig geändert",
+      "description": "Wählen Sie die Serverversion oder speichern Sie Ihre aktuellen Werte darüber.",
+      "useServer": "Serverversion verwenden",
+      "keepMine": "Meine Werte behalten"
+    }
+  },
+  "vehicleContext": {
+    "label": "Ausgewähltes Fahrzeug",
+    "loadError": "Fahrzeugzustand und Zulässigkeit konnten nicht geladen werden.",
+    "thumbnailAlt": "Letztes Foto von {{vehicle}}",
+    "meterBaseline": "Zähler-Ausgangswert",
+    "openDamage": "Offene Schäden",
+    "nextReservation": "Nächste Reservierung",
+    "currentCondition": "Aktueller Zustand",
+    "inMaintenance": "Eine aktive Wartungsaufgabe ist offen.",
+    "damageCount": "{{count}} offene Schadensmeldung(en).",
+    "noOpenIssues": "Keine offenen Schäden oder Wartungsaufgaben."
+  },
+  "tasks": {
+    "eyebrow": "Täglicher Betrieb",
+    "title": "Aufgaben",
+    "description": "Starten Sie häufige Workflows und bearbeiten Sie die aktuell wichtigen Fuhrparkaufgaben.",
+    "actionLabel": "Aktionen für die Disposition",
+    "loadError": "Aufgaben konnten nicht geladen werden.",
+    "itemCount": "{{count}} Aufgabe(n)",
+    "viewAll": "Alle Aufgaben anzeigen",
+    "actions": {
+      "scan": "Scannen",
+      "createRecord": "Fahrzeugdatensatz anlegen",
+      "intake": "Fahrzeug anlegen und einchecken",
+      "checkIn": "Fahrzeug einchecken",
+      "loan": "Fahrzeug ausleihen",
+      "returnLoan": "Fahrzeug zurückgeben",
+      "manufacturerReturn": "Rückgabe an Hersteller",
+      "condition": "Wartungs- / Schadensaufgaben"
+    },
+    "empty": {
+      "title": "Keine offenen Aufgaben",
+      "description": "Neue Ankünfte, fällige Rückgaben, Übergaben, Zustandsprobleme und fehlgeschlagene Dokumente erscheinen hier."
+    },
+    "groups": {
+      "arrivals_awaiting_check_in": {
+        "title": "Angekündigte Ankünfte",
+        "description": "Fahrzeugdatensätze, deren Übernahme noch aussteht.",
+        "action": "Fahrzeug einchecken",
+        "itemHint": "Check-in ausstehend"
+      },
+      "overdue_returns": {
+        "title": "Überfällige Rückgaben",
+        "description": "Aktive Ausleihen nach dem erwarteten Rückgabetermin.",
+        "action": "Fahrzeug zurückgeben",
+        "itemHint": "Überfällig"
+      },
+      "reservation_handovers": {
+        "title": "Reservierungsübergaben",
+        "description": "Aktive Reservierungen, die zur Übergabe bereit sind.",
+        "action": "Fahrzeug ausleihen",
+        "itemHint": "Zur Übergabe bereit"
+      },
+      "condition_attention": {
+        "title": "Schäden und Wartung",
+        "description": "Fahrzeuge, deren Zustand bearbeitet werden muss.",
+        "action": "Aufgabe öffnen",
+        "itemHint": "Zustand erfordert Bearbeitung"
+      },
+      "failed_documents": {
+        "title": "Fehlgeschlagene Dokumente",
+        "description": "Protokolle, deren PDF-Erstellung wiederholt werden muss.",
+        "action": "Dokument öffnen",
+        "itemHint": "PDF fehlgeschlagen"
+      },
+      "manufacturer_returns_due": {
+        "title": "Fällige Hersteller-Rückgaben",
+        "description": "Fahrzeuge, die an Hersteller oder Lieferanten zurückgegeben werden müssen.",
+        "action": "Rückgabe an Hersteller",
+        "itemHint": "Hersteller-Rückgabe fällig"
+      }
+    }
   },
   "layout": {
     "signedInAs": "Angemeldet als",
@@ -243,9 +380,11 @@
       "description": "Aktuelle Daten, Historie, Medien und Workflow-Aktionen.",
       "loadError": "Das Fahrzeugdetail konnte nicht geladen werden.",
       "dataTitle": "Fahrzeugdaten",
+      "actionsLabel": "Verfügbare Fahrzeugaktionen",
       "edit": "Daten bearbeiten",
       "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
+      "saved": "Fahrzeugdaten gespeichert.",
       "editError": "Das Fahrzeug konnte nicht aktualisiert werden.",
       "editValidation": "Hersteller und Modell sind erforderlich."
     },
@@ -284,6 +423,12 @@
     "active": "Aktiv",
     "returned": "Zurückgegeben",
     "cancelled": "Storniert",
+    "fulfilled": "Erfüllt",
+    "no_show": "Nicht erschienen",
+    "failed": "Fehlgeschlagen",
+    "completed": "Abgeschlossen",
+    "open": "Offen",
+    "resolved": "Behoben",
     "unknown": "Unbekannt"
   },
   "severity": {
@@ -437,6 +582,10 @@
     "eyebrow": "Fahrzeugpool",
     "title": "Fahrzeug zum Pool hinzufügen",
     "intro": "Ein neues Fahrzeug anlegen und direkt in den Einsatzpool aufnehmen.",
+    "recordTitle": "Fahrzeugdatensatz anlegen",
+    "recordIntro": "Legen Sie einen angekündigten Fahrzeugdatensatz an. Der Check-in ist ein eigener Betriebsschritt.",
+    "recordCreated": "Fahrzeugdatensatz angelegt",
+    "announcedConsequence": "Das Fahrzeug ist angekündigt und kann erst nach abgeschlossenem Check-in ausgeliehen werden.",
     "checkInExisting": {
       "title": "Angekündigtes Fahrzeug einchecken",
       "hint": "Bereits importiert oder angekündigt? Hier suchen und einchecken, statt einen neuen Datensatz anzulegen.",
@@ -527,6 +676,8 @@
     "action": "Fahrzeug archivieren",
     "confirmTitle": "Dieses Fahrzeug archivieren?",
     "confirmDescription": "Die vollständige Historie bleibt erhalten; das Fahrzeug bleibt außerhalb des aktiven Fuhrparks.",
+    "reason": "Archivierungsgrund",
+    "reasonRequired": "Geben Sie den Grund für die Archivierung dieses Fahrzeugs ein.",
     "success": "Fahrzeug archiviert.",
     "error": "Das Fahrzeug konnte nicht archiviert werden.",
     "empty": {
@@ -628,6 +779,7 @@
     "resultTitle": "Validierungsergebnis",
     "errorsTitle": "Was korrigiert werden muss",
     "committedSummary": "Import abgeschlossen: {{created}} hinzugefügt, {{updated}} aktualisiert.",
+    "checkInAnnounced": "Angekündigte Fahrzeuge einchecken",
     "rowSummary": "{{rows}} Zeilen, {{errors}} Fehler",
     "commit": "Import übernehmen",
     "committing": "Wird übernommen...",
@@ -751,6 +903,7 @@
     "printTitle": "QR-Etiketten drucken",
     "print": "QR-Codes drucken",
     "export": "URLs exportieren (CSV)",
+    "exportPage": "Diese Seite exportieren (CSV)",
     "compact": "Kompakte Labels für Etikettendrucker",
     "scan": {
       "title": "QR-Code scannen",
@@ -821,7 +974,9 @@
     "validation": {
       "required": "Bitte wählen Sie Start- und Endzeit.",
       "driverRequired": "Bitte wählen Sie einen Fahrer aus der Datenbank.",
-      "chronology": "Das Ende der Reservierung muss nach dem Start liegen."
+      "chronology": "Das Ende der Reservierung muss nach dem Start liegen.",
+      "manualRequired": "Bitte geben Sie den Namen des manuellen Kontakts ein.",
+      "overlap": "Dieser Zeitraum überschneidet sich mit einer aktiven Reservierung."
     },
     "timeline": {
       "summary": "Reservierungs-Zeitleiste mit {{count}} aktiven Reservierungen.",
@@ -830,11 +985,164 @@
     "returnDue": {
       "label": "Rückgabe an Hersteller bis",
       "save": "Rückgabedatum speichern",
+      "saved": "Hersteller-Rückgabedatum gespeichert.",
       "saveError": "Das Rückgabedatum konnte nicht gespeichert werden.",
       "none": "Keine Hersteller-Rückgabe geplant.",
       "current": "Rückgabe an Hersteller bis {{date}}",
       "marker": "Hersteller-Rückgabe fällig {{date}}"
     }
+  },
+  "workflowRedesign": {
+    "titles": {
+      "checkIn": "Fahrzeug einchecken",
+      "checkInDescription": "Lieferant, Zählerstände, Zustand und Nachweise des angekündigten Fahrzeugs erfassen.",
+      "loanCheckout": "Fahrzeug ausleihen",
+      "loanCheckoutDescription": "Ein verfügbares Fahrzeug mit Partei, Zeitraum, Zustand und Unterschrift übergeben.",
+      "loanReturn": "Fahrzeug zurückgeben",
+      "loanReturnDescription": "Ausgabe-Nachweise vergleichen, Rückgabezustand erfassen und die aktive Ausleihe schließen.",
+      "manufacturerReturn": "Rückgabe an Hersteller",
+      "manufacturerReturnDescription": "Empfänger, Zählerstände, Zustand und Nachweise erfassen, bevor das Fahrzeug den Fuhrpark verlässt."
+    },
+    "conditionLegend": "Zustandsergebnis",
+    "outcomes": {
+      "fit": "Einsatzfähig",
+      "new_damage": "Neuer Schaden",
+      "maintenance": "Wartung erforderlich"
+    },
+    "reviewTitle": "Vor der Bestätigung prüfen",
+    "evidenceCount": "Vorgemerkte Nachweisdateien",
+    "openReceipt": "PDF-Beleg öffnen",
+    "openHistory": "Fahrzeughistorie öffnen",
+    "ambiguousFailure": "Das Ergebnis ist unklar. Behalten Sie den Entwurf und prüfen Sie vor einem erneuten Versuch die Fahrzeughistorie.",
+    "manufacturerWarnings": {
+      "due": "Die Rückgabe an den Hersteller ist am {{date}} fällig.",
+      "reservations": "{{count}} aktive oder bevorstehende Reservierung(en) sind von dieser Rückgabe betroffen."
+    },
+    "validation": {
+      "odometerRequired": "Geben Sie den aktuellen Kilometerstand ein.",
+      "hoursRequired": "Geben Sie die aktuellen Betriebsstunden ein.",
+      "conditionRequired": "Wählen Sie ein Zustandsergebnis.",
+      "maintenanceReasonRequired": "Begründen Sie, warum eine Wartung erforderlich ist."
+    },
+    "completed": {
+      "checkIn": "Fahrzeug eingecheckt",
+      "loanCheckout": "Fahrzeug ausgeliehen",
+      "loanReturn": "Fahrzeug zurückgegeben",
+      "manufacturerReturn": "Fahrzeug an Hersteller zurückgegeben"
+    },
+    "consequences": {
+      "checkIn": "Das angekündigte Fahrzeug wird in den Pool aufgenommen. Der Server leitet den Status aus dem erfassten Zustand ab.",
+      "loanCheckout": "Eine aktive Ausleihe wird angelegt, die Unterschrift angehängt und das Fahrzeug ist nicht mehr verfügbar.",
+      "loanReturn": "Die aktive Ausleihe wird geschlossen. Der Server leitet den Fahrzeugstatus aus Ergebnis und offenen Schäden ab.",
+      "manufacturerReturn": "Das benannte Fahrzeug verlässt den aktiven Fuhrpark und wird als an den Empfänger zurückgegeben erfasst."
+    }
+  },
+  "checkoutWorkflow": {
+    "fromReservation": "Aus der ausgewählten Reservierung vorausgefüllt.",
+    "reservationError": "Die ausgewählte Reservierung konnte nicht geladen werden.",
+    "partyTypes": {
+      "driver": "Fahrer",
+      "company": "Firma / Kontakt",
+      "manual": "Manueller Kontakt"
+    },
+    "damageChoice": "Zustand im Vergleich zur Ausgabe",
+    "condition": {
+      "unchanged": "Bestehender Zustand unverändert",
+      "new_damage": "Neuen Schaden erfassen"
+    },
+    "upcomingReservationWarning": "Diese Ausleihe überschneidet sich mit der Reservierung für {{party}} ab {{date}}. Der Server kann die Ausgabe warnen oder sperren.",
+    "validation": {
+      "reservationInactive": "Die ausgewählte Reservierung ist nicht mehr aktiv.",
+      "damageChoiceRequired": "Bestätigen Sie, ob der bestehende Zustand unverändert ist oder ein neuer Schaden gefunden wurde."
+    },
+    "warnings": {
+      "reservation_before_expected_return": "Eine Reservierung beginnt vor der erwarteten Rückgabe am {{date}}."
+    }
+  },
+  "returnWorkflow": {
+    "searchLoan": "Nach Fahrzeug, Kennzeichen, Entleiher oder Telefon suchen …",
+    "contextError": "Der Rückgabevergleich konnte nicht geladen werden.",
+    "checkoutContext": "Ausgabe im Vergleich zur Rückgabe",
+    "checkoutTime": "Ausgegeben am",
+    "usageDelta": "Nutzung seit Ausgabe: {{odometer}} km · {{hours}} Stunden",
+    "result": "Die Ausleihe ist {{status}}. Der Fahrzeugstatus wurde vom Server abgeleitet."
+  },
+  "intake": {
+    "title": "Fahrzeug anlegen und einchecken",
+    "description": "Fahrzeug atomar mit Lieferant, Zählerständen, Zustand, Fotos und optionaler Unterschrift anlegen und übernehmen.",
+    "loadError": "Hilfsdaten für die Übernahme konnten nicht geladen werden.",
+    "consequence": "Ein atomarer Vorgang legt den angekündigten Datensatz an und schließt den Check-in ab. Bei Validierungsfehlern bleibt kein Teil-Datensatz zurück.",
+    "completed": "Fahrzeug angelegt und eingecheckt"
+  },
+  "maintenance": {
+    "title": "Wartung und Schadensbehebung",
+    "description": "Offenen Schaden beheben, ein zulässiges Fahrzeug in Wartung senden oder eine aktive Wartung abschließen.",
+    "actionLegend": "Wiederherstellungsaktion",
+    "damageLabel": "Offene Schadensmeldung",
+    "selectDamage": "Zu behebenden Schaden auswählen",
+    "reason": "Wartungsgrund",
+    "resolutionNotes": "Notizen zur Behebung",
+    "result": "Resultierender Fahrzeugstatus",
+    "serverDerivedStatus": "Vom Server nach Schadensbehebung abgeleitet",
+    "resolveMediaLimitation": "Die Schadensbehebung akzeptiert nur Notizen; vorhandene Nachweise bleiben in der unveränderlichen Historie.",
+    "submitError": "Die Zustandsaktion konnte nicht abgeschlossen werden.",
+    "completed": "Zustandsaufgabe abgeschlossen",
+    "resultingStatus": "Resultierender Status: {{status}}",
+    "actions": {
+      "open": "Zustandsaufgabe abschließen",
+      "resolve": "Schaden beheben",
+      "start": "In Wartung senden",
+      "complete": "Wartung abschließen"
+    },
+    "results": {
+      "resolve": "Der Server setzt das Fahrzeug nur dann auf verfügbar, wenn keine offenen Schäden, Ausleihen oder Wartungen bestehen.",
+      "start": "Der Fahrzeugstatus wird Wartung.",
+      "complete": "Bei offenen Schäden wird das Fahrzeug beschädigt, andernfalls verfügbar."
+    },
+    "consequences": {
+      "open": "Wählen Sie eine verfügbare Zustandsaktion.",
+      "resolve": "Die ausgewählte Schadensmeldung wird geschlossen und der Server leitet den Fahrzeugstatus ab.",
+      "start": "Ein aktiver Wartungsdatensatz wird angelegt und das Fahrzeug ist nicht verfügbar.",
+      "complete": "Der aktive Wartungsdatensatz wird geschlossen und der Server leitet den Fahrzeugstatus ab."
+    },
+    "validation": {
+      "actionRequired": "Wählen Sie eine für dieses Fahrzeug zulässige Aktion.",
+      "damageRequired": "Wählen Sie die zu behebende Schadensmeldung.",
+      "reasonRequired": "Geben Sie einen Wartungsgrund ein."
+    }
+  },
+  "reservationWizard": {
+    "title": "Fahrzeug reservieren",
+    "description": "Fahrzeug für Fahrer, Firmenkontakt oder manuellen Kontakt reservieren und aktive Reservierungen verwalten.",
+    "partyLegend": "Reservierungspartei",
+    "eligible": "Dieser Zeitraum ist derzeit zulässig.",
+    "overlap": "Dieser Zeitraum überschneidet sich mit der aktiven Reservierung für {{party}}.",
+    "snapshotNotice": "Die ausgewählte Partei wird unveränderlich gespeichert und kann nach dem Anlegen nicht bearbeitet werden.",
+    "consequence": "Eine aktive Reservierung wird angelegt. Die Ausgabe muss sie ab Beginn des Übergabefensters verwenden.",
+    "created": "Reservierung angelegt.",
+    "createAnother": "Weitere Reservierung anlegen",
+    "historyTitle": "Reservierungen für dieses Fahrzeug",
+    "noShow": "Als nicht erschienen markieren"
+  },
+  "conditionTimeline": {
+    "title": "Zustands- und Workflow-Zeitleiste",
+    "description": "Chronologische Reservierungen, Übergaben, Rückgaben, Zählerstände, Schäden, Wartungen und Nachweise.",
+    "empty": "Es wurden noch keine Historienereignisse erfasst.",
+    "eventCount": "{{count}} Verlaufsereignis(se)",
+    "evidenceLabel": "Zugeordnete Nachweise",
+    "types": {
+      "reservation": "Reservierung",
+      "check_in": "Fahrzeug-Check-in",
+      "loan_checkout": "Ausleihe ausgegeben",
+      "loan_return": "Ausleihe zurückgegeben",
+      "manufacturer_return": "Hersteller-Rückgabe",
+      "damage_reported": "Schaden gemeldet",
+      "damage_resolved": "Schaden behoben",
+      "maintenance_start": "Wartung begonnen",
+      "maintenance_complete": "Wartung abgeschlossen",
+      "evidence": "Nachweis"
+    },
+    "readings": "{{odometer}} km · {{hours}} Stunden"
   },
   "reports": {
     "eyebrow": "Dokumente",

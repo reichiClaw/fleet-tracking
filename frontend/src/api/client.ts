@@ -7,6 +7,8 @@ const CSRF_PATH = '/auth/csrf/';
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 export const AUTH_EXPIRED_EVENT = 'fleet:auth-expired';
 export const AUTH_CONTINUATION_KEY = 'fleet-auth-continuation';
+export const API_CONNECTIVITY_EVENT = 'fleet:api-connectivity';
+const DEFAULT_GET_TIMEOUT_MS = 15_000;
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, '');
 
@@ -35,6 +37,7 @@ type ErrorEnvelope = {
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown>;
   language?: string;
+  timeoutMs?: number;
 };
 
 function normalizeLanguage(language?: string | null) {
@@ -166,7 +169,7 @@ export function acknowledgeAuthRecovery() {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, headers, language, ...requestInit } = options;
+  const { body, headers, language, timeoutMs, signal: suppliedSignal, ...requestInit } = options;
   const isFormData = body instanceof FormData;
   const requestLanguage = resolveRequestLanguage(language);
   if (isUnsafeMethod(requestInit.method)) {
@@ -174,18 +177,48 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
   const csrfToken = isUnsafeMethod(requestInit.method) ? getCookie(CSRF_COOKIE_NAME) : undefined;
 
-  const response = await fetch(buildApiUrl(path), {
-    credentials: 'include',
-    ...requestInit,
-    headers: {
-      Accept: 'application/json',
-      ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
-      ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
-      ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    body: body && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
-  });
+  const method = (requestInit.method ?? 'GET').toUpperCase();
+  const timeoutController = method === 'GET' ? new AbortController() : null;
+  const effectiveTimeout = timeoutMs ?? DEFAULT_GET_TIMEOUT_MS;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let removeAbortListener: (() => void) | undefined;
+  if (timeoutController) {
+    if (effectiveTimeout > 0) {
+      timeout = setTimeout(() => timeoutController.abort('timeout'), effectiveTimeout);
+    }
+    if (suppliedSignal) {
+      const forwardAbort = () => timeoutController.abort(suppliedSignal.reason);
+      if (suppliedSignal.aborted) forwardAbort();
+      else suppliedSignal.addEventListener('abort', forwardAbort, { once: true });
+      removeAbortListener = () => suppliedSignal.removeEventListener('abort', forwardAbort);
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(buildApiUrl(path), {
+      credentials: 'include',
+      ...requestInit,
+      signal: timeoutController?.signal ?? suppliedSignal,
+      headers: {
+        Accept: 'application/json',
+        ...(requestLanguage ? { 'Accept-Language': requestLanguage } : {}),
+        ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+        ...(!isFormData && body ? { 'Content-Type': 'application/json' } : {}),
+        ...headers,
+      },
+      body: body && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
+    });
+    notifyConnectivity(true);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError') && !suppliedSignal?.aborted) {
+      notifyConnectivity(false);
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    removeAbortListener?.();
+  }
 
   if (!response.ok) {
     const error = await apiErrorFromResponse(response);
@@ -203,6 +236,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return response.json() as Promise<T>;
+}
+
+function notifyConnectivity(online: boolean) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(API_CONNECTIVITY_EVENT, { detail: { online } }));
+  }
 }
 
 export const apiClient = {

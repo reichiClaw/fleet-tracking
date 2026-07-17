@@ -9,6 +9,7 @@ import { ActivityChart, DonutChart, type DonutSegment } from '../components/Char
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { OperatorTaskBoard } from '../components/OperatorTaskBoard';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -100,8 +101,14 @@ function KpiCard({
   );
 }
 
-function reservationHandoverHref(reservation: { vehicle: string; driver: string | null; company: string | null; reserved_for: string }) {
-  const params = new URLSearchParams({ vehicle: reservation.vehicle });
+function reservationHandoverHref(reservation: {
+  id: string;
+  vehicle: string;
+  driver: string | null;
+  company: string | null;
+  reserved_for: string;
+}) {
+  const params = new URLSearchParams({ vehicle: reservation.vehicle, reservation: reservation.id });
   if (reservation.driver) {
     params.set('driver', reservation.driver);
   } else if (reservation.company) {
@@ -131,16 +138,17 @@ export function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function load() {
       setIsLoading(true);
       setError(null);
       try {
-        const summary = await getDashboardSummary();
+        const summary = await getDashboardSummary(controller.signal);
         if (isMounted) {
           setData(summary);
         }
       } catch (loadError) {
-        if (isMounted) {
+        if (isMounted && !controller.signal.aborted) {
           setError(getApiErrorMessage(loadError, t, t('dashboard.loadError')));
         }
       } finally {
@@ -152,6 +160,7 @@ export function DashboardPage() {
     load();
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [t, reloadToken]);
 
@@ -258,10 +267,23 @@ export function DashboardPage() {
         description={t('dashboard.description')}
         actions={
           <div className="action-row action-row--wrap">
-            {canRunWorkflows ? (
-              <Link className="button-link" to="/app/workflows/loan-checkout">
-                {t('dashboard.primaryAction')}
+            {canManageVehicles ? (
+              <Link className="button-link secondary-button" to="/app/workflows/add-vehicle">
+                {t('tasks.actions.createRecord')}
               </Link>
+            ) : null}
+            {canRunWorkflows ? (
+              <>
+                <Link className="button-link success-button" to="/app/workflows/intake">
+                  {t('tasks.actions.intake')}
+                </Link>
+                <Link className="button-link success-button" to="/app/workflows/check-in">
+                  {t('tasks.actions.checkIn')}
+                </Link>
+                <Link className="button-link" to="/app/tasks">
+                  {t('tasks.title')}
+                </Link>
+              </>
             ) : null}
             <Link className="button-link secondary-button" to="/app/vehicles">
               {t('dashboard.secondaryAction')}
@@ -269,6 +291,8 @@ export function DashboardPage() {
           </div>
         }
       />
+
+      <OperatorTaskBoard compact />
 
       <div className="kpi-grid">
         <KpiCard tone="brand" icon="fleet" label={t('dashboard.kpis.fleet.label')} value={totals.vehicles} helper={t('dashboard.kpis.fleet.helper', { count: totals.manufacturer_checkout + totals.archived })} />
@@ -452,10 +476,10 @@ export function DashboardPage() {
             <caption>{t('dashboard.recent.title')}</caption>
               <thead>
                 <tr>
-                  <th>{t('dashboard.recent.columns.vehicle')}</th>
-                  <th>{t('dashboard.recent.columns.borrower')}</th>
-                  <th>{t('dashboard.recent.columns.status')}</th>
-                  <th>{t('dashboard.recent.columns.date')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.vehicle')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.borrower')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.status')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.date')}</th>
                 </tr>
               </thead>
               <tbody>

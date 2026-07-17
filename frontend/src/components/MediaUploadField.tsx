@@ -35,6 +35,8 @@ type MediaUploadFieldProps = {
   validationError?: string;
   validationErrorId?: string;
   required?: boolean;
+  /** Keep staged files when a wizard step unmounts; the workflow draft owns cleanup. */
+  preserveOnUnmount?: boolean;
 };
 
 export function MediaUploadField({
@@ -52,6 +54,7 @@ export function MediaUploadField({
   validationError,
   validationErrorId: providedValidationErrorId,
   required,
+  preserveOnUnmount = false,
 }: MediaUploadFieldProps) {
   const { t } = useTranslation();
   const inputId = useId();
@@ -72,12 +75,12 @@ export function MediaUploadField({
   }, [submitted]);
 
   useEffect(() => () => {
-    if (!submittedRef.current) {
+    if (!submittedRef.current && !preserveOnUnmount) {
       uploadsRef.current
         .filter((media) => !attachedMediaIds.has(media.id))
         .forEach((media) => void discardMedia(media.id).catch(() => undefined));
     }
-  }, []);
+  }, [preserveOnUnmount]);
 
   async function upload(file: File) {
     setIsUploading(true);
@@ -198,10 +201,15 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
   }, [props.submitted]);
 
   useEffect(() => () => {
-    if (!signatureSubmittedRef.current && committedRef.current && !attachedMediaIds.has(committedRef.current.id)) {
+    if (
+      !props.preserveOnUnmount
+      && !signatureSubmittedRef.current
+      && committedRef.current
+      && !attachedMediaIds.has(committedRef.current.id)
+    ) {
       void discardMedia(committedRef.current.id).catch(() => undefined);
     }
-  }, []);
+  }, [props.preserveOnUnmount]);
 
   function pointerPosition(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

@@ -18,6 +18,8 @@ type SearchableSelectProps = {
   required?: boolean;
   disabled?: boolean;
   children?: ReactNode;
+  loadOptions?: (query: string, signal: AbortSignal) => Promise<SearchableOption[]>;
+  loadingText?: string;
 };
 
 /**
@@ -36,6 +38,8 @@ export function SearchableSelect({
   required,
   disabled,
   children,
+  loadOptions,
+  loadingText = 'Loading…',
 }: SearchableSelectProps) {
   const inputId = useId();
   const listId = `${inputId}-listbox`;
@@ -44,19 +48,46 @@ export function SearchableSelect({
   const [isTyping, setIsTyping] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [remoteOptions, setRemoteOptions] = useState<SearchableOption[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const optionRefs = useRef<Array<HTMLLIElement | null>>([]);
 
-  const selected = useMemo(() => options.find((option) => option.value === value) ?? null, [options, value]);
+  const availableOptions = loadOptions && remoteOptions ? remoteOptions : options;
+  const selected = useMemo(
+    () => availableOptions.find((option) => option.value === value) ?? options.find((option) => option.value === value) ?? null,
+    [availableOptions, options, value],
+  );
   const inputValue = isTyping ? query : selected?.label ?? '';
 
   const filtered = useMemo(() => {
     const trimmed = isTyping ? query.trim().toLowerCase() : '';
     if (!trimmed) {
-      return options;
+      return availableOptions;
     }
-    return options.filter((option) => `${option.label} ${option.keywords ?? ''}`.toLowerCase().includes(trimmed));
-  }, [options, query, isTyping]);
+    if (loadOptions) return availableOptions;
+    return availableOptions.filter((option) => `${option.label} ${option.keywords ?? ''}`.toLowerCase().includes(trimmed));
+  }, [availableOptions, loadOptions, query, isTyping]);
+
+  useEffect(() => {
+    if (!loadOptions || !open) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        setRemoteOptions(await loadOptions(isTyping ? query.trim() : '', controller.signal));
+      } catch (error) {
+        if (!controller.signal.aborted) setRemoteOptions([]);
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    }, isTyping ? 250 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isTyping, loadOptions, open, query]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent | TouchEvent) {
@@ -77,6 +108,12 @@ export function SearchableSelect({
   useEffect(() => {
     if (activeIndex >= filtered.length) setActiveIndex(filtered.length - 1);
   }, [activeIndex, filtered.length]);
+
+  useEffect(() => {
+    if (open && activeIndex >= 0) {
+      optionRefs.current[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [activeIndex, open]);
 
   function choose(option: SearchableOption) {
     onChange(option.value);
@@ -171,13 +208,18 @@ export function SearchableSelect({
         />
         {open ? (
           <ul id={listId} className="searchable-select__list" role="listbox" aria-label={label}>
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <li className="searchable-select__empty" role="option" aria-disabled="true">
+                {loadingText}
+              </li>
+            ) : filtered.length === 0 ? (
               <li className="searchable-select__empty" role="option" aria-disabled="true">
                 {emptyText}
               </li>
             ) : (
               filtered.map((option, index) => (
                 <li
+                    ref={(node) => { optionRefs.current[index] = node; }}
                     id={`${inputId}-option-${index}`}
                     key={option.value}
                     role="option"

@@ -4,6 +4,7 @@ import {
   acknowledgeAuthRecovery,
   apiClient,
   ApiError,
+  API_CONNECTIVITY_EVENT,
   AUTH_CONTINUATION_KEY,
   AUTH_EXPIRED_EVENT,
 } from './client';
@@ -116,5 +117,34 @@ describe('apiClient', () => {
 
     expect(expired).not.toHaveBeenCalled();
     window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+  });
+
+  it('reports network loss and recovery without treating cancelled stale requests as offline', async () => {
+    const connectivity = vi.fn();
+    window.addEventListener(API_CONNECTIVITY_EVENT, connectivity);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockRejectedValueOnce(new TypeError('network unavailable'))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 })));
+
+    await expect(apiClient.get('/vehicles/')).rejects.toThrow('network unavailable');
+    await apiClient.get('/vehicles/');
+
+    expect(connectivity).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ detail: { online: false } }),
+    );
+    expect(connectivity).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ detail: { online: true } }),
+    );
+
+    const controller = new AbortController();
+    controller.abort();
+    connectivity.mockClear();
+    vi.stubGlobal('fetch', vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      Promise.reject(new DOMException(String(init?.signal?.reason || 'cancelled'), 'AbortError'))));
+    await expect(apiClient.get('/vehicles/', { signal: controller.signal })).rejects.toThrow();
+    expect(connectivity).not.toHaveBeenCalled();
+    window.removeEventListener(API_CONNECTIVITY_EVENT, connectivity);
   });
 });

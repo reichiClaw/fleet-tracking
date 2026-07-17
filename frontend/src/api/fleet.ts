@@ -48,15 +48,52 @@ export type VehicleStatus =
   | 'archived';
 
 export type LoanStatus = 'active' | 'returned' | 'cancelled';
-export type ReservationStatus = 'active' | 'cancelled';
+export type ReservationStatus = 'active' | 'cancelled' | 'fulfilled' | 'no_show';
 export type CompanyType = 'subcontractor' | 'manufacturer' | 'supplier' | 'internal';
 export type MediaType = 'photo' | 'signature' | 'pdf' | 'import';
+export type ConditionOutcome = 'fit' | 'new_damage' | 'maintenance';
 
 export type VehicleCategory = {
   id: string;
   name: string;
   description?: string;
+  meter_mode?: 'odometer' | 'hours' | 'both' | 'none';
   is_active: boolean;
+};
+
+export type MeterRequirements = {
+  mode: 'odometer' | 'hours' | 'both' | 'none';
+  requires_odometer: boolean;
+  requires_operating_hours: boolean;
+  current_odometer_km?: number | null;
+  current_operating_hours?: string | number | null;
+};
+
+export type VehicleCapabilities = {
+  can_edit_master_data?: boolean;
+  can_check_in?: boolean;
+  can_loan_checkout?: boolean;
+  can_loan_return?: boolean;
+  can_manufacturer_return?: boolean;
+  can_reserve?: boolean;
+  can_send_to_maintenance?: boolean;
+  can_complete_maintenance?: boolean;
+  can_archive?: boolean;
+  can_unarchive?: boolean;
+  can_admin_correct?: boolean;
+};
+
+export type NextAction = {
+  action: string;
+  method: string;
+  url: string;
+};
+
+export type ReservationSummary = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  reserved_for: string;
 };
 
 export type Vehicle = {
@@ -75,6 +112,20 @@ export type Vehicle = {
   notes?: string;
   manufacturer_return_due?: string | null;
   archived_at?: string | null;
+  meter_requirements?: MeterRequirements;
+  active_loan?: {
+    id: string;
+    borrower_name: string;
+    borrower_phone?: string;
+    expected_return_at: string;
+  } | null;
+  open_damage_count?: number;
+  reservation_summary?: {
+    current?: ReservationSummary | null;
+    upcoming?: ReservationSummary | null;
+  };
+  capabilities?: VehicleCapabilities;
+  next_actions?: NextAction[];
   created_at?: string;
   updated_at?: string;
 };
@@ -87,10 +138,26 @@ export type Reservation = {
   driver?: string | null;
   company?: string | null;
   reserved_for?: string;
+  manual_phone?: string;
   notes?: string;
   status: ReservationStatus;
+  snapshot?: {
+    party?: {
+      type?: 'driver' | 'company' | 'manual';
+      driver_id?: string | null;
+      company_id?: string | null;
+      name?: string;
+      phone?: string;
+      company_name?: string | null;
+    };
+    [key: string]: unknown;
+  };
+  fulfilled_at?: string | null;
+  fulfilled_by?: string | null;
+  loan?: string | null;
   created_by?: string;
   created_at?: string;
+  updated_at?: string;
 };
 
 export type Company = {
@@ -150,12 +217,18 @@ export type Loan = {
   return_operating_hours?: string | number | null;
   checkout_notes?: string;
   return_notes?: string;
+  return_condition_outcome?: ConditionOutcome;
   checkout_pdf_media?: string | null;
   return_pdf_media?: string | null;
   checkout_snapshot?: Record<string, unknown>;
   return_snapshot?: Record<string, unknown>;
   checkout_pdf_generation_error?: string;
   return_pdf_generation_error?: string;
+  reservation_id?: string | null;
+  usage_deltas?: { odometer_km?: number | null; operating_hours?: string | null };
+  warnings?: Array<{ code: string; reservation_id?: string; start_at?: string }>;
+  capabilities?: Record<string, boolean>;
+  next_actions?: NextAction[];
   created_at?: string;
 };
 
@@ -198,13 +271,133 @@ export type DamageReport = {
   resolution_notes?: string;
 };
 
+export type MaintenanceRecord = {
+  id: string;
+  vehicle: string;
+  reason: string;
+  start_notes?: string;
+  started_at: string;
+  start_odometer_km?: number | null;
+  start_operating_hours?: string | null;
+  completion_notes?: string;
+  completed_at?: string | null;
+  completion_odometer_km?: number | null;
+  completion_operating_hours?: string | null;
+  status: 'active' | 'completed';
+};
+
+export type VehicleTimelineEvent = {
+  occurred_at: string;
+  type: string;
+  id: string;
+  status: string;
+  description?: string;
+};
+
 export type VehicleHistory = {
   loans: Loan[];
   reservations: Reservation[];
   check_ins: CheckInProtocol[];
   manufacturer_checkouts: ManufacturerCheckoutProtocol[];
   damages: DamageReport[];
+  maintenance?: MaintenanceRecord[];
+  timeline?: VehicleTimelineEvent[];
   media: MediaFile[];
+};
+
+export type VehicleWorkflowContext = {
+  vehicle: Vehicle;
+  meter: {
+    mode: MeterRequirements['mode'];
+    odometer_km?: number | null;
+    operating_hours?: string | null;
+  };
+  active_loan: Loan | null;
+  open_damages: DamageReport[];
+  reservations: Reservation[];
+  active_maintenance: MaintenanceRecord | null;
+  capabilities: VehicleCapabilities;
+};
+
+export type LoanReturnContext = {
+  loan_id: string;
+  status: LoanStatus;
+  vehicle: Vehicle & { meter_mode: MeterRequirements['mode'] };
+  borrower: {
+    name: string;
+    phone: string;
+    company_id?: string | null;
+    company_name?: string | null;
+    driver_id?: string | null;
+  };
+  expected_return_at: string;
+  checkout: {
+    snapshot?: Record<string, unknown>;
+    odometer_km?: number | null;
+    operating_hours?: string | null;
+    media: MediaFile[];
+  };
+  open_damages: DamageReport[];
+  signature_required: boolean;
+};
+
+export type WorkflowDraftType =
+  | 'check_in'
+  | 'loan_checkout'
+  | 'loan_return'
+  | 'manufacturer_return'
+  | 'reservation'
+  | 'maintenance';
+
+export type WorkflowDraft = {
+  id: string;
+  workflow_type: WorkflowDraftType;
+  scope_key: string;
+  object_id?: string | null;
+  form_data: Record<string, unknown>;
+  staged_media_ids: string[];
+  step: number;
+  version: number;
+  expires_at: string;
+  owner: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OperatorTask = {
+  vehicle_id?: string;
+  related_id?: string | null;
+  label?: string;
+  vehicle_label?: string;
+  license_plate?: string;
+  status: string;
+  due_at?: string | null;
+  performed_at?: string;
+  failure_reason?: string;
+  document_type?: string;
+  record_id?: string;
+  language?: string;
+  next_action?: NextAction;
+  capabilities?: VehicleCapabilities;
+};
+
+export type OperatorTaskGroup = {
+  count: number;
+  items: OperatorTask[];
+};
+
+export type OperatorTasks = {
+  generated_at: string;
+  count: number;
+  groups: Record<
+    | 'arrivals_awaiting_check_in'
+    | 'overdue_returns'
+    | 'reservation_handovers'
+    | 'condition_attention'
+    | 'failed_documents'
+    | 'manufacturer_returns_due',
+    OperatorTaskGroup
+  >;
 };
 
 export type ImportSourceColumn = {
@@ -312,6 +505,9 @@ export type VehicleFilters = {
   category?: string;
   search?: string;
   is_available?: boolean;
+  active?: boolean;
+  manufacturer?: string;
+  location?: string;
 };
 
 export function displayVehicleName(vehicle?: Vehicle | null) {
@@ -379,13 +575,59 @@ function pathWithQuery(path: string, query: Record<string, string | number | boo
   return queryString ? `${path}?${queryString}` : path;
 }
 
-export async function getDashboardSummary() {
-  return apiClient.get<DashboardSummary>('/dashboard/summary/');
+export async function getDashboardSummary(signal?: AbortSignal) {
+  return apiClient.get<DashboardSummary>('/dashboard/summary/', { signal });
 }
 
-export async function listVehiclePage(filters: VehicleFilters = {}, page = 1): Promise<PageResult<Vehicle>> {
+export async function getDashboardTasks(limit = 25, signal?: AbortSignal) {
+  return apiClient.get<OperatorTasks>(pathWithQuery('/dashboard/tasks/', { limit }), { signal });
+}
+
+async function getTypeaheadPage<T>(
+  path: string,
+  query: Record<string, string | number | boolean | null | undefined>,
+  signal?: AbortSignal,
+) {
+  const response = await apiClient.get<T[] | PaginatedResponse<T>>(pathWithQuery(path, query), { signal });
+  return normalizePage(response, 1);
+}
+
+export function searchVehicles(
+  search: string,
+  filters: VehicleFilters = {},
+  signal?: AbortSignal,
+) {
+  return getTypeaheadPage<Vehicle>('/vehicles/typeahead/', { ...filters, search, page: 1 }, signal);
+}
+
+export function searchCompanies(search: string, signal?: AbortSignal) {
+  return getTypeaheadPage<Company>('/companies/typeahead/', { search, page: 1 }, signal);
+}
+
+export function searchDrivers(search: string, signal?: AbortSignal) {
+  return getTypeaheadPage<Driver>('/drivers/typeahead/', { search, page: 1 }, signal);
+}
+
+export function searchLoans(search: string, filters: { status?: LoanStatus; vehicle?: string } = {}, signal?: AbortSignal) {
+  return getTypeaheadPage<Loan>('/loans/typeahead/', { ...filters, search, page: 1 }, signal);
+}
+
+export function searchReservations(
+  search: string,
+  filters: { vehicle?: string } = {},
+  signal?: AbortSignal,
+) {
+  return getTypeaheadPage<Reservation>('/reservations/typeahead/', { ...filters, search, page: 1 }, signal);
+}
+
+export async function listVehiclePage(
+  filters: VehicleFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<Vehicle>> {
   const response = await apiClient.get<Vehicle[] | PaginatedResponse<Vehicle>>(
     pathWithQuery('/vehicles/', { ...filters, page }),
+    { signal },
   );
   return normalizePage(response, page);
 }
@@ -394,8 +636,31 @@ export async function listVehicles(filters: VehicleFilters = {}) {
   return fetchAllPages<Vehicle>(pathWithQuery('/vehicles/', filters));
 }
 
-export async function getVehicle(id: string) {
-  return apiClient.get<Vehicle>(`/vehicles/${id}/`);
+export async function getVehicle(id: string, signal?: AbortSignal) {
+  return apiClient.get<Vehicle>(`/vehicles/${id}/`, { signal });
+}
+
+export async function getVehicleWorkflowContext(id: string, signal?: AbortSignal) {
+  const context = await apiClient.get<VehicleWorkflowContext>(`/vehicles/${id}/workflow-context/`, { signal });
+  return {
+    ...context,
+    meter: context.meter ?? {
+      mode: context.vehicle.meter_requirements?.mode ?? 'none',
+      odometer_km: context.vehicle.current_odometer_km,
+      operating_hours: context.vehicle.current_operating_hours == null
+        ? null
+        : String(context.vehicle.current_operating_hours),
+    },
+    open_damages: context.open_damages ?? [],
+    reservations: context.reservations ?? [],
+    active_loan: context.active_loan ?? null,
+    active_maintenance: context.active_maintenance ?? null,
+    capabilities: context.capabilities ?? context.vehicle.capabilities ?? {},
+  };
+}
+
+export async function getVehicleMedia(id: string, signal?: AbortSignal) {
+  return apiClient.get<MediaFile[]>(`/vehicles/${id}/media/`, { signal });
 }
 
 export type CreateVehiclePayload = {
@@ -426,8 +691,8 @@ export async function updateVehicle(id: string, payload: Partial<CreateVehiclePa
   return apiClient.patch<Vehicle>(`/vehicles/${id}/`, payload as Record<string, unknown>);
 }
 
-export async function archiveVehicle(id: string) {
-  return apiClient.post<Vehicle>(`/vehicles/${id}/archive/`);
+export async function archiveVehicle(id: string, reason: string) {
+  return apiClient.post<Vehicle>(`/vehicles/${id}/archive/`, { reason });
 }
 
 export type DamageSeverity = 'unknown' | 'minor' | 'major' | 'critical';
@@ -456,12 +721,16 @@ export async function getPublicVehicleStatus(qrCode: string) {
   return apiClient.get<PublicVehicleStatus>(`/public/vehicles/qr/${encodeURIComponent(qrCode)}/`);
 }
 
-export async function getVehicleHistory(id: string) {
-  return apiClient.get<VehicleHistory>(`/vehicles/${id}/history/`);
+export async function getVehicleHistory(id: string, signal?: AbortSignal) {
+  return apiClient.get<VehicleHistory>(`/vehicles/${id}/history/`, { signal });
 }
 
 export async function listVehicleCategories() {
   return fetchAllPages<VehicleCategory>('/vehicle-categories/');
+}
+
+export async function getVehicleCategory(id: string, signal?: AbortSignal) {
+  return apiClient.get<VehicleCategory>(`/vehicle-categories/${id}/`, { signal });
 }
 
 export async function createVehicleCategory(payload: Pick<VehicleCategory, 'name'> & Partial<VehicleCategory>) {
@@ -480,6 +749,10 @@ export async function listCompanies() {
   return fetchAllPages<Company>('/companies/');
 }
 
+export async function getCompany(id: string, signal?: AbortSignal) {
+  return apiClient.get<Company>(`/companies/${id}/`, { signal });
+}
+
 export async function createCompany(payload: Partial<Company>) {
   return apiClient.post<Company>('/companies/', payload as Record<string, unknown>);
 }
@@ -494,6 +767,10 @@ export async function deactivateCompany(id: string) {
 
 export async function listDrivers() {
   return fetchAllPages<Driver>('/drivers/');
+}
+
+export async function getDriver(id: string, signal?: AbortSignal) {
+  return apiClient.get<Driver>(`/drivers/${id}/`, { signal });
 }
 
 export async function createDriver(payload: Partial<Driver>) {
@@ -512,7 +789,23 @@ export async function listLoans() {
   return fetchAllPages<Loan>('/loans/');
 }
 
-export type ReservationFilters = { vehicle?: string; status?: ReservationStatus };
+export async function getLoan(id: string, signal?: AbortSignal) {
+  return apiClient.get<Loan>(`/loans/${id}/`, { signal });
+}
+
+export type ReservationFilters = { vehicle?: string; status?: ReservationStatus; search?: string };
+
+export async function listReservationPage(
+  filters: ReservationFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<Reservation>> {
+  const response = await apiClient.get<Reservation[] | PaginatedResponse<Reservation>>(
+    pathWithQuery('/reservations/', { ...filters, page }),
+    { signal },
+  );
+  return normalizePage(response, page);
+}
 
 export async function listReservations(filters: ReservationFilters = {}) {
   return fetchAllPages<Reservation>(pathWithQuery('/reservations/', filters));
@@ -522,8 +815,20 @@ export async function createReservation(payload: Record<string, unknown>) {
   return apiClient.post<Reservation>('/reservations/', payload);
 }
 
+export async function getReservation(id: string, signal?: AbortSignal) {
+  return apiClient.get<Reservation>(`/reservations/${id}/`, { signal });
+}
+
 export async function cancelReservation(id: string) {
   return apiClient.post<Reservation>(`/reservations/${id}/cancel/`);
+}
+
+export async function updateReservation(id: string, payload: Record<string, unknown>) {
+  return apiClient.patch<Reservation>(`/reservations/${id}/`, payload);
+}
+
+export async function markReservationNoShow(id: string) {
+  return apiClient.post<Reservation>(`/reservations/${id}/mark-no-show/`);
 }
 
 export async function scheduleManufacturerReturn(vehicleId: string, due: string | null) {
@@ -545,6 +850,12 @@ export async function createCheckIn(payload: Record<string, unknown>, idempotenc
   });
 }
 
+export async function createAndCheckIn(payload: Record<string, unknown>, idempotencyKey: string) {
+  return apiClient.post<CheckInProtocol>('/workflows/check-ins/create-and-check-in/', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
 export async function createLoanCheckout(payload: Record<string, unknown>) {
   return apiClient.post<Loan>('/loans/', payload);
 }
@@ -553,8 +864,72 @@ export async function returnLoan(id: string, payload: Record<string, unknown>) {
   return apiClient.post<Loan>(`/loans/${id}/return/`, payload);
 }
 
+export async function getLoanReturnContext(id: string, signal?: AbortSignal) {
+  const context = await apiClient.get<LoanReturnContext>(`/loans/${id}/return-context/`, { signal });
+  return {
+    ...context,
+    open_damages: context.open_damages ?? [],
+    checkout: {
+      ...context.checkout,
+      media: context.checkout?.media ?? [],
+    },
+  };
+}
+
 export async function createManufacturerCheckout(payload: Record<string, unknown>) {
-  return apiClient.post<ManufacturerCheckoutProtocol>('/workflows/manufacturer-checkouts/', payload);
+  return apiClient.post<ManufacturerCheckoutProtocol>('/workflows/manufacturer-returns/', payload);
+}
+
+export async function sendVehicleToMaintenance(id: string, payload: Record<string, unknown>) {
+  return apiClient.post<{ maintenance: MaintenanceRecord; vehicle: Vehicle }>(
+    `/vehicles/${id}/send-to-maintenance/`,
+    payload,
+  );
+}
+
+export async function completeVehicleMaintenance(id: string, payload: Record<string, unknown>) {
+  return apiClient.post<{ maintenance: MaintenanceRecord; vehicle: Vehicle }>(
+    `/vehicles/${id}/complete-maintenance/`,
+    payload,
+  );
+}
+
+export async function resolveDamage(id: string, resolutionNotes: string) {
+  return apiClient.post<DamageReport>(`/damage-reports/${id}/resolve/`, {
+    resolution_notes: resolutionNotes,
+  });
+}
+
+export async function listWorkflowDraftPage(
+  workflowType?: WorkflowDraftType,
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<WorkflowDraft>> {
+  const response = await apiClient.get<WorkflowDraft[] | PaginatedResponse<WorkflowDraft>>(
+    pathWithQuery('/workflow-drafts/', { workflow_type: workflowType, page }),
+    { signal },
+  );
+  return normalizePage(response, page);
+}
+
+export async function getWorkflowDraft(id: string, signal?: AbortSignal) {
+  return apiClient.get<WorkflowDraft>(`/workflow-drafts/${id}/`, { signal });
+}
+
+export async function upsertWorkflowDraft(payload: {
+  workflow_type: WorkflowDraftType;
+  scope_key: string;
+  object_id?: string | null;
+  form_data: Record<string, unknown>;
+  staged_media_ids: string[];
+  step: number;
+  expected_version?: number;
+}) {
+  return apiClient.post<WorkflowDraft>('/workflow-drafts/', payload as unknown as Record<string, unknown>);
+}
+
+export async function discardWorkflowDraft(id: string) {
+  return apiClient.post<void>(`/workflow-drafts/${id}/discard/`);
 }
 
 export async function generateCheckInPdf(id: string, language: string) {

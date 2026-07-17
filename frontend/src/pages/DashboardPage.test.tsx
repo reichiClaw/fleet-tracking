@@ -124,9 +124,12 @@ describe('DashboardPage', () => {
     // Recent loans table shows the latest loan
     expect(screen.getByText('FZ-00002 · Acme · TH100')).toBeInTheDocument();
 
-    // Reservation hand-over link is pre-filled with the reserving company
+    // Reservation hand-over carries the reservation identity and its prefill hints.
     const handover = screen.getByRole('link', { name: 'Übergeben' });
-    expect(handover).toHaveAttribute('href', '/app/workflows/loan-checkout?vehicle=veh-9&company=comp-1');
+    expect(handover).toHaveAttribute(
+      'href',
+      '/app/workflows/loan-checkout?vehicle=veh-9&reservation=res-1&company=comp-1',
+    );
   });
 
   it('shows a friendly empty state when there are no vehicles', async () => {

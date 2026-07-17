@@ -1,5 +1,6 @@
 import { type ChangeEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import {
   commitVehicleImport,
@@ -237,12 +238,17 @@ export function AdminImportPage() {
           </div>
 
           {job.status === 'committed' ? (
-            <p className="success-text">
-              {t('imports.committedSummary', {
-                created: job.result?.commit?.created_count ?? 0,
-                updated: job.result?.commit?.updated_count ?? 0,
-              })}
-            </p>
+            <div className="success-panel" role="status" aria-live="polite">
+              <p>
+                {t('imports.committedSummary', {
+                  created: job.result?.commit?.created_count ?? 0,
+                  updated: job.result?.commit?.updated_count ?? 0,
+                })}
+              </p>
+              <Link className="button-link success-button" to="/app/tasks#arrivals_awaiting_check_in">
+                {t('imports.checkInAnnounced')}
+              </Link>
+            </div>
           ) : null}
 
           {job.result?.errors?.length ? (

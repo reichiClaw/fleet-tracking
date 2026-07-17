@@ -1,781 +1,762 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { Field } from '../components/Field';
-import { FormErrorSummary } from '../components/FormErrorSummary';
-
 import {
   createCheckIn,
-  createLoanCheckout,
   createManufacturerCheckout,
-  displayDriverName,
-  displayVehicleName,
-  generateCheckInPdf,
-  generateLoanCheckoutPdf,
-  generateLoanReturnPdf,
-  generateManufacturerCheckoutPdf,
-  listCompanies,
-  listDrivers,
-  listLoans,
-  listVehicleCategories,
-  listVehicles,
+  getLoanReturnContext,
+  getVehicle,
   mediaDownloadUrl,
   returnLoan,
+  searchCompanies,
+  searchLoans,
+  searchVehicles,
   type Company,
-  type Driver,
-  type Loan,
+  type ConditionOutcome,
+  type LoanReturnContext,
   type MediaFile,
   type Vehicle,
-  type VehicleCategory,
+  type WorkflowDraft,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
-import { LoadingState } from '../components/LoadingState';
+import { Field } from '../components/Field';
+import { FormErrorSummary } from '../components/FormErrorSummary';
 import {
   markMediaAttached,
   MediaUploadField,
   SignatureInput,
   type SignatureInputHandle,
 } from '../components/MediaUploadField';
+import { PageHeader } from '../components/PageHeader';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
-import { MANUFACTURER_CHECKOUT_STATUSES } from '../utils/capabilities';
-import { isValidPhone, localDateTimeToIso } from '../utils/format';
+import {
+  CurrentConditionPanel,
+  VehicleContextBanner,
+  VehicleContextGate,
+  useVehicleContext,
+  vehicleSearchLabel,
+} from '../components/VehicleContextBanner';
+import { DraftConflictNotice, WorkflowWizard } from '../components/WorkflowWizard';
+import { useWorkflowDraft } from '../hooks/useWorkflowDraft';
+import { formatDateOnly, formatDateTime, formatNumber, localDateTimeToIso } from '../utils/format';
 import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
-export type WorkflowKind = 'check-in' | 'loan-checkout' | 'loan-return' | 'manufacturer-checkout';
-
+export type WorkflowKind = 'check-in' | 'loan-return' | 'manufacturer-checkout';
 type FieldErrors = Record<string, string>;
+type ManufacturerCondition = '' | 'fit' | 'new_damage';
 
 type WorkflowResult = {
-  id: string;
-  titleKey: string;
+  title: string;
   detail: string;
-  pdfAction?: () => Promise<MediaFile>;
-  automaticPdfError?: string;
+  vehicleId: string;
+  receiptId?: string | null;
+  pdfError?: string;
 };
 
-const targetStatuses = ['available', 'damaged', 'maintenance'] as const;
-const severityOptions = ['unknown', 'minor', 'major', 'critical'] as const;
-
-export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
-  const { t, i18n } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [categories, setCategories] = useState<VehicleCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<WorkflowResult | null>(null);
-  const [generatedPdf, setGeneratedPdf] = useState<MediaFile | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
-  const [generalPhotoIds, setGeneralPhotoIds] = useState<string[]>([]);
-  const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
-  const [signatureDrawn, setSignatureDrawn] = useState(false);
-  const signatureRef = useRef<SignatureInputHandle>(null);
-  const checkInIdempotencyKeyRef = useRef(createIdempotencyKey());
-
-  const initialVehicle = searchParams.get('vehicle') ?? '';
-  const initialLoan = searchParams.get('loan') ?? '';
-  const [vehicle, setVehicle] = useState(initialVehicle);
-  const [loan, setLoan] = useState(initialLoan);
-  const [company, setCompany] = useState('');
-  const [driver, setDriver] = useState('');
-  const [borrowerName, setBorrowerName] = useState('');
-  const [borrowerPhone, setBorrowerPhone] = useState('');
-  const [expectedReturnAt, setExpectedReturnAt] = useState('');
-  const [performedAt, setPerformedAt] = useState(nowForDateTimeLocal);
-  const [actualReturnAt, setActualReturnAt] = useState('');
-  const [odometer, setOdometer] = useState('');
-  const [hours, setHours] = useState('');
-  const [notes, setNotes] = useState('');
-  const [targetStatus, setTargetStatus] = useState('available');
-  const [hasDamage, setHasDamage] = useState(false);
-  const [damageDescription, setDamageDescription] = useState('');
-  const [damageSeverity, setDamageSeverity] = useState('minor');
-  const [damagePhotoIds, setDamagePhotoIds] = useState<string[]>([]);
-  useDirtyFormWarning(
-    !result && Boolean(vehicle || loan || company || driver || borrowerName || borrowerPhone || odometer || hours || notes || hasDamage || mediaFileIds.length || damagePhotoIds.length),
-    t('forms.unsaved'),
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const [nextVehicles, nextCompanies, nextDrivers, nextLoans, nextCategories] = await Promise.all([
-          listVehicles(),
-          listCompanies(),
-          listDrivers(),
-          listLoans(),
-          listVehicleCategories(),
-        ]);
-        if (isMounted) {
-          setVehicles(nextVehicles);
-          setCompanies(nextCompanies);
-          setDrivers(nextDrivers);
-          setLoans(nextLoans);
-          setCategories(nextCategories);
-          const presetVehicle = searchParams.get('vehicle');
-          if (presetVehicle) {
-            const selected = nextVehicles.find((item) => item.id === presetVehicle);
-            const valid =
-              (kind === 'check-in' && selected?.status === 'announced') ||
-              (kind === 'manufacturer-checkout' &&
-                selected &&
-                MANUFACTURER_CHECKOUT_STATUSES.has(selected.status) &&
-                !nextLoans.some((item) => item.vehicle === selected.id && item.status === 'active')) ||
-              kind === 'loan-checkout';
-            if (!valid) {
-              setVehicle('');
-              setError(t('workflows.validation.vehicleNotEligible'));
-            }
-          }
-          const presetLoan = searchParams.get('loan');
-          if (kind === 'loan-return' && presetLoan && nextLoans.find((item) => item.id === presetLoan)?.status !== 'active') {
-            setLoan('');
-            setError(t('workflows.validation.loanNotEligible'));
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          setError(getApiErrorMessage(error, t, t('workflows.loadError')));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    loadData();
-    return () => {
-      isMounted = false;
-    };
-  }, [t]);
-
-  const activeLoans = useMemo(() => loans.filter((item) => item.status === 'active'), [loans]);
-  const activeLoanVehicleIds = useMemo(() => new Set(activeLoans.map((item) => item.vehicle)), [activeLoans]);
-  const selectedLoan = useMemo(() => loans.find((item) => item.id === loan), [loan, loans]);
-  const selectedVehicleId = kind === 'loan-return' ? selectedLoan?.vehicle : vehicle;
-
-  const categoryNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    categories.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [categories]);
-
-  // For check-in the user picks from vehicles still awaiting check-in
-  // ("announced"); other workflows can target any vehicle. The search matches
-  // every stored field so a vehicle is easy to find.
-  const vehicleOptions = useMemo<SearchableOption[]>(() => {
-    let source = vehicles;
-    if (kind === 'check-in') {
-      source = vehicles.filter((item) => item.status === 'announced');
-    } else if (kind === 'manufacturer-checkout') {
-      // Only vehicles still in the fleet can be removed; already-removed,
-      // loaned, or not-yet-checked-in vehicles are not eligible.
-      source = vehicles.filter(
-        (item) => MANUFACTURER_CHECKOUT_STATUSES.has(item.status) && !activeLoanVehicleIds.has(item.id),
-      );
-    }
-    return source.map((item) => {
-      const categoryName =
-        typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
-      const keywords = [
-        item.internal_number,
-        item.manufacturer,
-        item.model,
-        item.license_plate,
-        item.serial_number,
-        item.current_location,
-        categoryName,
-        item.status,
-        t(`status.${item.status}`),
-      ]
-        .filter(Boolean)
-        .join(' ');
-      return { value: item.id, label: displayVehicleName(item), keywords };
-    });
-  }, [activeLoanVehicleIds, vehicles, kind, categoryNameById, t]);
-  const damageRequiredByStatus = (kind === 'check-in' || kind === 'loan-return') && targetStatus === 'damaged';
-  const damageActive = hasDamage || damageRequiredByStatus;
-  const currentTitleKey = `workflows.${translationPrefix(kind)}.title`;
-  const language = i18n.language.startsWith('de') ? 'de' : 'en';
-  const workflowCompanies = companies.filter((item) => {
-    if (!item.is_active) return false;
-    if (kind === 'check-in' || kind === 'manufacturer-checkout') {
-      return item.company_type === 'supplier' || item.company_type === 'manufacturer';
-    }
-    if (kind === 'loan-checkout') {
-      return item.company_type === 'subcontractor' || item.company_type === 'internal';
-    }
-    return true;
-  });
-
-  function addMedia(media: MediaFile) {
-    setMediaFileIds((current) => [...current, media.id]);
-    if (media.media_type === 'photo') {
-      setGeneralPhotoIds((current) => [...current, media.id]);
-    }
-    if (media.media_type === 'signature') {
-      setSignatureMediaIds((current) => [...current, media.id]);
-    }
-  }
-
-  function addDamagePhoto(media: MediaFile) {
-    setDamagePhotoIds((current) => [...current, media.id]);
-  }
-
-  function validate() {
-    const nextErrors: FieldErrors = {};
-    if (kind === 'loan-return') {
-      if (!loan) {
-        nextErrors.loan = t('workflows.validation.loanRequired');
-      }
-    } else if (!vehicle) {
-      nextErrors.vehicle = t('workflows.validation.vehicleRequired');
-    }
-    const selectedVehicle = vehicles.find((item) => item.id === selectedVehicleId);
-    if (kind === 'check-in' && vehicle && selectedVehicle?.status !== 'announced') {
-      nextErrors.vehicle = t('workflows.validation.vehicleNotEligible');
-    }
-    if (
-      kind === 'manufacturer-checkout' &&
-      vehicle &&
-      (!selectedVehicle ||
-        !MANUFACTURER_CHECKOUT_STATUSES.has(selectedVehicle.status) ||
-        activeLoanVehicleIds.has(selectedVehicle.id))
-    ) {
-      nextErrors.vehicle = t('workflows.validation.vehicleNotEligible');
-    }
-    if (kind === 'loan-return' && loan && selectedLoan?.status !== 'active') {
-      nextErrors.loan = t('workflows.validation.loanNotEligible');
-    }
-
-    if (kind === 'check-in' && !company) nextErrors.company = t('workflows.validation.supplierRequired');
-    if (kind === 'manufacturer-checkout' && !company) nextErrors.company = t('workflows.validation.recipientRequired');
-
-    if (kind === 'loan-checkout') {
-      if (!driver && !borrowerName.trim()) {
-        nextErrors.borrowerName = t('workflows.validation.borrowerRequired');
-      }
-      if (!borrowerPhone.trim()) {
-        nextErrors.borrowerPhone = t('workflows.validation.phoneRequired');
-      } else if (!isValidPhone(borrowerPhone)) {
-        nextErrors.borrowerPhone = t('workflows.validation.phoneInvalid');
-      }
-      if (!expectedReturnAt) {
-        nextErrors.expectedReturnAt = t('workflows.validation.expectedReturnRequired');
-      } else if (!localDateTimeToIso(expectedReturnAt) || new Date(expectedReturnAt).getTime() <= Date.now()) {
-        nextErrors.expectedReturnAt = t('workflows.validation.expectedReturnFuture');
-      }
-      if (signatureMediaIds.length === 0 && !signatureDrawn) nextErrors.signature = t('workflows.validation.checkoutSignatureRequired');
-    }
-
-    if (damageActive && !damageDescription.trim()) {
-      nextErrors.damageDescription = t('workflows.validation.damageDescriptionRequired');
-    }
-    if (damageActive && targetStatus === 'available') {
-      nextErrors.targetStatus = t('workflows.validation.damageStatusRequired');
-    }
-
-    // A damage report must be backed by at least one photo of the damage.
-    if (damageActive && damagePhotoIds.length === 0) {
-      nextErrors.damagePhoto = t('workflows.validation.damagePhotoRequired');
-    }
-
-    if (kind === 'check-in' && generalPhotoIds.length === 0) {
-      nextErrors.generalPhoto = t('workflows.validation.generalPhotoRequired');
-    }
-    if (kind === 'check-in' || kind === 'manufacturer-checkout') {
-      const performed = localDateTimeToIso(performedAt);
-      if (!performed || new Date(performed).getTime() > Date.now()) {
-        nextErrors.performedAt = t('workflows.validation.futureTimestamp');
-      }
-    }
-    if (kind === 'loan-return' && actualReturnAt) {
-      const actual = new Date(actualReturnAt).getTime();
-      const checkout = selectedLoan?.created_at ? new Date(selectedLoan.created_at).getTime() : 0;
-      if (!Number.isFinite(actual) || actual < checkout || actual > Date.now()) {
-        nextErrors.actualReturnAt = t('workflows.validation.returnChronology');
-      }
-    }
-    if (selectedVehicle?.current_odometer_km != null && odometer && Number(odometer) < selectedVehicle.current_odometer_km) {
-      nextErrors.odometer = t('workflows.validation.odometerDecrease');
-    }
-    if (selectedVehicle?.current_operating_hours != null && hours && Number(hours) < Number(selectedVehicle.current_operating_hours)) {
-      nextErrors.hours = t('workflows.validation.hoursDecrease');
-    }
-
-    setFieldErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSubmitting) return;
-    setError(null);
-    setResult(null);
-    setGeneratedPdf(null);
-    setPdfError(null);
-
-    if (!validate()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Capture the drawn signature (if any) at submit time so it is saved
-      // automatically without a separate "save" step.
-      let signatureMediaId: string | null = null;
-      try {
-        const signature = await signatureRef.current?.commit();
-        signatureMediaId = signature?.id ?? null;
-      } catch (signatureError) {
-        setError(getApiErrorMessage(signatureError, t, t('media.uploadError')));
-        setIsSubmitting(false);
-        return;
-      }
-      const payload = buildPayload(signatureMediaId ? [signatureMediaId] : []);
-      if (kind === 'check-in') {
-        const protocol = await createCheckIn(payload, checkInIdempotencyKeyRef.current);
-        setResult({
-          id: protocol.id,
-          titleKey: 'workflows.checkIn.completed',
-          detail: displayVehicleName(vehicles.find((item) => item.id === protocol.vehicle)) || protocol.vehicle,
-          pdfAction: () => generateCheckInPdf(protocol.id, language),
-          automaticPdfError: protocol.pdf_generation_error,
-        });
-      } else if (kind === 'loan-checkout') {
-        const nextLoan = await createLoanCheckout(payload);
-        setResult({
-          id: nextLoan.id,
-          titleKey: 'workflows.loanCheckout.completed',
-          detail: nextLoan.borrower_name || borrowerName || t('common.unknown'),
-          pdfAction: () => generateLoanCheckoutPdf(nextLoan.id, language),
-          automaticPdfError: nextLoan.checkout_pdf_generation_error,
-        });
-      } else if (kind === 'loan-return') {
-        const returned = await returnLoan(loan, payload);
-        setResult({
-          id: returned.id,
-          titleKey: 'workflows.loanReturn.completed',
-          detail: returned.borrower_name || t('common.unknown'),
-          pdfAction: () => generateLoanReturnPdf(returned.id, language),
-          automaticPdfError: returned.return_pdf_generation_error,
-        });
-      } else {
-        const protocol = await createManufacturerCheckout(payload);
-        setResult({
-          id: protocol.id,
-          titleKey: 'workflows.manufacturerCheckout.completed',
-          detail: displayVehicleName(vehicles.find((item) => item.id === protocol.vehicle)) || protocol.vehicle,
-          pdfAction: () => generateManufacturerCheckoutPdf(protocol.id, language),
-          automaticPdfError: protocol.pdf_generation_error,
-        });
-      }
-      markMediaAttached([
-        ...((payload.media_file_ids as string[]) ?? []),
-        ...damagePhotoIds,
-      ]);
-    } catch (error) {
-      setError(getApiErrorMessage(error, t, t('workflows.submitError')));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function buildPayload(extraMediaIds: string[] = []) {
-    const payload: Record<string, unknown> = {
-      media_file_ids: [...mediaFileIds, ...extraMediaIds],
-    };
-
-    if (kind !== 'loan-return') {
-      payload.vehicle = vehicle;
-    }
-    if (kind === 'check-in') {
-      assignIfPresent(payload, 'performed_at', localDateTimeToIso(performedAt));
-      assignIfPresent(payload, 'supplier_company', company);
-      assignIfPresent(payload, 'odometer_km', toNumber(odometer));
-      assignIfPresent(payload, 'operating_hours', hours);
-      assignIfPresent(payload, 'condition_notes', notes.trim());
-      assignIfPresent(payload, 'target_status', targetStatus);
-    }
-    if (kind === 'loan-checkout') {
-      assignIfPresent(payload, 'company', company);
-      assignIfPresent(payload, 'driver', driver);
-      assignIfPresent(payload, 'borrower_name', borrowerName.trim());
-      payload.borrower_phone = borrowerPhone.trim();
-      payload.expected_return_at = localDateTimeToIso(expectedReturnAt) ?? expectedReturnAt;
-      assignIfPresent(payload, 'checkout_odometer_km', toNumber(odometer));
-      assignIfPresent(payload, 'checkout_operating_hours', hours);
-      assignIfPresent(payload, 'checkout_notes', notes.trim());
-    }
-    if (kind === 'loan-return') {
-      assignIfPresent(payload, 'actual_return_at', localDateTimeToIso(actualReturnAt));
-      assignIfPresent(payload, 'return_odometer_km', toNumber(odometer));
-      assignIfPresent(payload, 'return_operating_hours', hours);
-      assignIfPresent(payload, 'return_notes', notes.trim());
-      assignIfPresent(payload, 'target_status', targetStatus);
-    }
-    if (kind === 'manufacturer-checkout') {
-      assignIfPresent(payload, 'performed_at', localDateTimeToIso(performedAt));
-      assignIfPresent(payload, 'recipient_company', company);
-      assignIfPresent(payload, 'odometer_km', toNumber(odometer));
-      assignIfPresent(payload, 'operating_hours', hours);
-      assignIfPresent(payload, 'condition_notes', notes.trim());
-    }
-
-    if (damageActive && damageDescription.trim()) {
-      payload.damage_reports = [
-        { description: damageDescription.trim(), severity: damageSeverity, media_file_ids: damagePhotoIds },
-      ];
-    }
-
-    return payload;
-  }
-
-  async function handleGeneratePdf() {
-    if (!result?.pdfAction) {
-      return;
-    }
-    setPdfError(null);
-    try {
-      setGeneratedPdf(await result.pdfAction());
-    } catch (error) {
-      setPdfError(getApiErrorMessage(error, t, t('pdf.error')));
-    }
-  }
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
-
-  return (
-    <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t('workflows.eyebrow')}</p>
-        <h2>{t(currentTitleKey)}</h2>
-        <p>{t(`workflows.${translationPrefix(kind)}.description`)}</p>
-      </div>
-
-      {error ? <ErrorState message={error} /> : null}
-      {pdfError ? <ErrorState message={pdfError} /> : null}
-      {result ? (
-        <article className="content-card success-card" role="status" aria-live="polite">
-          <h3 tabIndex={-1} autoFocus>{t(result.titleKey)}</h3>
-          <p>{result.detail}</p>
-          {result.automaticPdfError ? (
-            <p className="field-error">{t('pdf.automaticError', { error: result.automaticPdfError })}</p>
-          ) : null}
-          <div className="action-row">
-            {result.pdfAction ? (
-              <button type="button" onClick={handleGeneratePdf}>
-                {t('pdf.generate')}
-              </button>
-            ) : null}
-            {generatedPdf ? <a href={mediaDownloadUrl(generatedPdf)}>{generatedPdf.original_filename}</a> : null}
-            <Link className="button-link secondary-button" to="/app/vehicles">
-              {t('vehicles.title')}
-            </Link>
-          </div>
-        </article>
-      ) : null}
-
-      {!result ? <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
-        <FormErrorSummary errors={fieldErrors} />
-        {kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.loan')} error={fieldErrors.loan} required>
-            <select required value={loan} onChange={(event) => setLoan(event.target.value)}>
-              <option value="">{t('workflows.placeholders.selectLoan')}</option>
-              {activeLoans.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {loanLabel(item, vehicles, t('common.unknown'))}
-                </option>
-              ))}
-            </select>
-            {activeLoans.length === 0 ? <small className="hint-text">{t('workflows.loanReturn.noActiveLoans')}</small> : null}
-          </Field>
-        ) : (
-          <SearchableSelect
-            label={t('workflows.fields.vehicle')}
-            options={vehicleOptions}
-            value={vehicle}
-            onChange={setVehicle}
-            placeholder={kind === 'check-in' ? t('workflows.placeholders.searchAnnouncedVehicle') : t('workflows.placeholders.searchVehicle')}
-            emptyText={t('workflows.placeholders.noVehicleMatches')}
-            error={fieldErrors.vehicle}
-            required
-          >
-            {kind === 'check-in' && vehicleOptions.length === 0 ? (
-              <small className="hint-text">{t('workflows.checkIn.noAnnounced')}</small>
-            ) : null}
-          </SearchableSelect>
-        )}
-
-        {kind !== 'loan-return' ? (
-          <Field
-            label={t(kind === 'check-in' ? 'workflows.fields.supplierCompany' : kind === 'manufacturer-checkout' ? 'workflows.fields.recipientCompany' : 'workflows.fields.company')}
-            error={fieldErrors.company}
-            required={kind === 'check-in' || kind === 'manufacturer-checkout'}
-          >
-            <select
-              required={kind === 'check-in' || kind === 'manufacturer-checkout'}
-              value={company}
-              onChange={(event) => setCompany(event.target.value)}
-            >
-              <option value="">{t(kind === 'loan-checkout' ? 'workflows.placeholders.optionalCompany' : 'workflows.placeholders.selectCompany')}</option>
-              {workflowCompanies.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : null}
-
-        {kind === 'loan-checkout' ? (
-          <>
-            <Field label={t('workflows.fields.driver')}>
-              <select value={driver} onChange={(event) => setDriver(event.target.value)}>
-                <option value="">{t('workflows.placeholders.optionalDriver')}</option>
-                {drivers.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {displayDriverName(item)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName}>
-              <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
-            </Field>
-            <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone} required>
-              <input required type="tel" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
-            </Field>
-            <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt}>
-              <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
-            </Field>
-          </>
-        ) : null}
-
-        {kind === 'check-in' || kind === 'manufacturer-checkout' ? (
-          <Field label={t('workflows.fields.performedAt')} error={fieldErrors.performedAt}>
-            <input type="datetime-local" value={performedAt} onChange={(event) => setPerformedAt(event.target.value)} />
-          </Field>
-        ) : null}
-
-        {kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.actualReturn')} error={fieldErrors.actualReturnAt}>
-            <input type="datetime-local" value={actualReturnAt} onChange={(event) => setActualReturnAt(event.target.value)} />
-          </Field>
-        ) : null}
-
-        <div className="form-grid form-grid--two">
-          <Field error={fieldErrors.odometer} label={t(kind === 'loan-return' ? 'workflows.fields.returnOdometer' : kind === 'loan-checkout' ? 'workflows.fields.checkoutOdometer' : 'workflows.fields.odometer')}>
-            <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
-          </Field>
-          <Field error={fieldErrors.hours} label={t(kind === 'loan-return' ? 'workflows.fields.returnHours' : kind === 'loan-checkout' ? 'workflows.fields.checkoutHours' : 'workflows.fields.hours')}>
-            <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
-          </Field>
-        </div>
-
-        {kind === 'check-in' || kind === 'loan-return' ? (
-          <Field label={t('workflows.fields.targetStatus')} error={fieldErrors.targetStatus}>
-            <select value={targetStatus} onChange={(event) => setTargetStatus(event.target.value)}>
-              {targetStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {t(`status.${status}`)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : null}
-
-        <Field label={t('workflows.fields.notes')}>
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
-        </Field>
-
-        <fieldset className="fieldset-card">
-          <legend>{t('workflows.damage.title')}</legend>
-          <span className="field-label">
-            {t(kind === 'check-in' ? 'workflows.damage.deliveryQuestion' : 'workflows.damage.occurredQuestion')}
-          </span>
-          <div className="radio-group">
-            <label className="radio-inline">
-              <input
-                type="radio"
-                name="workflow-has-damage"
-                checked={!damageActive}
-                disabled={damageRequiredByStatus}
-                onChange={() => {
-                  setHasDamage(false);
-                  setDamageDescription('');
-                  setDamageSeverity('minor');
-                  setDamagePhotoIds([]);
-                }}
-              />
-              <span>{t('common.no')}</span>
-            </label>
-            <label className="radio-inline">
-              <input
-                type="radio"
-                name="workflow-has-damage"
-                checked={damageActive}
-                disabled={damageRequiredByStatus}
-                onChange={() => {
-                  setHasDamage(true);
-                  if (targetStatus === 'available') setTargetStatus('damaged');
-                }}
-              />
-              <span>{t('common.yes')}</span>
-            </label>
-          </div>
-          {damageRequiredByStatus ? (
-            <p className="hint-text">{t('workflows.damage.requiredForDamagedStatus')}</p>
-          ) : null}
-          {damageActive ? (
-            <>
-              <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription} required>
-                <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
-              </Field>
-              <Field label={t('workflows.damage.severity')}>
-                <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
-                  {severityOptions.map((severity) => (
-                    <option key={severity} value={severity}>
-                      {t(`severity.${severity}`)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <MediaUploadField
-                mediaType="photo"
-                vehicleId={selectedVehicleId}
-                relatedType="workflow_draft"
-                label={t('workflows.damage.photoLabel')}
-                accept="image/*"
-                capture
-                required
-                validationError={fieldErrors.damagePhoto}
-                submitted={Boolean(result)}
-                onUploaded={addDamagePhoto}
-                onRemoved={(media) => setDamagePhotoIds((current) => current.filter((id) => id !== media.id))}
-              />
-              {damagePhotoIds.length > 0 ? (
-                <p className="hint-text">{t('workflows.damage.photoCount', { count: damagePhotoIds.length })}</p>
-              ) : null}
-              {!fieldErrors.damagePhoto ? (
-                <p className="hint-text">{t('workflows.damage.photoRequired')}</p>
-              ) : null}
-            </>
-          ) : (
-            <p className="hint-text">{t('workflows.damage.optionalHint')}</p>
-          )}
-        </fieldset>
-
-        <fieldset className="fieldset-card">
-          <legend>{t('media.title')}</legend>
-          <MediaUploadField
-            mediaType="photo"
-            vehicleId={selectedVehicleId}
-            loanId={kind === 'loan-return' ? loan : undefined}
-            relatedType="workflow_draft"
-            label={t(kind === 'check-in' ? 'media.generalPhotoLabel' : 'media.photoLabel')}
-            accept="image/*"
-            capture
-            required={kind === 'check-in'}
-            validationError={fieldErrors.generalPhoto}
-            submitted={Boolean(result)}
-            onUploaded={addMedia}
-            onRemoved={(media) => {
-              setMediaFileIds((current) => current.filter((id) => id !== media.id));
-              setGeneralPhotoIds((current) => current.filter((id) => id !== media.id));
-            }}
-          />
-          <SignatureInput
-            ref={signatureRef}
-            vehicleId={selectedVehicleId}
-            loanId={kind === 'loan-return' ? loan : undefined}
-            relatedType="workflow_draft"
-            label={t(kind === 'loan-checkout' ? 'media.signatureLabel' : 'media.optionalSignatureLabel')}
-            required={kind === 'loan-checkout'}
-            validationError={fieldErrors.signature}
-            onUploaded={addMedia}
-            onRemoved={(media) => {
-              setMediaFileIds((current) => current.filter((id) => id !== media.id));
-              setSignatureMediaIds((current) => current.filter((id) => id !== media.id));
-            }}
-            onDrawnChange={setSignatureDrawn}
-            submitted={Boolean(result)}
-          />
-          <p className="hint-text">
-            {t(kind === 'loan-checkout' ? 'media.signatureRequiredCheckout' : 'media.signatureOptional')}
-          </p>
-        </fieldset>
-
-        <button
-          type="submit"
-          className={kind === 'check-in' ? 'success-button' : kind === 'manufacturer-checkout' ? 'danger-button' : undefined}
-          disabled={isSubmitting}
-        >
-          {isSubmitting
-            ? t('workflows.submitting')
-            : kind === 'check-in'
-              ? t('workflows.checkIn.submit')
-              : t('workflows.submit')}
-        </button>
-      </form> : null}
-    </section>
-  );
-}
-
-function translationPrefix(kind: WorkflowKind) {
-  if (kind === 'check-in') return 'checkIn';
-  if (kind === 'loan-checkout') return 'loanCheckout';
-  if (kind === 'loan-return') return 'loanReturn';
-  return 'manufacturerCheckout';
-}
-
-function assignIfPresent(payload: Record<string, unknown>, key: string, value: unknown) {
-  if (value !== undefined && value !== null && value !== '') {
-    payload[key] = value;
-  }
-}
-
-function toNumber(value: string) {
-  return value === '' ? undefined : Number(value);
-}
-
-function toIso(value: string) {
-  return value ? new Date(value).toISOString() : undefined;
-}
-
-/**
- * Current local date/time formatted for a `datetime-local` input
- * (`YYYY-MM-DDTHH:mm`). Used to pre-fill "Performed at" so it always carries
- * the actual time, even when the user does not touch the field.
- */
-function nowForDateTimeLocal() {
+function nowLocal() {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().slice(0, 16);
 }
 
-function createIdempotencyKey() {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  return `check-in-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function randomKey(prefix: string) {
+  return typeof crypto?.randomUUID === 'function'
+    ? `${prefix}-${crypto.randomUUID()}`
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function loanLabel(loan: Loan, vehicles: Vehicle[], fallback: string) {
-  const vehicle = vehicles.find((item) => item.id === loan.vehicle);
-  const vehicleName = vehicle ? displayVehicleName(vehicle) : fallback;
-  return `${vehicleName} · ${loan.borrower_name || fallback}`;
+export function WorkflowPage({ kind }: { kind: WorkflowKind }) {
+  const { t, i18n } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const signatureRef = useRef<SignatureInputHandle>(null);
+  const draftScopeRef = useRef(randomKey(kind));
+  const [step, setStep] = useState(0);
+  const [vehicleId, setVehicleId] = useState(kind === 'loan-return' ? '' : searchParams.get('vehicle') ?? '');
+  const [loanId, setLoanId] = useState(kind === 'loan-return' ? searchParams.get('loan') ?? '' : '');
+  const [selectedVehicleOptions, setSelectedVehicleOptions] = useState<SearchableOption[]>([]);
+  const [selectedLoanOptions, setSelectedLoanOptions] = useState<SearchableOption[]>([]);
+  const [companyId, setCompanyId] = useState('');
+  const [companyOptions, setCompanyOptions] = useState<SearchableOption[]>([]);
+  const [performedAt, setPerformedAt] = useState(nowLocal);
+  const [actualReturnAt, setActualReturnAt] = useState(nowLocal);
+  const [odometer, setOdometer] = useState('');
+  const [hours, setHours] = useState('');
+  const [conditionOutcome, setConditionOutcome] = useState<ConditionOutcome | ''>('');
+  const [manufacturerCondition, setManufacturerCondition] = useState<ManufacturerCondition>('');
+  const [notes, setNotes] = useState('');
+  const [damageDescription, setDamageDescription] = useState('');
+  const [damageSeverity, setDamageSeverity] = useState('minor');
+  const [generalMediaIds, setGeneralMediaIds] = useState<string[]>([]);
+  const [damageMediaIds, setDamageMediaIds] = useState<string[]>([]);
+  const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
+  const [signatureDrawn, setSignatureDrawn] = useState(false);
+  const [returnContext, setReturnContext] = useState<LoanReturnContext | null>(null);
+  const [returnContextLoading, setReturnContextLoading] = useState(false);
+  const [returnContextError, setReturnContextError] = useState<string | null>(null);
+  const [returnContextReload, setReturnContextReload] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<WorkflowResult | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => randomKey('check-in'));
+
+  const selectedVehicleId = kind === 'loan-return' ? returnContext?.vehicle.id ?? '' : vehicleId;
+  const vehicleState = useVehicleContext(selectedVehicleId);
+  const meterMode = kind === 'loan-return'
+    ? returnContext?.vehicle.meter_mode
+    : vehicleState.context?.meter?.mode;
+  const workflowType = kind === 'check-in'
+    ? 'check_in'
+    : kind === 'loan-return'
+      ? 'loan_return'
+      : 'manufacturer_return';
+  const allStagedMediaIds = useMemo(
+    () => [...new Set([...generalMediaIds, ...damageMediaIds, ...signatureMediaIds])],
+    [damageMediaIds, generalMediaIds, signatureMediaIds],
+  );
+
+  const hydrateDraft = useCallback((draft: WorkflowDraft) => {
+    const data = draft.form_data;
+    setStep(Math.max(0, Math.min(3, draft.step || 0)));
+    setVehicleId(String(data.vehicle_id || ''));
+    setLoanId(String(data.loan_id || ''));
+    setCompanyId(String(data.company_id || ''));
+    setPerformedAt(String(data.performed_at || nowLocal()));
+    setActualReturnAt(String(data.actual_return_at || nowLocal()));
+    setOdometer(String(data.odometer ?? ''));
+    setHours(String(data.hours ?? ''));
+    setConditionOutcome((data.condition_outcome as ConditionOutcome) || '');
+    setManufacturerCondition((data.manufacturer_condition as ManufacturerCondition) || '');
+    setNotes(String(data.notes || ''));
+    setDamageDescription(String(data.damage_description || ''));
+    setDamageSeverity(String(data.damage_severity || 'minor'));
+    setGeneralMediaIds(Array.isArray(data.general_media_ids) ? data.general_media_ids.map(String) : []);
+    setDamageMediaIds(Array.isArray(data.damage_media_ids) ? data.damage_media_ids.map(String) : []);
+    setSignatureMediaIds(Array.isArray(data.signature_media_ids) ? data.signature_media_ids.map(String) : []);
+    if (data.idempotency_key) setIdempotencyKey(String(data.idempotency_key));
+  }, []);
+
+  const draftFormData = useMemo(() => ({
+    vehicle_id: vehicleId,
+    loan_id: loanId,
+    company_id: companyId,
+    performed_at: performedAt,
+    actual_return_at: actualReturnAt,
+    odometer,
+    hours,
+    condition_outcome: conditionOutcome,
+    manufacturer_condition: manufacturerCondition,
+    notes,
+    damage_description: damageDescription,
+    damage_severity: damageSeverity,
+    general_media_ids: generalMediaIds,
+    damage_media_ids: damageMediaIds,
+    signature_media_ids: signatureMediaIds,
+    idempotency_key: idempotencyKey,
+  }), [
+    actualReturnAt,
+    companyId,
+    conditionOutcome,
+    damageDescription,
+    damageMediaIds,
+    damageSeverity,
+    generalMediaIds,
+    hours,
+    idempotencyKey,
+    loanId,
+    manufacturerCondition,
+    notes,
+    odometer,
+    performedAt,
+    signatureMediaIds,
+    vehicleId,
+  ]);
+
+  const draft = useWorkflowDraft({
+    workflowType,
+    scopeKey: draftScopeRef.current,
+    objectId: loanId || vehicleId || null,
+    formData: draftFormData,
+    stagedMediaIds: allStagedMediaIds,
+    step,
+    enabled: !result,
+    resumeId: searchParams.get('draft'),
+    onHydrate: hydrateDraft,
+  });
+
+  useDirtyFormWarning(!result && Boolean(vehicleId || loanId || companyId || notes || allStagedMediaIds.length), t('forms.unsaved'));
+
+  useEffect(() => {
+    const preset = kind === 'loan-return' ? loanId : vehicleId;
+    if (!preset) return;
+    const controller = new AbortController();
+    if (kind === 'loan-return') {
+      setReturnContextLoading(true);
+      setReturnContextError(null);
+      getLoanReturnContext(preset, controller.signal)
+        .then((context) => {
+          setReturnContext(context);
+          setSelectedLoanOptions([{
+            value: preset,
+            label: `${context.vehicle.internal_number} · ${context.borrower.name} · ${t(`status.${context.status}`)}`,
+          }]);
+          if (!odometer && context.vehicle.current_odometer_km != null) setOdometer(String(context.vehicle.current_odometer_km));
+          if (!hours && context.vehicle.current_operating_hours != null) setHours(String(context.vehicle.current_operating_hours));
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) {
+            setReturnContext(null);
+            setReturnContextError(getApiErrorMessage(error, t, t('returnWorkflow.contextError')));
+          }
+        })
+        .finally(() => setReturnContextLoading(false));
+    } else {
+      getVehicle(preset, controller.signal)
+        .then((vehicle) => setSelectedVehicleOptions([{
+          value: vehicle.id,
+          label: vehicleSearchLabel(vehicle, t(`status.${vehicle.status}`)),
+        }]))
+        .catch(() => undefined);
+    }
+    return () => controller.abort();
+    // Meter values are deliberately not dependencies: a context load only prefills untouched inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, loanId, returnContextReload, t, vehicleId]);
+
+  useEffect(() => {
+    const context = vehicleState.context;
+    if (!context || kind === 'loan-return') return;
+    if (!odometer && context.meter.odometer_km != null) setOdometer(String(context.meter.odometer_km));
+    if (!hours && context.meter.operating_hours != null) setHours(String(context.meter.operating_hours));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, vehicleState.context]);
+
+  const loadVehicles = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchVehicles(
+      query,
+      kind === 'check-in' ? { status: 'announced' } : { active: true },
+      signal,
+    );
+    return page.results.map((vehicle) => ({
+      value: vehicle.id,
+      label: vehicleSearchLabel(vehicle, t(`status.${vehicle.status}`)),
+      keywords: [vehicle.license_plate, vehicle.serial_number, vehicle.current_location, vehicle.status].filter(Boolean).join(' '),
+    }));
+  }, [kind, t]);
+
+  const loadLoans = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchLoans(query, { status: 'active' }, signal);
+    return page.results.map((loan) => ({
+      value: loan.id,
+      label: `${loan.borrower_name || t('common.unknown')} · ${loan.borrower_phone || ''} · ${loan.vehicle}`,
+    }));
+  }, [t]);
+
+  const loadCompanies = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchCompanies(query, signal);
+    const allowed = new Set<Company['company_type']>(['supplier', 'manufacturer']);
+    const options = page.results
+      .filter((company) => company.is_active && allowed.has(company.company_type))
+      .map((company) => ({
+        value: company.id,
+        label: `${company.name}${company.contact_name ? ` · ${company.contact_name}` : ''}${company.phone ? ` · ${company.phone}` : ''}`,
+      }));
+    setCompanyOptions((current) => [...options, ...current.filter((item) => !options.some((next) => next.value === item.value))]);
+    return options;
+  }, []);
+
+  function validateMeter(next: FieldErrors) {
+    if ((meterMode === 'odometer' || meterMode === 'both') && odometer === '') {
+      next.odometer = t('workflowRedesign.validation.odometerRequired');
+    }
+    if ((meterMode === 'hours' || meterMode === 'both') && hours === '') {
+      next.hours = t('workflowRedesign.validation.hoursRequired');
+    }
+    const baselineOdometer = kind === 'loan-return'
+      ? returnContext?.vehicle.current_odometer_km
+      : vehicleState.context?.meter.odometer_km;
+    const baselineHours = kind === 'loan-return'
+      ? returnContext?.vehicle.current_operating_hours
+      : vehicleState.context?.meter.operating_hours;
+    if (baselineOdometer != null && odometer && Number(odometer) < Number(baselineOdometer)) {
+      next.odometer = t('workflows.validation.odometerDecrease');
+    }
+    if (baselineHours != null && hours && Number(hours) < Number(baselineHours)) {
+      next.hours = t('workflows.validation.hoursDecrease');
+    }
+  }
+
+  function validateStep(targetStep: number) {
+    const next: FieldErrors = {};
+    if (targetStep === 0) {
+      if (kind === 'loan-return') {
+        if (!loanId) next.loan = t('workflows.validation.loanRequired');
+        else if (!returnContext || returnContext.status !== 'active') next.loan = t('workflows.validation.loanNotEligible');
+      } else {
+        if (!vehicleId) next.vehicle = t('workflows.validation.vehicleRequired');
+        else if (!vehicleState.context) next.vehicle = t('vehicleContext.loadError');
+        else if (kind === 'check-in' && vehicleState.context.vehicle.status !== 'announced') {
+          next.vehicle = t('workflows.validation.vehicleNotEligible');
+        } else if (
+          kind === 'manufacturer-checkout'
+          && (!['available', 'damaged'].includes(vehicleState.context.vehicle.status)
+            || vehicleState.context.active_loan
+            || vehicleState.context.active_maintenance)
+        ) {
+          next.vehicle = t('workflows.validation.vehicleNotEligible');
+        }
+      }
+    }
+    if (targetStep === 1) {
+      if (kind !== 'loan-return' && !companyId) {
+        next.company = t(kind === 'check-in' ? 'workflows.validation.supplierRequired' : 'workflows.validation.recipientRequired');
+      }
+      const timestamp = kind === 'loan-return' ? actualReturnAt : performedAt;
+      const parsed = localDateTimeToIso(timestamp);
+      if (!parsed || new Date(parsed).getTime() > Date.now()) {
+        next.timestamp = t('workflows.validation.futureTimestamp');
+      }
+    }
+    if (targetStep === 2) {
+      validateMeter(next);
+      if (kind === 'manufacturer-checkout') {
+        if (!manufacturerCondition) next.condition = t('workflowRedesign.validation.conditionRequired');
+      } else if (!conditionOutcome) {
+        next.condition = t('workflowRedesign.validation.conditionRequired');
+      }
+      const newDamage = kind === 'manufacturer-checkout'
+        ? manufacturerCondition === 'new_damage'
+        : conditionOutcome === 'new_damage';
+      if (newDamage && !damageDescription.trim()) {
+        next.damageDescription = t('workflows.validation.damageDescriptionRequired');
+      }
+      if (newDamage && damageMediaIds.length === 0) {
+        next.damagePhoto = t('workflows.validation.damagePhotoRequired');
+      }
+      if (conditionOutcome === 'maintenance' && !notes.trim()) {
+        next.notes = t('workflowRedesign.validation.maintenanceReasonRequired');
+      }
+      if (kind === 'check-in' && generalMediaIds.length === 0) {
+        next.generalPhoto = t('workflows.validation.generalPhotoRequired');
+      }
+      if (kind === 'loan-return' && returnContext?.signature_required && !signatureDrawn && signatureMediaIds.length === 0) {
+        next.signature = t('workflows.validation.signatureRequired');
+      }
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  async function nextStep() {
+    if (!validateStep(step)) return;
+    if (step === 2 && signatureDrawn) {
+      try {
+        const drawn = await signatureRef.current?.commit();
+        if (drawn) {
+          setSignatureMediaIds((current) => current.includes(drawn.id) ? current : [...current, drawn.id]);
+        }
+      } catch (uploadError) {
+        setSubmitError(getApiErrorMessage(uploadError, t, t('media.uploadError')));
+        return;
+      }
+    }
+    setStep((current) => Math.min(3, current + 1));
+  }
+
+  function damageReports() {
+    const newDamage = kind === 'manufacturer-checkout'
+      ? manufacturerCondition === 'new_damage'
+      : conditionOutcome === 'new_damage';
+    return newDamage
+      ? [{ description: damageDescription.trim(), severity: damageSeverity, media_file_ids: damageMediaIds }]
+      : undefined;
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (step < 3) {
+      nextStep();
+      return;
+    }
+    if (isSubmitting) return;
+    for (const requiredStep of [0, 1, 2]) {
+      if (!validateStep(requiredStep)) {
+        setStep(requiredStep);
+        return;
+      }
+    }
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const drawn = await signatureRef.current?.commit();
+      const mediaIds = [...new Set([...generalMediaIds, ...signatureMediaIds, ...(drawn ? [drawn.id] : [])])];
+      let nextResult: WorkflowResult;
+      if (kind === 'check-in') {
+        const protocol = await createCheckIn({
+          vehicle: vehicleId,
+          supplier_company: companyId,
+          performed_at: localDateTimeToIso(performedAt),
+          condition_outcome: conditionOutcome,
+          condition_notes: notes.trim(),
+          ...(meterMode === 'odometer' || meterMode === 'both' ? { odometer_km: Number(odometer) } : {}),
+          ...(meterMode === 'hours' || meterMode === 'both' ? { operating_hours: hours } : {}),
+          media_file_ids: mediaIds,
+          ...(damageReports() ? { damage_reports: damageReports() } : {}),
+        }, idempotencyKey);
+        nextResult = {
+          title: t('workflowRedesign.completed.checkIn'),
+          detail: vehicleState.context?.vehicle.internal_number || vehicleId,
+          vehicleId,
+          receiptId: protocol.pdf_media,
+          pdfError: protocol.pdf_generation_error,
+        };
+      } else if (kind === 'loan-return') {
+        const loan = await returnLoan(loanId, {
+          actual_return_at: localDateTimeToIso(actualReturnAt),
+          condition_outcome: conditionOutcome,
+          return_notes: notes.trim(),
+          ...(meterMode === 'odometer' || meterMode === 'both' ? { return_odometer_km: Number(odometer) } : {}),
+          ...(meterMode === 'hours' || meterMode === 'both' ? { return_operating_hours: hours } : {}),
+          media_file_ids: mediaIds,
+          ...(damageReports() ? { damage_reports: damageReports() } : {}),
+        });
+        nextResult = {
+          title: t('workflowRedesign.completed.loanReturn'),
+          detail: t('returnWorkflow.result', { status: t('status.returned') }),
+          vehicleId: returnContext!.vehicle.id,
+          receiptId: loan.return_pdf_media,
+          pdfError: loan.return_pdf_generation_error,
+        };
+      } else {
+        const protocol = await createManufacturerCheckout({
+          vehicle: vehicleId,
+          recipient_company: companyId,
+          performed_at: localDateTimeToIso(performedAt),
+          condition_notes: notes.trim(),
+          ...(meterMode === 'odometer' || meterMode === 'both' ? { odometer_km: Number(odometer) } : {}),
+          ...(meterMode === 'hours' || meterMode === 'both' ? { operating_hours: hours } : {}),
+          media_file_ids: mediaIds,
+          ...(damageReports() ? { damage_reports: damageReports() } : {}),
+        });
+        nextResult = {
+          title: t('workflowRedesign.completed.manufacturerReturn'),
+          detail: vehicleState.context?.vehicle.internal_number || vehicleId,
+          vehicleId,
+          receiptId: protocol.pdf_media,
+          pdfError: protocol.pdf_generation_error,
+        };
+      }
+      markMediaAttached([...mediaIds, ...damageMediaIds]);
+      setResult(nextResult);
+      await draft.completed();
+    } catch (error) {
+      const base = getApiErrorMessage(error, t, t('workflows.submitError'));
+      setSubmitError(error instanceof TypeError ? `${base} ${t('workflowRedesign.ambiguousFailure')}` : base);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const titleKey = kind === 'check-in'
+    ? 'workflowRedesign.titles.checkIn'
+    : kind === 'loan-return'
+      ? 'workflowRedesign.titles.loanReturn'
+      : 'workflowRedesign.titles.manufacturerReturn';
+  const condition = kind === 'manufacturer-checkout' ? manufacturerCondition : conditionOutcome;
+  const usageOdometer = kind === 'loan-return' && returnContext?.checkout.odometer_km != null && odometer
+    ? Number(odometer) - Number(returnContext.checkout.odometer_km)
+    : null;
+  const usageHours = kind === 'loan-return' && returnContext?.checkout.operating_hours != null && hours
+    ? Number(hours) - Number(returnContext.checkout.operating_hours)
+    : null;
+  const checkoutPerformedAt = typeof returnContext?.checkout.snapshot?.performed_at === 'string'
+    ? returnContext.checkout.snapshot.performed_at
+    : null;
+
+  if (result) {
+    return (
+      <section className="page-stack">
+        <PageHeader title={result.title} eyebrow={t('workflows.eyebrow')} />
+        <article className="content-card success-card" role="status" aria-live="polite">
+          <h3 tabIndex={-1} autoFocus>{result.title}</h3>
+          <p>{result.detail}</p>
+          {result.pdfError ? <p className="field-error">{t('pdf.automaticError', { error: result.pdfError })}</p> : null}
+          <div className="action-row">
+            {result.receiptId ? (
+              <a className="button-link" href={mediaDownloadUrl({ id: result.receiptId })}>{t('workflowRedesign.openReceipt')}</a>
+            ) : null}
+            <Link className="button-link secondary-button" to={`/app/vehicles/${result.vehicleId}`}>
+              {t('workflowRedesign.openHistory')}
+            </Link>
+          </div>
+        </article>
+      </section>
+    );
+  }
+
+  return (
+    <section className="page-stack">
+      <PageHeader title={t(titleKey)} eyebrow={t('workflows.eyebrow')} description={t(`${titleKey}Description`)} />
+      {submitError ? <ErrorState message={submitError} /> : null}
+      {returnContextError ? (
+        <ErrorState
+          message={returnContextError}
+          onRetry={() => setReturnContextReload((value) => value + 1)}
+        />
+      ) : null}
+      {draft.conflictingDraft ? (
+        <DraftConflictNotice onUseServer={draft.useServerVersion} onOverwrite={draft.overwriteServerVersion} />
+      ) : null}
+      <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
+        <FormErrorSummary errors={fieldErrors} />
+        <WorkflowWizard
+          currentStep={step}
+          onBack={() => setStep((current) => Math.max(0, current - 1))}
+          onNext={nextStep}
+          onGoToStep={setStep}
+          submitLabel={t(titleKey)}
+          submitting={isSubmitting}
+          saveStatus={draft.status}
+          navigationDisabled={Boolean(
+            (selectedVehicleId && (vehicleState.isLoading || vehicleState.error))
+            || (kind === 'loan-return' && loanId && (returnContextLoading || returnContextError)),
+          )}
+          onRetrySave={draft.retry}
+          consequence={t(`workflowRedesign.consequences.${kind === 'manufacturer-checkout' ? 'manufacturerReturn' : kind === 'loan-return' ? 'loanReturn' : 'checkIn'}`)}
+        >
+          {step === 0 ? (
+            kind === 'loan-return' ? (
+              <SearchableSelect
+                label={t('workflows.fields.loan')}
+                value={loanId}
+                options={selectedLoanOptions}
+                onChange={(value) => { setLoanId(value); setReturnContext(null); }}
+                loadOptions={loadLoans}
+                loadingText={t('states.loading')}
+                placeholder={t('returnWorkflow.searchLoan')}
+                emptyText={t('workflows.loanReturn.noActiveLoans')}
+                error={fieldErrors.loan}
+                required
+              />
+            ) : (
+              <SearchableSelect
+                label={t('workflows.fields.vehicle')}
+                value={vehicleId}
+                options={selectedVehicleOptions}
+                onChange={setVehicleId}
+                loadOptions={loadVehicles}
+                loadingText={t('states.loading')}
+                placeholder={t('workflows.placeholders.searchVehicle')}
+                emptyText={t('workflows.placeholders.noVehicleMatches')}
+                error={fieldErrors.vehicle}
+                required
+              />
+            )
+          ) : null}
+
+          {returnContextLoading ? <p role="status">{t('states.loading')}</p> : null}
+          {selectedVehicleId ? (
+            <VehicleContextGate state={vehicleState}>
+              {vehicleState.context ? (
+                <>
+                  <VehicleContextBanner
+                    context={vehicleState.context}
+                    category={vehicleState.category}
+                    thumbnailUrl={vehicleState.thumbnailUrl}
+                  />
+                  <CurrentConditionPanel context={vehicleState.context} media={vehicleState.media} />
+                  {kind === 'manufacturer-checkout' && vehicleState.context.vehicle.manufacturer_return_due ? (
+                    <p className="warning-panel">
+                      {t('workflowRedesign.manufacturerWarnings.due', {
+                        date: formatDateOnly(
+                          vehicleState.context.vehicle.manufacturer_return_due,
+                          i18n.language,
+                          t('common.notAvailable'),
+                        ),
+                      })}
+                    </p>
+                  ) : null}
+                  {kind === 'manufacturer-checkout' && vehicleState.context.reservations.length ? (
+                    <p className="warning-panel">
+                      {t('workflowRedesign.manufacturerWarnings.reservations', {
+                        count: vehicleState.context.reservations.length,
+                      })}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </VehicleContextGate>
+          ) : null}
+
+          {step === 1 ? (
+            <>
+              {kind === 'loan-return' && returnContext ? (
+                <section className="comparison-panel">
+                  <h4>{t('returnWorkflow.checkoutContext')}</h4>
+                  <dl className="detail-list">
+                    <div><dt>{t('workflows.fields.borrowerName')}</dt><dd>{returnContext.borrower.name}</dd></div>
+                    <div><dt>{t('workflows.fields.company')}</dt><dd>{returnContext.borrower.company_name || t('common.notAvailable')}</dd></div>
+                    <div><dt>{t('workflows.fields.borrowerPhone')}</dt><dd>{returnContext.borrower.phone}</dd></div>
+                    <div><dt>{t('workflows.fields.expectedReturn')}</dt><dd>{formatDateTime(returnContext.expected_return_at, i18n.language)}</dd></div>
+                    <div>
+                      <dt>{t('returnWorkflow.checkoutTime')}</dt>
+                      <dd>{formatDateTime(checkoutPerformedAt, i18n.language, t('common.notAvailable'))}</dd>
+                    </div>
+                    <div><dt>{t('workflows.fields.checkoutOdometer')}</dt><dd>{formatNumber(returnContext.checkout.odometer_km, i18n.language, t('common.notAvailable'))}</dd></div>
+                    <div><dt>{t('workflows.fields.checkoutHours')}</dt><dd>{formatNumber(returnContext.checkout.operating_hours, i18n.language, t('common.notAvailable'))}</dd></div>
+                  </dl>
+                  {returnContext.checkout.media.length ? (
+                    <ul className="evidence-links">
+                      {returnContext.checkout.media.map((media) => (
+                        <li key={media.id}><a href={mediaDownloadUrl(media)}>{t(`media.types.${media.media_type}`)} · {media.original_filename}</a></li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </section>
+              ) : null}
+              {kind !== 'loan-return' ? (
+                <SearchableSelect
+                  label={t(kind === 'check-in' ? 'workflows.fields.supplierCompany' : 'workflows.fields.recipientCompany')}
+                  value={companyId}
+                  options={companyOptions}
+                  onChange={setCompanyId}
+                  loadOptions={loadCompanies}
+                  loadingText={t('states.loading')}
+                  placeholder={t('workflows.placeholders.selectCompany')}
+                  emptyText={t('loanCheckout.noMatches')}
+                  error={fieldErrors.company}
+                  required
+                />
+              ) : null}
+              <Field
+                label={t(kind === 'loan-return' ? 'workflows.fields.actualReturn' : 'workflows.fields.performedAt')}
+                error={fieldErrors.timestamp}
+                required
+              >
+                <input
+                  type="datetime-local"
+                  value={kind === 'loan-return' ? actualReturnAt : performedAt}
+                  onChange={(event) => kind === 'loan-return' ? setActualReturnAt(event.target.value) : setPerformedAt(event.target.value)}
+                />
+              </Field>
+            </>
+          ) : null}
+
+          {step === 2 ? (
+            <>
+              <div className="form-grid form-grid--two">
+                {meterMode === 'odometer' || meterMode === 'both' ? (
+                  <Field label={t(kind === 'loan-return' ? 'workflows.fields.returnOdometer' : 'workflows.fields.odometer')} error={fieldErrors.odometer} required>
+                    <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+                  </Field>
+                ) : null}
+                {meterMode === 'hours' || meterMode === 'both' ? (
+                  <Field label={t(kind === 'loan-return' ? 'workflows.fields.returnHours' : 'workflows.fields.hours')} error={fieldErrors.hours} required>
+                    <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
+                  </Field>
+                ) : null}
+              </div>
+              {kind === 'loan-return' && (usageOdometer != null || usageHours != null) ? (
+                <p className="usage-delta" aria-live="polite">
+                  {t('returnWorkflow.usageDelta', {
+                    odometer: usageOdometer == null ? '—' : formatNumber(usageOdometer, i18n.language),
+                    hours: usageHours == null ? '—' : formatNumber(usageHours, i18n.language),
+                  })}
+                </p>
+              ) : null}
+              <fieldset className="fieldset-card">
+                <legend>{t('workflowRedesign.conditionLegend')}</legend>
+                <div className="condition-options">
+                  {(kind === 'manufacturer-checkout'
+                    ? (['fit', 'new_damage'] as ManufacturerCondition[])
+                    : (['fit', 'new_damage', 'maintenance'] as ConditionOutcome[])
+                  ).map((outcome) => (
+                    <label key={outcome} className="condition-option">
+                      <input
+                        type="radio"
+                        name="condition-outcome"
+                        value={outcome}
+                        checked={condition === outcome}
+                        onChange={() => kind === 'manufacturer-checkout'
+                          ? setManufacturerCondition(outcome as ManufacturerCondition)
+                          : setConditionOutcome(outcome as ConditionOutcome)}
+                      />
+                      <span>{t(`workflowRedesign.outcomes.${outcome}`)}</span>
+                    </label>
+                  ))}
+                </div>
+                {fieldErrors.condition ? <small className="field-error">{fieldErrors.condition}</small> : null}
+              </fieldset>
+              <Field label={t('workflows.fields.notes')} error={fieldErrors.notes}>
+                <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+              </Field>
+              {condition === 'new_damage' ? (
+                <fieldset className="fieldset-card">
+                  <legend>{t('workflows.damage.title')}</legend>
+                  <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription} required>
+                    <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
+                  </Field>
+                  <Field label={t('workflows.damage.severity')}>
+                    <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
+                      {['unknown', 'minor', 'major', 'critical'].map((severity) => (
+                        <option key={severity} value={severity}>{t(`severity.${severity}`)}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <MediaUploadField
+                    mediaType="photo"
+                    label={t('workflows.damage.photoLabel')}
+                    accept="image/*"
+                    capture
+                    preserveOnUnmount
+                    required
+                    validationError={fieldErrors.damagePhoto}
+                    onUploaded={(media) => setDamageMediaIds((current) => [...current, media.id])}
+                    onRemoved={(media) => setDamageMediaIds((current) => current.filter((id) => id !== media.id))}
+                  />
+                </fieldset>
+              ) : null}
+              <MediaUploadField
+                mediaType="photo"
+                label={t('media.generalPhotoLabel')}
+                accept="image/*"
+                capture
+                preserveOnUnmount
+                required={kind === 'check-in'}
+                validationError={fieldErrors.generalPhoto}
+                onUploaded={(media) => setGeneralMediaIds((current) => [...current, media.id])}
+                onRemoved={(media) => setGeneralMediaIds((current) => current.filter((id) => id !== media.id))}
+              />
+              <SignatureInput
+                ref={signatureRef}
+                label={returnContext?.signature_required ? t('media.signatureLabel') : t('media.optionalSignatureLabel')}
+                preserveOnUnmount
+                required={Boolean(returnContext?.signature_required)}
+                validationError={fieldErrors.signature}
+                onDrawnChange={setSignatureDrawn}
+                onUploaded={(media) => setSignatureMediaIds((current) => [...current, media.id])}
+                onRemoved={(media) => setSignatureMediaIds((current) => current.filter((id) => id !== media.id))}
+              />
+            </>
+          ) : null}
+
+          {step === 3 ? (
+            <section className="review-panel">
+              <h4>{t('workflowRedesign.reviewTitle')}</h4>
+              <dl className="detail-list detail-list--wide">
+                <div><dt>{t('workflows.fields.vehicle')}</dt><dd>{vehicleState.context?.vehicle.internal_number || returnContext?.vehicle.internal_number}</dd></div>
+                {kind !== 'loan-return' ? <div><dt>{t('workflows.fields.company')}</dt><dd>{companyOptions.find((item) => item.value === companyId)?.label || companyId}</dd></div> : null}
+                <div><dt>{t('workflowRedesign.conditionLegend')}</dt><dd>{condition ? t(`workflowRedesign.outcomes.${condition}`) : ''}</dd></div>
+                {meterMode === 'odometer' || meterMode === 'both' ? <div><dt>{t('workflows.fields.odometer')}</dt><dd>{odometer}</dd></div> : null}
+                {meterMode === 'hours' || meterMode === 'both' ? <div><dt>{t('workflows.fields.hours')}</dt><dd>{hours}</dd></div> : null}
+                <div><dt>{t('workflowRedesign.evidenceCount')}</dt><dd>{allStagedMediaIds.length}</dd></div>
+              </dl>
+            </section>
+          ) : null}
+        </WorkflowWizard>
+      </form>
+    </section>
+  );
 }

@@ -15,7 +15,8 @@
     "edit": "Edit",
     "back": "Back",
     "close": "Close",
-    "pending": "Working..."
+    "pending": "Working...",
+    "retry": "Retry"
   },
   "language": {
     "label": "Language",
@@ -31,6 +32,17 @@
   },
   "navigation": {
     "primaryLabel": "Primary navigation",
+    "mobileLabel": "Mobile navigation",
+    "home": "Home",
+    "tasks": "Tasks",
+    "scan": "Scan",
+    "fleet": "Fleet",
+    "more": "More",
+    "checkIn": "Check in vehicle",
+    "loanVehicle": "Loan vehicle",
+    "returnLoan": "Return loan",
+    "returnManufacturer": "Return to manufacturer",
+    "conditionTasks": "Maintenance / damage",
     "dashboard": "Dashboard",
     "vehiclePool": "Vehicle pool",
     "history": "History",
@@ -48,6 +60,131 @@
     "settings": "Settings",
     "logout": "Log out",
     "categories": "Vehicle categories"
+  },
+  "connectivity": {
+    "offlineTitle": "You are offline.",
+    "offlineDescription": "Your draft stays on this device until the connection returns. Retry final actions only after checking their status."
+  },
+  "routeError": {
+    "title": "This page could not be loaded",
+    "description": "A new application version may be available. Reload to recover the page.",
+    "reload": "Reload page"
+  },
+  "wizard": {
+    "progressLabel": "Workflow progress",
+    "stepCount": "Step {{current}} of {{total}}",
+    "next": "Next",
+    "consequenceTitle": "What happens when you confirm",
+    "steps": {
+      "identify": "Identify",
+      "partyTiming": "Party / timing",
+      "conditionEvidence": "Condition / evidence",
+      "reviewConfirm": "Review / confirm"
+    }
+  },
+  "drafts": {
+    "title": "Resume work",
+    "description": "Incomplete workflows are saved automatically.",
+    "updated": "Saved {{date}}",
+    "resume": "Resume",
+    "discard": "Discard",
+    "discardError": "The draft could not be discarded.",
+    "status": {
+      "loading": "Loading draft…",
+      "idle": "Not saved yet",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "offline": "Offline — changes are waiting",
+      "error": "Draft save failed — retry",
+      "conflict": "A newer draft exists"
+    },
+    "types": {
+      "check_in": "Check in vehicle",
+      "loan_checkout": "Loan vehicle",
+      "loan_return": "Return loan",
+      "manufacturer_return": "Return to manufacturer",
+      "reservation": "Reservation",
+      "maintenance": "Maintenance / damage"
+    },
+    "conflict": {
+      "title": "This draft changed elsewhere",
+      "description": "Choose the server version or save your current values over it.",
+      "useServer": "Use server version",
+      "keepMine": "Keep my values"
+    }
+  },
+  "vehicleContext": {
+    "label": "Selected vehicle",
+    "loadError": "Vehicle condition and eligibility could not be loaded.",
+    "thumbnailAlt": "Latest photo of {{vehicle}}",
+    "meterBaseline": "Meter baseline",
+    "openDamage": "Open damage",
+    "nextReservation": "Next reservation",
+    "currentCondition": "Current condition",
+    "inMaintenance": "An active maintenance task is open.",
+    "damageCount": "{{count}} unresolved damage report(s).",
+    "noOpenIssues": "No unresolved damage or maintenance task."
+  },
+  "tasks": {
+    "eyebrow": "Daily operations",
+    "title": "Tasks",
+    "description": "Start common workflows and handle the fleet items that need attention now.",
+    "actionLabel": "Operator actions",
+    "loadError": "Tasks could not be loaded.",
+    "itemCount": "{{count}} task(s)",
+    "viewAll": "View all tasks",
+    "actions": {
+      "scan": "Scan",
+      "createRecord": "Create vehicle record",
+      "intake": "Create and check in vehicle",
+      "checkIn": "Check in vehicle",
+      "loan": "Loan vehicle",
+      "returnLoan": "Return loan",
+      "manufacturerReturn": "Return to manufacturer",
+      "condition": "Maintenance / damage tasks"
+    },
+    "empty": {
+      "title": "No tasks need attention",
+      "description": "New arrivals, due returns, handovers, condition issues, and failed documents will appear here."
+    },
+    "groups": {
+      "arrivals_awaiting_check_in": {
+        "title": "Announced arrivals",
+        "description": "Vehicle records awaiting intake.",
+        "action": "Check in vehicle",
+        "itemHint": "Awaiting check-in"
+      },
+      "overdue_returns": {
+        "title": "Overdue returns",
+        "description": "Active loans past their expected return.",
+        "action": "Return loan",
+        "itemHint": "Overdue"
+      },
+      "reservation_handovers": {
+        "title": "Reservation handovers",
+        "description": "Active reservations ready for handover.",
+        "action": "Loan vehicle",
+        "itemHint": "Ready for handover"
+      },
+      "condition_attention": {
+        "title": "Damage and maintenance",
+        "description": "Vehicles that need condition recovery.",
+        "action": "Open task",
+        "itemHint": "Condition needs attention"
+      },
+      "failed_documents": {
+        "title": "Failed documents",
+        "description": "Protocols whose PDF generation needs a retry.",
+        "action": "Open document",
+        "itemHint": "PDF failed"
+      },
+      "manufacturer_returns_due": {
+        "title": "Manufacturer returns due",
+        "description": "Vehicles due back to a manufacturer or supplier.",
+        "action": "Return to manufacturer",
+        "itemHint": "Manufacturer return due"
+      }
+    }
   },
   "layout": {
     "signedInAs": "Signed in as",
@@ -243,9 +380,11 @@
       "description": "Current data, history, media, and workflow actions.",
       "loadError": "The vehicle detail could not be loaded.",
       "dataTitle": "Vehicle data",
+      "actionsLabel": "Available vehicle actions",
       "edit": "Edit data",
       "save": "Save changes",
       "saving": "Saving...",
+      "saved": "Vehicle data saved.",
       "editError": "The vehicle could not be updated.",
       "editValidation": "Manufacturer and model are required."
     },
@@ -284,6 +423,12 @@
     "active": "Active",
     "returned": "Returned",
     "cancelled": "Cancelled",
+    "fulfilled": "Fulfilled",
+    "no_show": "No-show",
+    "failed": "Failed",
+    "completed": "Completed",
+    "open": "Open",
+    "resolved": "Resolved",
     "unknown": "Unknown"
   },
   "severity": {
@@ -437,6 +582,10 @@
     "eyebrow": "Vehicle pool",
     "title": "Add new vehicle to pool",
     "intro": "Create a new vehicle and add it directly to the operational pool.",
+    "recordTitle": "Create vehicle record",
+    "recordIntro": "Create an announced vehicle record. Check-in is a separate operational step.",
+    "recordCreated": "Vehicle record created",
+    "announcedConsequence": "The vehicle is announced and is not available for loan until check-in is completed.",
     "checkInExisting": {
       "title": "Check in an announced vehicle",
       "hint": "Already imported or announced? Find it here and check it in instead of creating a new record.",
@@ -527,6 +676,8 @@
     "action": "Archive vehicle",
     "confirmTitle": "Archive this vehicle?",
     "confirmDescription": "The complete history will be preserved, but the vehicle will remain outside the active fleet.",
+    "reason": "Archive reason",
+    "reasonRequired": "Enter the reason for archiving this vehicle.",
     "success": "Vehicle archived.",
     "error": "The vehicle could not be archived.",
     "empty": {
@@ -628,6 +779,7 @@
     "resultTitle": "Validation result",
     "errorsTitle": "What needs to be fixed",
     "committedSummary": "Import complete: {{created}} added, {{updated}} updated.",
+    "checkInAnnounced": "Check in announced vehicles",
     "rowSummary": "{{rows}} rows, {{errors}} errors",
     "commit": "Commit import",
     "committing": "Committing...",
@@ -751,6 +903,7 @@
     "printTitle": "Print QR labels",
     "print": "Print QR codes",
     "export": "Export URLs (CSV)",
+    "exportPage": "Export this page (CSV)",
     "compact": "Compact labels for label printers",
     "scan": {
       "title": "Scan QR code",
@@ -821,7 +974,9 @@
     "validation": {
       "required": "Please choose a start and end time.",
       "driverRequired": "Please select a driver from the database.",
-      "chronology": "The reservation end must be after its start."
+      "chronology": "The reservation end must be after its start.",
+      "manualRequired": "Please enter the manual contact name.",
+      "overlap": "This period overlaps an active reservation."
     },
     "timeline": {
       "summary": "Reservation timeline with {{count}} active reservations.",
@@ -830,11 +985,164 @@
     "returnDue": {
       "label": "Send back to manufacturer by",
       "save": "Save return date",
+      "saved": "Manufacturer return date saved.",
       "saveError": "The return date could not be saved.",
       "none": "No manufacturer return scheduled.",
       "current": "Return to manufacturer by {{date}}",
       "marker": "Manufacturer return due {{date}}"
     }
+  },
+  "workflowRedesign": {
+    "titles": {
+      "checkIn": "Check in vehicle",
+      "checkInDescription": "Record the announced vehicle's supplier, readings, condition, and evidence.",
+      "loanCheckout": "Loan vehicle",
+      "loanCheckoutDescription": "Hand over an available vehicle with party, timing, condition, and signature evidence.",
+      "loanReturn": "Return loan",
+      "loanReturnDescription": "Compare checkout evidence, record the return condition, and close the active loan.",
+      "manufacturerReturn": "Return to manufacturer",
+      "manufacturerReturnDescription": "Record the final recipient, readings, condition, and evidence before the vehicle leaves the fleet."
+    },
+    "conditionLegend": "Condition outcome",
+    "outcomes": {
+      "fit": "Fit for use",
+      "new_damage": "New damage",
+      "maintenance": "Maintenance required"
+    },
+    "reviewTitle": "Review before confirming",
+    "evidenceCount": "Staged evidence files",
+    "openReceipt": "Open PDF receipt",
+    "openHistory": "Open vehicle history",
+    "ambiguousFailure": "The result is uncertain. Keep this draft and check the vehicle history before retrying.",
+    "manufacturerWarnings": {
+      "due": "Manufacturer return is due {{date}}.",
+      "reservations": "{{count}} active or upcoming reservation(s) will be affected by this return."
+    },
+    "validation": {
+      "odometerRequired": "Enter the current odometer reading.",
+      "hoursRequired": "Enter the current operating hours.",
+      "conditionRequired": "Choose a condition outcome.",
+      "maintenanceReasonRequired": "Explain why maintenance is required."
+    },
+    "completed": {
+      "checkIn": "Vehicle checked in",
+      "loanCheckout": "Vehicle loaned",
+      "loanReturn": "Loan returned",
+      "manufacturerReturn": "Vehicle returned to manufacturer"
+    },
+    "consequences": {
+      "checkIn": "The announced vehicle will enter the pool. Its server-derived status depends on the recorded condition.",
+      "loanCheckout": "An active loan will be created, the signature attached, and the vehicle will no longer be available.",
+      "loanReturn": "The active loan will close. The server derives the vehicle status from this outcome and any open damage.",
+      "manufacturerReturn": "The named vehicle will leave the active fleet and be recorded as returned to the recipient."
+    }
+  },
+  "checkoutWorkflow": {
+    "fromReservation": "Prefilled from the selected reservation.",
+    "reservationError": "The selected reservation could not be loaded.",
+    "partyTypes": {
+      "driver": "Driver",
+      "company": "Company / contact",
+      "manual": "Manual contact"
+    },
+    "damageChoice": "Condition compared with checkout baseline",
+    "condition": {
+      "unchanged": "Existing condition unchanged",
+      "new_damage": "Record new damage"
+    },
+    "upcomingReservationWarning": "This loan overlaps the reservation for {{party}} starting {{date}}. The server may warn or block checkout.",
+    "validation": {
+      "reservationInactive": "The selected reservation is no longer active.",
+      "damageChoiceRequired": "Confirm whether the existing condition is unchanged or new damage was found."
+    },
+    "warnings": {
+      "reservation_before_expected_return": "A reservation starts before the expected return at {{date}}."
+    }
+  },
+  "returnWorkflow": {
+    "searchLoan": "Search by vehicle, plate, borrower, or phone…",
+    "contextError": "The return comparison could not be loaded.",
+    "checkoutContext": "Checkout compared with return",
+    "checkoutTime": "Checked out at",
+    "usageDelta": "Usage since checkout: {{odometer}} km · {{hours}} hours",
+    "result": "The loan is {{status}}. The vehicle status was derived by the server."
+  },
+  "intake": {
+    "title": "Create and check in vehicle",
+    "description": "Create the vehicle and complete intake atomically with supplier, readings, condition, photos, and optional signature.",
+    "loadError": "Intake support data could not be loaded.",
+    "consequence": "One atomic operation creates the announced record and completes check-in. No partial vehicle is left if validation fails.",
+    "completed": "Vehicle created and checked in"
+  },
+  "maintenance": {
+    "title": "Maintenance and damage recovery",
+    "description": "Resolve open damage, send an eligible vehicle to maintenance, or complete active maintenance.",
+    "actionLegend": "Recovery action",
+    "damageLabel": "Open damage report",
+    "selectDamage": "Select damage to resolve",
+    "reason": "Maintenance reason",
+    "resolutionNotes": "Resolution notes",
+    "result": "Resulting vehicle state",
+    "serverDerivedStatus": "Server-derived after resolving damage",
+    "resolveMediaLimitation": "Damage resolution accepts notes only; existing evidence remains in the immutable history.",
+    "submitError": "The recovery action could not be completed.",
+    "completed": "Condition task completed",
+    "resultingStatus": "Resulting status: {{status}}",
+    "actions": {
+      "open": "Complete condition task",
+      "resolve": "Resolve damage",
+      "start": "Send to maintenance",
+      "complete": "Complete maintenance"
+    },
+    "results": {
+      "resolve": "The server returns the vehicle to available only when no open damage, loan, or maintenance remains.",
+      "start": "Vehicle status becomes maintenance.",
+      "complete": "Vehicle becomes damaged if open damage remains; otherwise it becomes available."
+    },
+    "consequences": {
+      "open": "Choose an available recovery action.",
+      "resolve": "The selected damage report will be closed and the server will derive the vehicle status.",
+      "start": "An active maintenance record will be created and the vehicle will be unavailable.",
+      "complete": "The active maintenance record will close and the server will derive the vehicle status."
+    },
+    "validation": {
+      "actionRequired": "Choose an action allowed for this vehicle.",
+      "damageRequired": "Choose the damage report to resolve.",
+      "reasonRequired": "Enter a reason for maintenance."
+    }
+  },
+  "reservationWizard": {
+    "title": "Reserve vehicle",
+    "description": "Reserve a vehicle for a driver, company contact, or manual contact and manage its active reservations.",
+    "partyLegend": "Reservation party",
+    "eligible": "This period is currently eligible.",
+    "overlap": "This period overlaps the active reservation for {{party}}.",
+    "snapshotNotice": "The selected party identity is snapshotted and cannot be edited after creation.",
+    "consequence": "An active reservation will be created. Checkout must use it when its handover window begins.",
+    "created": "Reservation created.",
+    "createAnother": "Create another reservation",
+    "historyTitle": "Reservations for this vehicle",
+    "noShow": "Mark no-show"
+  },
+  "conditionTimeline": {
+    "title": "Condition and workflow timeline",
+    "description": "Chronological reservations, handovers, returns, readings, damage, maintenance, and evidence.",
+    "empty": "No history events have been recorded.",
+    "eventCount": "{{count}} timeline event(s)",
+    "evidenceLabel": "Attached evidence",
+    "types": {
+      "reservation": "Reservation",
+      "check_in": "Vehicle check-in",
+      "loan_checkout": "Loan checkout",
+      "loan_return": "Loan return",
+      "manufacturer_return": "Manufacturer return",
+      "damage_reported": "Damage reported",
+      "damage_resolved": "Damage resolved",
+      "maintenance_start": "Maintenance started",
+      "maintenance_complete": "Maintenance completed",
+      "evidence": "Evidence"
+    },
+    "readings": "{{odometer}} km · {{hours}} hours"
   },
   "reports": {
     "eyebrow": "Documents",

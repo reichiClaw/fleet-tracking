@@ -2,12 +2,20 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { displayVehicleName, listVehicleCategories, listVehicles, type Vehicle, type VehicleCategory } from '../api/fleet';
+import {
+  displayVehicleName,
+  listVehicleCategories,
+  listVehiclePage,
+  type PageResult,
+  type Vehicle,
+  type VehicleCategory,
+} from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
 import { StatusBadge } from '../components/StatusBadge';
 
 const statuses = [
@@ -26,6 +34,8 @@ const statuses = [
 export function VehicleHistoryPage() {
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
+  const [page, setPage] = useState(1);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
@@ -36,6 +46,7 @@ export function VehicleHistoryPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function loadCategories() {
       try {
         const nextCategories = await listVehicleCategories();
@@ -56,13 +67,15 @@ export function VehicleHistoryPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function loadVehicles() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextVehicles = await listVehicles({ status, category, search });
+        const nextPage = await listVehiclePage({ status, category, search }, page, controller.signal);
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextPage.results);
+          setVehiclePage(nextPage);
         }
       } catch (error) {
         if (isMounted) {
@@ -78,12 +91,14 @@ export function VehicleHistoryPage() {
     loadVehicles();
     return () => {
       isMounted = false;
+      controller.abort();
     };
-  }, [category, search, status, t]);
+  }, [category, page, search, status, t]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   return (
@@ -101,7 +116,7 @@ export function VehicleHistoryPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.status')}</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
             {statuses.map((statusOption) => (
               <option key={statusOption || 'all'} value={statusOption}>
                 {statusOption ? t(`status.${statusOption}`) : t('vehicles.filters.allStatuses')}
@@ -111,7 +126,7 @@ export function VehicleHistoryPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.category')}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
             <option value="">{t('vehicles.filters.allCategories')}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
@@ -147,6 +162,9 @@ export function VehicleHistoryPage() {
 
       {!isLoading && !vehicles.length ? (
         <EmptyState title={t('vehicles.empty.title')} description={t('vehicles.historyIndex.empty')} />
+      ) : null}
+      {!isLoading && !error && vehiclePage && vehiclePage.count > 0 ? (
+        <PaginationControls page={vehiclePage} onPageChange={setPage} />
       ) : null}
     </section>
   );
