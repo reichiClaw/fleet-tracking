@@ -58,6 +58,13 @@
     "imports": "Importe",
     "users": "Benutzer",
     "settings": "Einstellungen",
+    "administration": "Administration",
+    "setup": "Einrichtung",
+    "directory": "Verzeichnis",
+    "documents": "Dokumente",
+    "audit": "Audit-Protokoll",
+    "qrLabels": "QR-Etiketten",
+    "changePassword": "Passwort ändern",
     "logout": "Abmelden",
     "categories": "Fahrzeugkategorien"
   },
@@ -230,6 +237,26 @@
       "passwordPlaceholder": "Passwort eingeben"
     }
   },
+  "password": {
+    "eyebrow": "Kontosicherheit",
+    "title": "Passwort ändern",
+    "description": "Ändern Sie Ihr eigenes Anmeldepasswort.",
+    "mandatory": "Sie müssen ein dauerhaftes Passwort wählen, bevor Sie fortfahren.",
+    "mandatoryNotice": "Der Zugriff auf die übrige Anwendung ist pausiert, bis das temporäre Passwort ersetzt wurde.",
+    "current": "Aktuelles Passwort",
+    "new": "Neues Passwort",
+    "confirm": "Neues Passwort bestätigen",
+    "hint": "Verwenden Sie mindestens acht Zeichen und kein persönliches oder wiederverwendetes Passwort.",
+    "submit": "Passwort ändern",
+    "success": "Ihr Passwort wurde geändert; die aktuelle Sitzung bleibt sicher.",
+    "continue": "Weiter zum Dashboard",
+    "saveError": "Das Passwort konnte nicht geändert werden.",
+    "backendRequired": "Passwortänderungen erfordern ein Backend-Konto.",
+    "validation": {
+      "length": "Geben Sie ein neues Passwort mit mindestens acht Zeichen ein.",
+      "match": "Die neuen Passwörter stimmen nicht überein."
+    }
+  },
   "pagination": {
     "label": "Ergebnisseiten",
     "count": "{{first}}–{{last}} von {{count}} werden angezeigt",
@@ -258,7 +285,169 @@
     "supplier_company": "Lieferant",
     "recipient_company": "Empfängerfirma",
     "new_password": "Neues Passwort",
-    "current_password": "Aktuelles Passwort"
+    "current_password": "Aktuelles Passwort",
+    "status": "Status"
+  },
+  "setup": {
+    "eyebrow": "Administration",
+    "title": "Ersteinrichtung",
+    "description": "Eine fortsetzbare Checkliste für eine sichere, einsatzbereite Fuhrpark-Installation. Der Abschluss wird aus aktuellen Serverdaten berechnet.",
+    "refresh": "Status aktualisieren",
+    "summaryTitle": "Einrichtungsstatus",
+    "complete": "Einrichtungsprüfungen sind abgeschlossen",
+    "progress": "{{complete}} von {{total}} Kernprüfungen abgeschlossen",
+    "review": "Einrichtung prüfen",
+    "continue": "Einrichtung fortsetzen",
+    "recommendation": "Schließen Sie die verbleibenden Einrichtungspunkte vor dem breiten Rollout ab.",
+    "loadError": "Der Einrichtungsstatus konnte nicht geladen werden.",
+    "ready": "Abgeschlossen",
+    "todo": "Offen",
+    "optional": "Optional",
+    "actions": {
+      "changePassword": "Mein Passwort ändern",
+      "manageUsers": "Benutzer verwalten",
+      "manageCategories": "Kategorien verwalten",
+      "openDirectory": "Verzeichnis öffnen",
+      "importVehicles": "Fahrzeuge importieren",
+      "addVehicle": "Ein Fahrzeug anlegen",
+      "openCheckins": "Offene Check-ins öffnen",
+      "manageQr": "QR-Etiketten verwalten",
+      "openDocuments": "Dokumentenregister öffnen",
+      "backupGuidance": "Backup-Hinweise prüfen"
+    },
+    "steps": {
+      "security": {
+        "title": "Sicherer Admin und Passwortwiederherstellung",
+        "description": "Halten Sie einen aktiven Administrator, sichere Cookies, Produktionseinstellungen und einen getesteten Prozess für temporäre Passwörter vor.",
+        "detail": "{{admins}} aktive Superuser; {{temporary}} Konto/Konten verwenden noch ein temporäres Passwort."
+      },
+      "users": {
+        "title": "Benutzer und Rollen",
+        "description": "Erstellen Sie persönliche Konten und vergeben Sie nur die benötigten Berechtigungen.",
+        "detail": "{{count}} aktive Konten."
+      },
+      "categories": {
+        "title": "Kategorien und Zählermodi",
+        "description": "Definieren Sie Fahrzeuggruppen und ob Strecke, Betriebsstunden, beides oder nichts erfasst wird.",
+        "detail": "{{count}} aktive Kategorien."
+      },
+      "suppliers": {
+        "title": "Lieferanten- und Herstellerfirmen",
+        "description": "Für Eingang und Rückgabe wird mindestens ein aktiver Lieferant oder Hersteller benötigt.",
+        "detail": "{{count}} geeignete Firmen."
+      },
+      "drivers": {
+        "title": "Fahrer",
+        "description": "Fahrer sind optional, beschleunigen aber Reservierungen und Übergaben.",
+        "detail": "{{count}} Fahrerdatensätze."
+      },
+      "vehicles": {
+        "title": "Fahrzeuge und Import",
+        "description": "Legen Sie ein Fahrzeug manuell an oder prüfen Sie einen zweisprachigen Excel-Import vor der Übernahme.",
+        "detail": "{{count}} Fahrzeugdatensätze."
+      },
+      "checkins": {
+        "title": "Offene Check-ins",
+        "description": "Importierte und angekündigte Fahrzeuge bleiben bis zum abgeschlossenen Eingang nicht verfügbar.",
+        "detail": "{{count}} Fahrzeuge warten auf den Check-in."
+      },
+      "qr": {
+        "title": "QR-Rollout",
+        "description": "Wählen Sie aktive Fahrzeuge und drucken Sie nur die benötigten Etiketten.",
+        "detail": "{{count}} Fahrzeugen fehlt ein QR-Code."
+      },
+      "documents": {
+        "title": "Dokumentenbereitschaft",
+        "description": "Beheben Sie fehlende oder fehlgeschlagene Workflow-PDFs, bevor Sie sich auf das Register verlassen.",
+        "detail": "{{count}} Dokumentfehler."
+      },
+      "backup": {
+        "title": "Backup-Bereitschaft",
+        "description": "Konfigurieren, starten und testen Sie Datenbank- und Medien-Backups außerhalb der Anwendung.",
+        "detail": "Die Backup-Bereitschaft wird ohne Konfigurationsgeheimnisse gemeldet."
+      }
+    },
+    "backupGuidance": {
+      "title": "Verantwortung für Backup und Wiederherstellung",
+      "description": "Die Anwendung meldet nur einen sicheren Bereitschaftsstatus. Sichern Sie PostgreSQL und Medien gemeinsam gemäß Betriebsanleitung, verschlüsseln Sie externe Kopien und dokumentieren Sie einen erfolgreichen Wiederherstellungstest."
+    },
+    "backupStatus": {
+      "ok": "Die Installation meldet den Backup-Status als OK.",
+      "ready": "Die Installation meldet den Backup-Status als bereit.",
+      "configured": "Die Backup-Meldung ist konfiguriert; prüfen Sie einen Wiederherstellungstest.",
+      "warning": "Die Backup-Meldung enthält eine zu prüfende Warnung.",
+      "failed": "Der zuletzt gemeldete Backup-Status ist fehlgeschlagen.",
+      "unavailable": "Der Backup-Status ist nicht konfiguriert.",
+      "unknown": "Der Backup-Status ist unbekannt."
+    }
+  },
+  "adminInbox": {
+    "adminHomeLabel": "Administrationsübersicht",
+    "title": "Admin-Posteingang",
+    "description": "Datenqualität, Einrichtung und Wiederherstellung mit Administrationsbedarf.",
+    "loadError": "Der Admin-Posteingang konnte nicht geladen werden.",
+    "empty": "Keine Administrationspunkte benötigen Aufmerksamkeit.",
+    "items": {
+      "imports": "bearbeitbare Importaufträge",
+      "announced": "angekündigte Fahrzeuge vor dem Check-in",
+      "duplicates": "Gruppen möglicher Firmen- oder Fahrerduplikate",
+      "documents": "fehlgeschlagene oder fehlende PDFs",
+      "accounts": "inaktive, ungenutzte oder temporäre Konten"
+    }
+  },
+  "audit": {
+    "eyebrow": "Administration",
+    "title": "Audit-Protokoll",
+    "description": "Prüfen Sie unveränderliche Systemaktivitäten, Sicherheitsänderungen, Importe und Workflow-Ergebnisse.",
+    "vehicleHistoryDistinction": "Dieses System-Audit zeigt, wer was geändert hat. Die Fahrzeughistorie bleibt der betriebliche Zeitverlauf eines Fahrzeugs.",
+    "loadError": "Die Audit-Aktivitäten konnten nicht geladen werden.",
+    "export": "Gefilterte CSV exportieren",
+    "caption": "Gefilterte System-Audit-Ereignisse",
+    "system": "System",
+    "noDiff": "Keine Vorher-/Nachher-Werte",
+    "showDiff": "{{count}} geänderte Felder anzeigen",
+    "emptyValue": "Leer",
+    "filters": {
+      "area": "Bereich",
+      "action": "Aktion",
+      "actionPlaceholder": "z. B. vehicle.archived",
+      "entity": "Objekt",
+      "actor": "Ausführender",
+      "dateFrom": "Datum von",
+      "dateTo": "Datum bis",
+      "allEntities": "Alle Objekte",
+      "allActors": "Alle Ausführenden",
+      "apply": "Filter anwenden"
+    },
+    "areas": {
+      "all": "Alle Aktivitäten",
+      "import": "Importe",
+      "workflow": "Workflows",
+      "vehicle": "Fahrzeugänderungen",
+      "user": "Benutzer und Sicherheit",
+      "document": "Dokumente"
+    },
+    "entities": {
+      "vehicle": "Fahrzeug",
+      "user": "Benutzer",
+      "company": "Firma",
+      "driver": "Fahrer",
+      "vehicle_category": "Fahrzeugkategorie",
+      "import_job": "Importauftrag",
+      "document_register": "Dokumentenregister"
+    },
+    "columns": {
+      "date": "Datum",
+      "actor": "Ausführender",
+      "action": "Aktion",
+      "entity": "Objekt",
+      "changes": "Vorher / nachher"
+    },
+    "empty": {
+      "title": "Keine Audit-Ereignisse gefunden",
+      "description": "Passen Sie die Filter an oder warten Sie auf protokollierte Aktivitäten."
+    },
+    "actions": {}
   },
   "dashboard": {
     "eyebrow": "Übersicht",
@@ -675,14 +864,39 @@
     "description": "Fahrzeuge, die nicht mehr zum aktiven Fuhrpark gehören – an den Hersteller zurückgegeben oder archiviert.",
     "action": "Fahrzeug archivieren",
     "confirmTitle": "Dieses Fahrzeug archivieren?",
-    "confirmDescription": "Die vollständige Historie bleibt erhalten; das Fahrzeug bleibt außerhalb des aktiven Fuhrparks.",
+    "confirmDescription": "Historie und PDFs bleiben vollständig erhalten. Das Fahrzeug wird aus aktiven Abläufen entfernt; eine versehentliche Archivierung darf nur über die protokollierte Korrektur behoben werden.",
+    "irreversibleConsequence": "Die Archivierung ist die endgültige betriebliche Entfernung. Das Fahrzeug kann in normalen Abläufen nicht mehr ausgewählt, ausgeliehen, reserviert oder zurückgegeben werden.",
     "reason": "Archivierungsgrund",
     "reasonRequired": "Geben Sie den Grund für die Archivierung dieses Fahrzeugs ein.",
     "success": "Fahrzeug archiviert.",
     "error": "Das Fahrzeug konnte nicht archiviert werden.",
+    "unarchiveTitle": "Versehentliche Archivierung korrigieren",
+    "unarchiveDescription": "Diese protokollierte Korrektur setzt das Fahrzeug in den Hersteller-Rückgabestatus vor der Archivierung. Nutzen Sie sie nur, wenn die Archivierung selbst ein Fehler war.",
+    "correctionReason": "Korrekturgrund",
+    "unarchive": "Archivierung korrigieren",
+    "unarchiveConfirmTitle": "Archivkorrektur anwenden?",
+    "unarchiveConfirmDescription": "Grund und resultierende Statusänderung werden im System-Audit protokolliert.",
+    "unarchiveSuccess": "Archivkorrektur abgeschlossen.",
+    "unarchiveError": "Die Archivkorrektur konnte nicht abgeschlossen werden.",
+    "recoveryUnavailable": "Ihre Berechtigungen erlauben keine Archivkorrektur. Wenden Sie sich an einen Administrator und bewahren Sie die Fahrzeughistorie als Nachweis auf.",
+    "tabs": {
+      "label": "Hersteller- und Archivansichten",
+      "manufacturer_checkout": "Beim Hersteller",
+      "archived": "Archiviert"
+    },
+    "tabDescriptions": {
+      "manufacturer_checkout": "Fahrzeuge, die einem Hersteller oder Lieferanten übergeben, aber noch nicht endgültig archiviert wurden.",
+      "archived": "Endgültig entfernte Fahrzeuge mit vollständiger Historie und PDFs."
+    },
     "empty": {
-      "title": "Archiv ist leer",
-      "body": "Es wurden noch keine Fahrzeuge aus dem Pool entfernt."
+      "manufacturer_checkout": {
+        "title": "Keine Fahrzeuge beim Hersteller",
+        "body": "Herstellerrückgaben erscheinen hier vor der endgültigen Archivierung."
+      },
+      "archived": {
+        "title": "Das Archiv ist leer",
+        "body": "Es wurden noch keine Fahrzeuge endgültig archiviert."
+      }
     }
   },
   "partners": {
@@ -697,7 +911,7 @@
     "deactivateCompanyLabel": "Firma {{company}} deaktivieren",
     "confirmDeactivateTitle": "Diese Firma deaktivieren?",
     "confirmDeactivate": "Firma deaktivieren",
-    "deactivateWarning": "\"{{company}}\" deaktivieren? Die Firma und ihre Fahrer bleiben erhalten, aber die Firma kann für neue Workflows nicht mehr ausgewählt werden.",
+    "deactivateWarning": "\"{{company}}\" deaktivieren? {{count}} zugeordnete Fahrer bleiben erhalten, die Firma kann aber für neue Workflows nicht mehr ausgewählt werden.",
     "deactivateError": "Die Firma konnte nicht deaktiviert werden.",
     "addDriver": "Fahrer hinzufügen",
     "editDriver": "Fahrer bearbeiten",
@@ -711,7 +925,34 @@
     "independentTitle": "Unabhängige Fahrer",
     "independentHint": "Fahrer, die keiner Firma zugeordnet sind.",
     "emptyDrivers": "Noch keine Fahrer in dieser Gruppe.",
-    "emptyCompanies": "Noch keine Firmen. Legen Sie Ihre erste Gruppe an, um zu beginnen."
+    "emptyCompanies": "Noch keine Firmen. Legen Sie Ihre erste Gruppe an, um zu beginnen.",
+    "useInReservation": "Für Reservierung verwenden",
+    "useInCheckout": "Für Ausleihe verwenden",
+    "filters": {
+      "label": "Verzeichnisfilter",
+      "status": "Status",
+      "allStatuses": "Alle Status",
+      "type": "Firmentyp",
+      "allTypes": "Alle Typen",
+      "company": "Firma",
+      "allCompanies": "Alle Firmen"
+    },
+    "merge": {
+      "title": "Duplikatvorschläge",
+      "description": "Prüfen Sie betroffene Datensätze, bevor Verknüpfungen neu zugeordnet und die doppelte Quelle deaktiviert werden.",
+      "empty": "Keine exakt normalisierten Duplikatgruppen gefunden.",
+      "loadError": "Duplikatvorschläge konnten nicht geladen werden.",
+      "error": "Die Zusammenführung konnte nicht abgeschlossen werden.",
+      "success": "Duplikate wurden zusammengeführt und die Quelle deaktiviert.",
+      "companyCandidate": "Mögliche Firmenduplikate",
+      "driverCandidate": "Mögliche Fahrerduplikate",
+      "source": "Zu deaktivierende Duplikatquelle",
+      "target": "Beizubehaltender Datensatz",
+      "preview": "Neuzuordnung prüfen",
+      "confirmTitle": "Diese Datensätze zusammenführen?",
+      "confirmDescription": "{{count}} verknüpfte Datensätze werden dem Ziel neu zugeordnet. Die Quelle wird deaktiviert und das Ergebnis protokolliert.",
+      "confirm": "Zusammenführen und neu zuordnen"
+    }
   },
   "management": {
     "loadError": "Verwaltungsdaten konnten nicht geladen werden.",
@@ -722,6 +963,8 @@
     "edit": "Bearbeiten",
     "cancel": "Abbrechen",
     "save": "Änderungen speichern",
+    "saved": "Änderungen gespeichert.",
+    "activeBadge": "Aktiv",
     "inactiveBadge": "Inaktiv",
     "validation": {
       "nameRequired": "Bitte geben Sie einen Firmennamen ein.",
@@ -761,7 +1004,23 @@
     "description": "Excel-Datei hochladen, Zeilen validieren und einen fehlerfreien Import übernehmen.",
     "availabilityHint": "Importierte Fahrzeuge starten im Status \"Angekündigt\". Checken Sie jedes Fahrzeug ein (Check-in-Workflow), damit es in den Pool aufgenommen und zur Ausleihe verfügbar wird.",
     "fileLabel": "Excel-Datei",
-    "templateHint": "Pflichtspalten: Kategorie, Hersteller, Modell. Optional: interne Nummer (wird bei leerem Feld automatisch vergeben), Seriennummer, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Lieferant, Notizen. Deutsche und englische Spaltennamen werden erkannt; nicht vorhandene Spalten bleiben leer. Unbekannte oder leere Kategorien werden der Kategorie \"Sonstiges\" zugeordnet.",
+    "templateHint": "Hersteller und Modell sind Pflichtfelder. Die Kategorie ist optional; eine leere oder unbekannte Kategorie verwendet die lokalisierte Ausweichkategorie. Eine fehlende Spalte lässt bestehende Daten unverändert, während eine vorhandene leere Zelle ein löschbares Feld ausdrücklich leert.",
+    "newTitle": "Fahrzeugimport starten",
+    "startNew": "Neuen Import starten",
+    "downloadTemplateDe": "Deutsche Excel-Vorlage herunterladen",
+    "downloadTemplateEn": "Englische Excel-Vorlage herunterladen",
+    "templateDownloadError": "Die Excel-Vorlage konnte nicht heruntergeladen werden.",
+    "activeJob": "Aktiver Importauftrag",
+    "jobId": "Auftrag {{id}}",
+    "loadJobError": "Der gespeicherte Importauftrag konnte nicht erneut geöffnet werden.",
+    "downloadSource": "Quelldatei herunterladen",
+    "downloadErrors": "Nur-Fehler-CSV herunterladen",
+    "downloadReview": "Kommentierte Prüf-CSV herunterladen",
+    "downloadGeneratedIds": "Erzeugte IDs herunterladen",
+    "rowExcluded": "Zeile {{row}} ausgeschlossen.",
+    "rowIncluded": "Zeile {{row}} eingeschlossen.",
+    "excludeError": "Die Zeilenauswahl konnte nicht gespeichert werden.",
+    "committed": "Import übernommen und protokolliert.",
     "validate": "Hochladen und validieren",
     "uploading": "Wird validiert...",
     "mapping": {
@@ -774,7 +1033,8 @@
       "requiredTag": "Pflicht",
       "sampleLabel": "z. B. {{sample}}",
       "apply": "Zuordnung übernehmen & neu validieren",
-      "applying": "Wird neu validiert..."
+      "applying": "Wird neu validiert...",
+      "applied": "Spaltenzuordnung gespeichert und Validierung aktualisiert."
     },
     "resultTitle": "Validierungsergebnis",
     "errorsTitle": "Was korrigiert werden muss",
@@ -786,6 +1046,9 @@
     "commitHint": "Übernehmen ist nur nach einem validierten Import ohne Fehler möglich.",
     "confirmTitle": "Diesen Import übernehmen?",
     "confirmDescription": "Damit werden alle {{count}} validierten Zeilen angewendet.",
+    "confirmDestructiveTitle": "Löschungen übernehmen?",
+    "confirmDestructiveDescription": "{{count}} Zeilen leeren vorhandene Werte ausdrücklich. Alle {{rows}} eingeschlossenen Zeilen werden atomar angewendet.",
+    "noRows": "Es sind keine Importzeilen zur Prüfung vorhanden.",
     "validation": {
       "fileRequired": "Bitte wählen Sie eine Excel-Datei aus."
     },
@@ -796,7 +1059,8 @@
       "validated": "Validiert",
       "failed": "Fehlgeschlagen",
       "committed": "Übernommen",
-      "uploaded": "Hochgeladen"
+      "uploaded": "Hochgeladen",
+      "superseded": "Überholt"
     },
     "table": {
       "row": "Zeile",
@@ -809,9 +1073,49 @@
     "errorSeparator": "; ",
     "actions": {
       "create": "Anlegen",
-      "update": "Aktualisieren"
+      "update": "Aktualisieren",
+      "error": "Fehler"
+    },
+    "summary": {
+      "create": "Anlegen",
+      "update": "Aktualisieren",
+      "clear": "Ausdrückliche Löschungen",
+      "fallback": "Kategorie-Ausweichwerte",
+      "error": "Zeilen mit Fehlern",
+      "excluded": "Ausgeschlossen"
+    },
+    "review": {
+      "rowTitle": "Quellzeile {{row}}",
+      "identity": "Identität: {{identity}}",
+      "include": "Bei Übernahme einschließen",
+      "matchedTarget": "Zugeordnetes vorhandenes Ziel: {{target}}",
+      "presentColumns": "In dieser Arbeitsmappe vorhandene Spalten: {{columns}}. Fehlende Spalten ändern gespeicherte Werte nicht.",
+      "explicitClear": "Gespeicherten Wert leeren",
+      "emptyValue": "Leer",
+      "fallbackCategory": "Ausweichkategorie",
+      "noChanges": "Keine normalisierten Feldänderungen.",
+      "existingVehicle": "Vorhandenes Fahrzeug",
+      "duplicates": "{{count}} mögliche Duplikate",
+      "supplier": {
+        "matched": "Lieferant „{{name}}“ wurde einem aktiven Verzeichniseintrag zugeordnet.",
+        "create_proposal": "Lieferant „{{name}}“ ist nur ein Vorschlag. Legen Sie ihn im Verzeichnis an oder ordnen Sie ihn zu; er wird nicht stillschweigend erstellt."
+      }
+    },
+    "history": {
+      "title": "Importverlauf",
+      "description": "Öffnen Sie übernommene Aufträge erneut oder setzen Sie eine gespeicherte Validierung ohne erneutes Hochladen fort.",
+      "caption": "Fahrzeugimportaufträge",
+      "created": "Erstellt",
+      "creator": "Ersteller",
+      "status": "Status",
+      "rows": "Zeilen",
+      "actions": "Aktionen",
+      "resume": "Fortsetzen",
+      "reopen": "Erneut öffnen",
+      "empty": "Es wurden noch keine Importaufträge erstellt."
     },
     "fields": {
+      "external_key": "Externe ID",
       "internal_number": "Interne Nummer",
       "category": "Kategorie",
       "manufacturer": "Hersteller",
@@ -833,19 +1137,50 @@
     "eyebrow": "Administration",
     "title": "Benutzerverwaltung",
     "description": "Konten anlegen, Rollen zuweisen und Benutzer aktivieren oder deaktivieren.",
+    "createTitle": "Konto anlegen",
     "addUser": "Benutzer hinzufügen",
     "saving": "Wird gespeichert...",
     "created": "Benutzer angelegt.",
     "roleUpdated": "Benutzerrolle aktualisiert.",
     "deactivated": "Benutzer deaktiviert.",
     "activated": "Benutzer aktiviert.",
+    "resetSuccess": "Für {{user}} wurde ein temporäres Passwort gesetzt; der protokollierte Pflichtwechsel ist aktiv.",
     "confirmTitle": "Benutzeränderung bestätigen",
     "confirmRole": "Rolle von {{user}} auf {{role}} ändern?",
     "confirmActive": "Aktivstatus von {{user}} ändern?",
+    "confirmDeactivate": "{{user}} deaktivieren? Anmeldung und Workflow-Zugriff gehen sofort verloren. Historische Datensätze und Audit-Zuordnung bleiben erhalten.",
+    "confirmReactivate": "{{user}} reaktivieren? Die Berechtigungen der aktuellen Rolle werden wieder erteilt.",
     "loadError": "Benutzer konnten nicht geladen werden.",
     "saveError": "Der Benutzer konnte nicht gespeichert werden.",
     "empty": "Keine Benutzer gefunden.",
     "you": "Sie",
+    "never": "Nie",
+    "roleExplanation": {
+      "admin": "Vollständige Administration, Konfiguration, Importe, Audit-Zugriff und operative Workflows.",
+      "operations": "Tägliche Fahrzeug-Workflows und bearbeitbare Verzeichnisdaten; keine Benutzer-, Import-, Einrichtungs- oder Audit-Administration.",
+      "readonly": "Fuhrparkstatus, Historien und erzeugte Dokumente ansehen, ohne operative Daten zu ändern."
+    },
+    "filters": {
+      "label": "Benutzerfilter",
+      "search": "Suche",
+      "role": "Rolle",
+      "allRoles": "Alle Rollen",
+      "status": "Status",
+      "allStatuses": "Alle Status",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "must_change": "Temporäres Passwort",
+      "unused": "Noch nie angemeldet",
+      "attention": "Aufmerksamkeit nötig"
+    },
+    "temporary": {
+      "title": "Einmaliges temporäres Passwort",
+      "description": "Übermitteln Sie dieses Passwort an {{user}} über einen genehmigten sicheren Kanal. Es wird nur hier angezeigt und muss bei der nächsten Anmeldung geändert werden.",
+      "copy": "Passwort kopieren",
+      "hide": "Dauerhaft ausblenden",
+      "resetTitle": "Temporäres Passwort für {{user}} setzen",
+      "resetDescription": "Der Benutzer muss nach der Anmeldung ein neues Passwort wählen. Die Aktion wird im Audit-Protokoll erfasst."
+    },
     "validation": {
       "usernameRequired": "Bitte geben Sie einen Benutzernamen ein.",
       "passwordRequired": "Bitte geben Sie ein Passwort mit mindestens 8 Zeichen ein."
@@ -855,15 +1190,21 @@
       "fullName": "Vollständiger Name",
       "email": "E-Mail",
       "role": "Rolle",
-      "password": "Passwort"
+      "password": "Passwort",
+      "temporaryPassword": "Temporäres Passwort",
+      "lastLogin": "Letzte Anmeldung",
+      "dateJoined": "Erstellt am"
     },
     "status": {
       "active": "Aktiv",
-      "inactive": "Inaktiv"
+      "inactive": "Inaktiv",
+      "mustChange": "Passwortwechsel erforderlich"
     },
     "actions": {
       "activate": "Aktivieren",
-      "deactivate": "Deaktivieren"
+      "deactivate": "Deaktivieren",
+      "resetPassword": "Passwort zurücksetzen",
+      "setTemporaryPassword": "Temporäres Passwort setzen"
     }
   },
   "loanCheckout": {
@@ -905,6 +1246,30 @@
     "export": "URLs exportieren (CSV)",
     "exportPage": "Diese Seite exportieren (CSV)",
     "compact": "Kompakte Labels für Etikettendrucker",
+    "bulk": {
+      "eyebrow": "Administration",
+      "title": "QR-Sammelverwaltung",
+      "description": "Durchsuchen Sie den serverseitig paginierten aktiven Fuhrpark, wählen Sie nur die benötigten Fahrzeuge und drucken oder exportieren Sie diese Auswahl.",
+      "scannerTask": "Scanner-Aufgabe öffnen",
+      "includeInactive": "Fahrzeuge beim Hersteller und im Archiv einschließen",
+      "selectPage": "Diese Seite auswählen",
+      "selectedCount": "{{count}} ausgewählt",
+      "labelFormat": "Etikettenformat",
+      "paperSize": "Seitengröße",
+      "formats": {
+        "standard": "Standard",
+        "compact": "Kompakt"
+      },
+      "printSelected": "Auswahl drucken",
+      "exportSelected": "Auswahl als CSV exportieren",
+      "clearSelection": "Auswahl aufheben",
+      "caption": "Paginierte QR-Fahrzeugauswahl",
+      "select": "Auswählen",
+      "selectVehicle": "{{vehicle}} auswählen",
+      "preview": "Vorschau der ausgewählten QR-Etiketten",
+      "noSelection": "Wählen Sie ein oder mehrere Fahrzeuge. QR-Codes werden nur für die Auswahl gerendert.",
+      "empty": "Keine Fahrzeuge entsprechen den Filtern des aktiven Fuhrparks."
+    },
     "scan": {
       "title": "QR-Code scannen",
       "description": "Nutzen Sie die Kamera von Tablet oder Smartphone, um die Statusseite eines Fahrzeugs zu öffnen.",
@@ -1148,9 +1513,29 @@
     "eyebrow": "Dokumente",
     "title": "Berichte",
     "description": "Alle Workflow-PDF-Berichte suchen und herunterladen. Berichte werden beim Abschluss eines Workflows automatisch erstellt.",
+    "registerTitle": "Dokumentenregister",
+    "registerDescription": "Prüfen Sie jedes erwartete Workflow-PDF, einschließlich erzeugter, fehlgeschlagener und fehlender Dokumente.",
+    "completenessHint": "Erzeugte Berichte bleiben unveränderlich. Ein erneuter Versuch erzeugt das fehlende erwartete Dokument aus gespeicherten Workflow-Daten und protokolliert das Ergebnis.",
     "loadError": "Berichte konnten nicht geladen werden.",
     "tableCaption": "Erzeugte Workflow-Berichte",
+    "registerCaption": "Erwartete und erzeugte Workflow-Dokumente",
     "download": "Herunterladen",
+    "exportIndex": "Aktuellen Index als CSV exportieren",
+    "selectAttention": "Alle wiederholbaren Zeilen dieser Seite auswählen",
+    "selectedCount": "{{count}} ausgewählt",
+    "selectRow": "Dokument für {{vehicle}} auswählen",
+    "retryOne": "PDF erneut erzeugen",
+    "retryBulk": "Ausgewählte PDFs erneut erzeugen",
+    "retryProgress": "{{count}} Dokumente werden erneut erzeugt …",
+    "retrySuccess": "{{count}} Dokumente erfolgreich erzeugt; das Ergebnis wurde protokolliert.",
+    "retryError": "Die ausgewählten Dokumente konnten nicht erneut erzeugt werden.",
+    "retryConfirmTitle": "Ausgewählte Dokumente erneut erzeugen?",
+    "retryConfirmDescription": "{{count}} erwartete Dokumente aus unveränderlichen Workflow-Daten erzeugen und das Ergebnis protokollieren.",
+    "status": {
+      "generated": "Erzeugt",
+      "missing": "Fehlt",
+      "failed": "Fehlgeschlagen"
+    },
     "filters": {
       "search": "Suche",
       "searchPlaceholder": "Fahrzeug, Kennzeichen oder Entleiher",
@@ -1158,18 +1543,27 @@
       "allTypes": "Alle Typen",
       "language": "Sprache",
       "allLanguages": "Alle Sprachen",
+      "status": "Vollständigkeit",
+      "allStatuses": "Alle Zustände",
+      "attention": "Fehlend oder fehlgeschlagen",
       "apply": "Filter anwenden"
     },
     "columns": {
       "type": "Bericht",
+      "status": "Status",
       "vehicle": "Fahrzeug",
+      "plate": "Kennzeichen",
       "language": "Sprache",
       "created": "Erstellt",
+      "creator": "Ersteller",
+      "failure": "Fehlergrund",
+      "select": "Auswählen",
       "actions": "Aktionen"
     },
     "empty": {
       "title": "Keine Berichte gefunden",
-      "body": "Berichte werden beim Abschluss eines Workflows automatisch erstellt. Passen Sie die Filter an oder führen Sie einen Workflow aus."
+      "body": "Passen Sie die Filter an oder schließen Sie einen Workflow ab, um ein erwartetes Dokument anzulegen.",
+      "action": "Operative Aufgaben öffnen"
     },
     "types": {
       "check_in_protocol_pdf": "Check-in-Bericht",
@@ -1188,16 +1582,39 @@
     "active": "Aktiv",
     "inactive": "Inaktiv",
     "deactivate": "Deaktivieren",
+    "reactivate": "Reaktivieren",
     "confirmTitle": "Kategorie deaktivieren?",
-    "confirmDescription": "Bestehende Fahrzeuge behalten die Kategorie „{{name}}“, für neue Fahrzeuge kann sie jedoch nicht mehr gewählt werden.",
+    "confirmDescription": "{{count}} bestehende Fahrzeuge behalten die Kategorie „{{name}}“, für neue Fahrzeuge kann sie jedoch nicht mehr gewählt werden. Die Zählerhistorie bleibt unverändert.",
     "created": "Kategorie angelegt.",
     "updated": "Kategorie aktualisiert.",
     "deactivated": "Kategorie deaktiviert.",
+    "reactivated": "Kategorie reaktiviert.",
+    "duplicateName": "Eine Kategorie mit diesem Namen ist bereits vorhanden.",
+    "affectedVehicles": "Betroffene Fahrzeuge",
     "loadError": "Kategorien konnten nicht geladen werden.",
     "saveError": "Die Kategorie konnte nicht gespeichert werden.",
     "fields": {
       "name": "Name",
-      "description": "Beschreibung"
+      "description": "Beschreibung",
+      "meterMode": "Zählermodus"
+    },
+    "meterModes": {
+      "odometer": {
+        "label": "Kilometerzähler",
+        "description": "Streckenwerte sind in passenden Workflows erforderlich."
+      },
+      "hours": {
+        "label": "Betriebsstunden",
+        "description": "Betriebsstunden sind in passenden Workflows erforderlich."
+      },
+      "both": {
+        "label": "Kilometer und Betriebsstunden",
+        "description": "Beide Werte sind erforderlich und dürfen nicht sinken."
+      },
+      "none": {
+        "label": "Kein Zähler",
+        "description": "Für diese Kategorie werden weder Strecke noch Betriebsstunden erfasst."
+      }
     }
   },
   "notFound": {

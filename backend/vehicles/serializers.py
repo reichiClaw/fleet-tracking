@@ -16,6 +16,12 @@ WORKFLOW_MANAGED_STATUSES = {VehicleStatus.LOANED, VehicleStatus.MANUFACTURER_CH
 
 
 class VehicleCategorySerializer(serializers.ModelSerializer):
+    vehicle_count = serializers.SerializerMethodField()
+
+    def get_vehicle_count(self, obj):
+        annotated = getattr(obj, "vehicle_count", None)
+        return annotated if annotated is not None else obj.vehicles.count()
+
     def validate_is_active(self, value):
         if self.instance and self.instance.is_active and not value:
             raise serializers.ValidationError(_("Use the dedicated deactivate action."))
@@ -23,7 +29,16 @@ class VehicleCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VehicleCategory
-        fields = ["id", "name", "description", "meter_mode", "is_active", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "meter_mode",
+            "is_active",
+            "vehicle_count",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
 

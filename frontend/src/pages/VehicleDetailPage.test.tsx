@@ -134,4 +134,45 @@ describe('VehicleDetailPage hardening', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Vehicle archived'));
     expect(archivePayload).toEqual({ reason: 'Returned asset retired' });
   });
+
+  it('requires a correction reason before audited unarchive', async () => {
+    let correctionPayload: Record<string, unknown> | null = null;
+    const archivedVehicle = { ...vehicle, status: 'archived' };
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url.endsWith('/auth/me/')) {
+        return response({ id: 'admin-1', username: 'admin', display_name: 'Admin', role: 'admin' });
+      }
+      if (url.endsWith('/vehicles/veh-1/history/')) return response(history);
+      if (url.endsWith('/vehicles/veh-1/workflow-context/')) {
+        return response({
+          ...context,
+          vehicle: archivedVehicle,
+          capabilities: { can_archive: false, can_unarchive: true },
+        });
+      }
+      if (url.endsWith('/vehicles/veh-1/media/')) return response(history.media);
+      if (url.endsWith('/vehicle-categories/cat-1/')) {
+        return response({ id: 'cat-1', name: 'Lift', meter_mode: 'both', is_active: true });
+      }
+      if (url.endsWith('/vehicle-categories/')) return response([]);
+      if (url.endsWith('/vehicles/veh-1/unarchive/') && method === 'POST') {
+        correctionPayload = JSON.parse(String(init?.body));
+        return response({ ...vehicle, status: 'manufacturer_checkout' });
+      }
+      return response({ error: { code: 'not_found', message: 'Not found', details: {} } }, 404);
+    }));
+    renderPage();
+
+    const unarchive = await screen.findByRole('button', { name: 'Unarchive as correction' });
+    expect(unarchive).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Correction reason'), { target: { value: 'Archived wrong asset' } });
+    fireEvent.click(unarchive);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unarchive as correction' }));
+
+    await waitFor(() => expect(correctionPayload).toEqual({ reason: 'Archived wrong asset' }));
+    expect(await screen.findByText('Archive correction completed.')).toBeInTheDocument();
+  });
 });

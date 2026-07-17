@@ -611,6 +611,15 @@ class UXFoundationAPITests(TestCase):
         register = self.api_client().get("/api/v1/documents/register/?status=failed")
         self.assertEqual(register.status_code, status.HTTP_200_OK)
         self.assertEqual(register.data["results"][0]["record_id"], str(protocol.id))
+        self.assertEqual(register.data["results"][0]["creator"], str(self.ops.id))
+        self.assertEqual(register.data["results"][0]["creator_label"], self.ops.display_name)
+        attention = self.api_client().get("/api/v1/documents/register/?status=attention")
+        self.assertEqual(attention.data["count"], 1)
+        exported = self.api_client().get("/api/v1/documents/register-export-csv/?status=failed")
+        self.assertEqual(exported.status_code, status.HTTP_200_OK)
+        export_text = exported.content.decode("utf-8-sig")
+        self.assertIn("failure_reason", export_text)
+        self.assertIn("storage unavailable", export_text)
         tasks = self.api_client().get("/api/v1/dashboard/tasks/")
         self.assertEqual(tasks.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(tasks.data["groups"]["arrivals_awaiting_check_in"]["count"], 1)
@@ -949,6 +958,10 @@ class UXFoundationAPITests(TestCase):
             f"/api/v1/vehicle-categories/{self.category.id}/reactivate/"
         )
         self.assertEqual(reactivated.status_code, status.HTTP_200_OK)
+        category_detail = self.api_client(self.admin).get(
+            f"/api/v1/vehicle-categories/{self.category.id}/"
+        )
+        self.assertEqual(category_detail.data["vehicle_count"], self.category.vehicles.count())
         archived = Vehicle.objects.create(
             category=self.category,
             manufacturer="Old",
@@ -963,6 +976,7 @@ class UXFoundationAPITests(TestCase):
         qr = self.api_client(self.admin).get("/api/v1/vehicles/qr-bulk/?search=Acme&page_size=1")
         self.assertEqual(qr.status_code, status.HTTP_200_OK)
         self.assertTrue(all(item["status"] != VehicleStatus.ARCHIVED for item in qr.data["results"]))
+        self.assertTrue(qr.data["results"][0]["public_url"].endswith(f"/v/{qr.data['results'][0]['qr_code']}"))
 
     def test_typeahead_endpoints_are_paginated_and_server_filtered(self):
         vehicle = self.vehicle(number="SEARCH-VEHICLE")

@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import {
   createCompany,
@@ -8,12 +9,17 @@ import {
   deactivateDriver,
   displayDriverName,
   listCompanies,
+  listCompanyDuplicates,
   listDrivers,
+  listDriverDuplicates,
+  mergeCompany,
+  mergeDriver,
   updateCompany,
   updateDriver,
   type Company,
   type CompanyType,
   type Driver,
+  type MergePreview,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
@@ -21,6 +27,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
 const COMPANY_TYPES: CompanyType[] = ['subcontractor', 'manufacturer', 'supplier', 'internal'];
 
@@ -38,7 +45,11 @@ export function PartnersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function load() {
     setIsLoading(true);
@@ -58,10 +69,26 @@ export function PartnersPage() {
     void load();
   }, []);
 
+  const filteredCompanies = useMemo(() => companies.filter((company) => {
+    if (activeFilter === 'active' && !company.is_active) return false;
+    if (activeFilter === 'inactive' && company.is_active) return false;
+    if (typeFilter && company.company_type !== typeFilter) return false;
+    if (companyFilter && company.id !== companyFilter) return false;
+    return true;
+  }), [activeFilter, companies, companyFilter, typeFilter]);
+  const filteredDrivers = useMemo(() => drivers.filter((driver) => {
+    if (activeFilter === 'active' && !driver.is_active) return false;
+    if (activeFilter === 'inactive' && driver.is_active) return false;
+    if (companyFilter === 'independent' && driver.company) return false;
+    if (companyFilter && companyFilter !== 'independent' && driver.company !== companyFilter) return false;
+    if (typeFilter && !companies.some((company) => company.id === driver.company && company.company_type === typeFilter)) return false;
+    return true;
+  }), [activeFilter, companies, companyFilter, drivers, typeFilter]);
+
   const { byCompany, independent } = useMemo(() => {
     const map = new Map<string, Driver[]>();
     const loose: Driver[] = [];
-    drivers.forEach((driver) => {
+    filteredDrivers.forEach((driver) => {
       if (driver.company) {
         const current = map.get(driver.company) ?? [];
         current.push(driver);
@@ -71,7 +98,7 @@ export function PartnersPage() {
       }
     });
     return { byCompany: map, independent: loose };
-  }, [drivers]);
+  }, [filteredDrivers]);
 
   const query = search.trim().toLowerCase();
 
@@ -95,6 +122,7 @@ export function PartnersPage() {
       />
 
       {error ? <ErrorState message={error} /> : null}
+      {notice ? <p className="success-panel" role="status" aria-live="polite">{notice}</p> : null}
 
       <div className="partners-toolbar">
         <input
@@ -114,6 +142,24 @@ export function PartnersPage() {
           </button>
         ) : null}
       </div>
+      <section className="filter-panel admin-filter-grid" aria-label={t('partners.filters.label')}>
+        <label><span>{t('partners.filters.status')}</span><select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}>
+          <option value="">{t('partners.filters.allStatuses')}</option>
+          <option value="active">{t('management.activeBadge')}</option>
+          <option value="inactive">{t('management.inactiveBadge')}</option>
+        </select></label>
+        <label><span>{t('partners.filters.type')}</span><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+          <option value="">{t('partners.filters.allTypes')}</option>
+          {COMPANY_TYPES.map((type) => <option value={type} key={type}>{t(`companyTypes.${type}`)}</option>)}
+        </select></label>
+        <label><span>{t('partners.filters.company')}</span><select value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
+          <option value="">{t('partners.filters.allCompanies')}</option>
+          <option value="independent">{t('partners.independentTitle')}</option>
+          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+        </select></label>
+      </section>
+
+      {user?.role === 'admin' ? <DuplicateManagement onMerged={async () => { await load(); setNotice(t('partners.merge.success')); }} /> : null}
 
       {canCreate && isCreatingCompany ? (
         <CompanyForm
@@ -121,6 +167,7 @@ export function PartnersPage() {
           onSaved={async () => {
             setIsCreatingCompany(false);
             await load();
+            setNotice(t('management.saved'));
           }}
         />
       ) : null}
@@ -130,7 +177,7 @@ export function PartnersPage() {
       ) : null}
 
       <div className="group-stack">
-        {companies.map((company) => {
+        {filteredCompanies.map((company) => {
           const companyMatches = !query || company.name.toLowerCase().includes(query);
           const groupDrivers = byCompany.get(company.id) ?? [];
           const shownDrivers = visibleDrivers(groupDrivers, companyMatches);
@@ -146,7 +193,7 @@ export function PartnersPage() {
               canCreate={canCreate}
               canEdit={canEdit}
               canDeactivate={canDeactivate}
-              onChanged={load}
+              onChanged={async () => { await load(); setNotice(t('management.saved')); }}
             />
           );
         })}
@@ -165,7 +212,7 @@ export function PartnersPage() {
               canCreate={canCreate}
               canEdit={canEdit}
               canDeactivate={canDeactivate}
-              onChanged={load}
+              onChanged={async () => { await load(); setNotice(t('management.saved')); }}
             />
           );
         })()}
@@ -255,6 +302,16 @@ function GroupCard({
               {t('partners.deactivate')}
             </button>
           ) : null}
+          {!isIndependent && canCreate && company.is_active ? (
+            <>
+              <Link className="button-link secondary-button" to={`/app/reservations?company=${company.id}`}>
+                {t('partners.useInReservation')}
+              </Link>
+              <Link className="button-link secondary-button" to={`/app/workflows/loan-checkout?company=${company.id}`}>
+                {t('partners.useInCheckout')}
+              </Link>
+            </>
+          ) : null}
         </div>
       </header>
 
@@ -310,7 +367,7 @@ function GroupCard({
       <ConfirmDialog
         open={!isIndependent && isConfirmingDeactivate}
         title={t('partners.confirmDeactivateTitle')}
-        description={t('partners.deactivateWarning', { company: title })}
+        description={t('partners.deactivateWarning', { company: title, count: drivers.length })}
         confirmLabel={t('partners.confirmDeactivate')}
         busy={isDeactivating}
         onCancel={() => {
@@ -403,6 +460,16 @@ function DriverRow({
             {t('partners.deactivateDriver')}
           </button>
         ) : null}
+        {canEdit && driver.is_active ? (
+          <>
+            <Link className="button-link secondary-button" to={`/app/reservations?driver=${driver.id}`}>
+              {t('partners.useInReservation')}
+            </Link>
+            <Link className="button-link secondary-button" to={`/app/workflows/loan-checkout?driver=${driver.id}`}>
+              {t('partners.useInCheckout')}
+            </Link>
+          </>
+        ) : null}
       </div>
       <ConfirmDialog
         open={isConfirmingDeactivate}
@@ -444,6 +511,15 @@ function CompanyForm({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = Boolean(initial);
+  const dirty = name !== (initial?.name ?? '')
+    || companyType !== (initial?.company_type ?? 'subcontractor')
+    || contactName !== (initial?.contact_name ?? '')
+    || phone !== (initial?.phone ?? '')
+    || email !== (initial?.email ?? '')
+    || address !== (initial?.address ?? '')
+    || notes !== (initial?.notes ?? '')
+    || isActive !== (initial?.is_active ?? true);
+  useDirtyFormWarning(dirty, t('forms.unsaved'));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -568,6 +644,15 @@ function DriverForm({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = Boolean(initial);
+  const dirty = firstName !== (initial?.first_name ?? '')
+    || lastName !== (initial?.last_name ?? '')
+    || company !== defaultCompany
+    || phone !== (initial?.phone ?? '')
+    || email !== (initial?.email ?? '')
+    || licenseClasses !== (initial?.license_classes ?? '')
+    || notes !== (initial?.notes ?? '')
+    || isActive !== (initial?.is_active ?? true);
+  useDirtyFormWarning(dirty, t('forms.unsaved'));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -662,5 +747,123 @@ function DriverForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function DuplicateManagement({ onMerged }: { onMerged: Reload }) {
+  const { t } = useTranslation();
+  const [companyGroups, setCompanyGroups] = useState<Company[][]>([]);
+  const [driverGroups, setDriverGroups] = useState<Driver[][]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([listCompanyDuplicates(), listDriverDuplicates()])
+      .then(([companies, drivers]) => {
+        if (!active) return;
+        setCompanyGroups(companies.map((group) => group.companies ?? []));
+        setDriverGroups(drivers.map((group) => group.drivers ?? []));
+      })
+      .catch((loadError) => {
+        if (active) setError(getApiErrorMessage(loadError, t, t('partners.merge.loadError')));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [t]);
+
+  return (
+    <section className="content-card">
+      <div>
+        <h3>{t('partners.merge.title')}</h3>
+        <p className="hint-text">{t('partners.merge.description')}</p>
+      </div>
+      {loading ? <LoadingState variant="skeleton" rows={2} /> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {!loading && !error && !companyGroups.length && !driverGroups.length ? <p className="success-text">{t('partners.merge.empty')}</p> : null}
+      {companyGroups.map((items, index) => <DuplicateGroup key={`company-${index}`} kind="company" items={items} onMerged={onMerged} />)}
+      {driverGroups.map((items, index) => <DuplicateGroup key={`driver-${index}`} kind="driver" items={items} onMerged={onMerged} />)}
+    </section>
+  );
+}
+
+function DuplicateGroup({
+  kind,
+  items,
+  onMerged,
+}: {
+  kind: 'company' | 'driver';
+  items: Array<Company | Driver>;
+  onMerged: Reload;
+}) {
+  const { t } = useTranslation();
+  const [sourceId, setSourceId] = useState(items[0]?.id ?? '');
+  const [targetId, setTargetId] = useState(items[1]?.id ?? '');
+  const [preview, setPreview] = useState<MergePreview | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = (item: Company | Driver) => 'company_type' in item ? item.name : displayDriverName(item);
+
+  async function requestPreview() {
+    if (!sourceId || !targetId || sourceId === targetId || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      const result = kind === 'company'
+        ? await mergeCompany(sourceId, targetId)
+        : await mergeDriver(sourceId, targetId);
+      if ('confirmation_required' in result) setPreview(result);
+    } catch (previewError) {
+      setError(getApiErrorMessage(previewError, t, t('partners.merge.error')));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function confirmMerge() {
+    if (!preview || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      if (kind === 'company') await mergeCompany(sourceId, targetId, preview.confirmation_token);
+      else await mergeDriver(sourceId, targetId, preview.confirmation_token);
+      setPreview(null);
+      await onMerged();
+    } catch (mergeError) {
+      setError(getApiErrorMessage(mergeError, t, t('partners.merge.error')));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="duplicate-group">
+      <strong>{t(`partners.merge.${kind}Candidate`)}</strong>
+      {error ? <span className="field-error">{error}</span> : null}
+      <div className="form-grid form-grid--two">
+        <label><span>{t('partners.merge.source')}</span><select value={sourceId} onChange={(event) => { setSourceId(event.target.value); setPreview(null); }}>
+          {items.map((item) => <option key={item.id} value={item.id}>{label(item)}</option>)}
+        </select></label>
+        <label><span>{t('partners.merge.target')}</span><select value={targetId} onChange={(event) => { setTargetId(event.target.value); setPreview(null); }}>
+          {items.filter((item) => item.id !== sourceId).map((item) => <option key={item.id} value={item.id}>{label(item)}</option>)}
+        </select></label>
+      </div>
+      <button type="button" className="secondary-button" disabled={pending || sourceId === targetId} onClick={() => void requestPreview()}>{t('partners.merge.preview')}</button>
+      <ConfirmDialog
+        open={Boolean(preview)}
+        title={t('partners.merge.confirmTitle')}
+        description={t('partners.merge.confirmDescription', {
+          count: Object.values(preview?.reassignment_counts ?? {}).reduce((sum, count) => sum + count, 0),
+        })}
+        confirmLabel={t('partners.merge.confirm')}
+        busy={pending}
+        onCancel={() => setPreview(null)}
+        onConfirm={() => void confirmMerge()}
+      />
+    </div>
   );
 }

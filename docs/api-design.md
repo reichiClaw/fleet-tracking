@@ -116,7 +116,9 @@ stored application role.
 | POST | `/vehicle-categories/{id}/deactivate/` | Deactivate category |
 | POST | `/vehicle-categories/{id}/reactivate/` | Reactivate category |
 
-`meter_mode` is one of `odometer`, `hours`, `both`, or `none`.
+`meter_mode` is one of `odometer`, `hours`, `both`, or `none`. Category
+responses include the read-only `vehicle_count` used to explain deactivation
+impact without downloading the entire vehicle pool.
 
 ## Vehicles
 
@@ -137,6 +139,9 @@ stored application role.
 | GET | `/vehicles/{id}/media/` | Vehicle media |
 | GET | `/vehicles/typeahead/` | Paginated active-pool typeahead |
 | GET | `/vehicles/qr-bulk/` | Admin-only paginated QR rows; active only by default |
+
+Bulk QR rows expose the canonical public SPA URL
+`{PUBLIC_BASE_URL}/v/{qr_code}`; clients must not encode an API lookup URL.
 
 `POST /vehicles/` always creates `announced`; a client-supplied `status` cannot
 put the vehicle into the available pool. `PATCH` never accepts `status`.
@@ -340,17 +345,20 @@ serve the media volume directly.
 | GET | `/documents/{id}/` | Retrieve generated PDF metadata |
 | GET | `/documents/{id}/download/` | Download generated PDF |
 | GET | `/documents/register/` | Paginated completeness register |
+| GET | `/documents/register-export-csv/` | Export the complete filtered register |
 | POST | `/documents/retry/` | Retry one or up to 100 expected documents |
 
 PDF generation endpoints accept JSON `{ "language": "de" }` or `{ "language": "en" }`.
 If the same protocol/type/language already exists, the existing PDF metadata is
 returned instead of overwriting the file.
 
-Register filters: `status=generated|missing|failed`, `type`, `language`,
-`search`, and `plate`. Rows include document/record/vehicle IDs, vehicle label,
-plate, performed time, language, status, failure reason, generated media ID,
-and a retry descriptor. A single retry is available to operations/admin; more
-than one `items[]` entry is admin-only and audited.
+Register filters: `status=generated|missing|failed|attention` (`attention`
+combines missing and failed), `type`, `language`, `search`, and `plate`. Rows
+include document/record/vehicle IDs, vehicle label, plate, performed time,
+creator ID/label, language, status, failure reason, generated media ID, and a
+retry descriptor. The CSV export applies the same filters without pagination.
+A single retry is available to operations/admin; more than one `items[]` entry
+is admin-only and audited.
 
 PDFs are rendered only from immutable workflow snapshots. Authorized original
 photos/signatures remain stored separately; validated evidence images are

@@ -12,6 +12,14 @@ export type CurrentUser = {
   full_name?: string;
   display_name?: string;
   role: UserRole;
+  effective_role?: UserRole;
+  capabilities?: {
+    is_app_admin?: boolean;
+    can_operate_workflows?: boolean;
+    can_manage_users?: boolean;
+    can_view_audit_log?: boolean;
+  };
+  must_change_password?: boolean;
   is_active?: boolean;
 };
 
@@ -24,6 +32,7 @@ export type ManagedUser = {
   is_active: boolean;
   is_staff?: boolean;
   is_superuser?: boolean;
+  must_change_password?: boolean;
   last_login?: string | null;
   date_joined?: string;
 };
@@ -59,6 +68,7 @@ export type VehicleCategory = {
   description?: string;
   meter_mode?: 'odometer' | 'hours' | 'both' | 'none';
   is_active: boolean;
+  vehicle_count?: number;
 };
 
 export type MeterRequirements = {
@@ -417,8 +427,30 @@ export type ImportJob = {
     rows?: Array<{
       row_number: number;
       action?: string;
-      errors?: Array<{ field: string; message: string }>;
+      errors?: Array<{ field?: string; code?: string; message: string }>;
       data?: Record<string, unknown>;
+      values?: Record<string, unknown>;
+      present_fields?: string[];
+      diff?: Array<{
+        field: string;
+        old: unknown;
+        new: unknown;
+        changed: boolean;
+        explicit_clear: boolean;
+      }>;
+      duplicate_candidates?: Array<{
+        vehicle_id: string;
+        internal_number: string;
+        matched_fields: string[];
+      }>;
+      supplier_proposal?: {
+        status: 'matched' | 'create_proposal';
+        company_id?: string;
+        name: string;
+        company_type?: CompanyType;
+        allowed_types?: CompanyType[];
+      } | null;
+      excluded?: boolean;
     }>;
     columns?: string[];
     required_columns?: string[];
@@ -426,11 +458,110 @@ export type ImportJob = {
     mapping?: Record<string, number>;
     suggested_mapping?: Record<string, number>;
     errors?: Array<{ field?: string; code?: string; message: string }>;
+    summary?: {
+      row_count?: number;
+      error_count?: number;
+      create_count?: number;
+      update_count?: number;
+      excluded_count?: number;
+    };
     commit?: { created_count?: number; updated_count?: number };
     [key: string]: unknown;
   };
+  created_by?: string;
   committed_at?: string | null;
   created_at?: string;
+  updated_at?: string;
+};
+
+export type SetupReadinessItem = {
+  id: 'categories' | 'supplier_or_manufacturer' | 'users' | 'vehicles' | 'qr_codes' | 'documents' | 'backup';
+  ready: boolean;
+  count?: number;
+  announced_awaiting_check_in?: number;
+  missing_count?: number;
+  failed_count?: number;
+  configured?: boolean;
+  status?: string;
+};
+
+export type SetupReadiness = {
+  ready: boolean;
+  effective_role: UserRole;
+  capabilities: { is_app_admin: boolean };
+  admin_security: {
+    active_admin_exists: boolean;
+    superuser_count: number;
+    temporary_password_count: number;
+    debug: boolean;
+    secure_cookies: boolean;
+  };
+  checklist: SetupReadinessItem[];
+};
+
+export type DuplicateSuggestion<T extends Company | Driver> = {
+  score: number;
+  reason: string;
+  companies?: T[];
+  drivers?: T[];
+};
+
+export type MergePreview = {
+  confirmation_required: boolean;
+  confirmation_token: string;
+  reassignment_counts: Record<string, number>;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  actor: string | null;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AuditLogFilters = {
+  action?: string;
+  entity_type?: string;
+  entity_id?: string;
+  actor?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type DocumentRegisterStatus = 'generated' | 'failed' | 'missing';
+
+export type DocumentRegisterRow = {
+  document_type: string;
+  record_id: string;
+  vehicle_id: string;
+  vehicle_label: string;
+  license_plate?: string;
+  performed_at: string;
+  creator?: string | null;
+  creator_label?: string;
+  language: string;
+  status: DocumentRegisterStatus;
+  failure_reason: string;
+  media_id?: string | null;
+  retry?: {
+    document_type: string;
+    record_id: string;
+    language: string;
+  } | null;
+};
+
+export type QrBulkRow = {
+  id: string;
+  qr_code: string;
+  internal_number: string;
+  license_plate?: string;
+  status: VehicleStatus;
+  label: string;
+  public_url: string;
 };
 
 export type VehicleQrResolution = {
@@ -560,6 +691,12 @@ export async function setUserPassword(id: string, payload: { current_password?: 
   return apiClient.post<void>(`/users/${id}/set-password/`, payload);
 }
 
+export async function setTemporaryUserPassword(id: string, newPassword: string) {
+  return apiClient.post<{ must_change_password: boolean }>(`/users/${id}/set-temporary-password/`, {
+    new_password: newPassword,
+  });
+}
+
 export async function deactivateUser(id: string) {
   return apiClient.post<ManagedUser>(`/users/${id}/deactivate/`);
 }
@@ -581,6 +718,10 @@ export async function getDashboardSummary(signal?: AbortSignal) {
 
 export async function getDashboardTasks(limit = 25, signal?: AbortSignal) {
   return apiClient.get<OperatorTasks>(pathWithQuery('/dashboard/tasks/', { limit }), { signal });
+}
+
+export async function getSetupReadiness(signal?: AbortSignal) {
+  return apiClient.get<SetupReadiness>('/setup/readiness/', { signal });
 }
 
 async function getTypeaheadPage<T>(
@@ -695,6 +836,10 @@ export async function archiveVehicle(id: string, reason: string) {
   return apiClient.post<Vehicle>(`/vehicles/${id}/archive/`, { reason });
 }
 
+export async function unarchiveVehicle(id: string, reason: string) {
+  return apiClient.post<Vehicle>(`/vehicles/${id}/unarchive/`, { reason });
+}
+
 export type DamageSeverity = 'unknown' | 'minor' | 'major' | 'critical';
 
 export type CreateDamageReportPayload = {
@@ -745,6 +890,10 @@ export async function deactivateVehicleCategory(id: string) {
   return apiClient.post<VehicleCategory>(`/vehicle-categories/${id}/deactivate/`);
 }
 
+export async function reactivateVehicleCategory(id: string) {
+  return apiClient.post<VehicleCategory>(`/vehicle-categories/${id}/reactivate/`);
+}
+
 export async function listCompanies() {
   return fetchAllPages<Company>('/companies/');
 }
@@ -765,6 +914,21 @@ export async function deactivateCompany(id: string) {
   return apiClient.post<Company>(`/companies/${id}/deactivate/`);
 }
 
+export async function listCompanyDuplicates() {
+  return apiClient.get<Array<DuplicateSuggestion<Company>>>('/companies/duplicates/');
+}
+
+export async function mergeCompany(id: string, targetId: string, confirmationToken?: string) {
+  return apiClient.post<MergePreview | {
+    source: Company;
+    target: Company;
+    reassignment_counts: Record<string, number>;
+  }>(`/companies/${id}/merge/`, {
+    target_id: targetId,
+    ...(confirmationToken ? { confirmation_token: confirmationToken } : {}),
+  });
+}
+
 export async function listDrivers() {
   return fetchAllPages<Driver>('/drivers/');
 }
@@ -783,6 +947,21 @@ export async function updateDriver(id: string, payload: Partial<Driver>) {
 
 export async function deactivateDriver(id: string) {
   return apiClient.post<Driver>(`/drivers/${id}/deactivate/`);
+}
+
+export async function listDriverDuplicates() {
+  return apiClient.get<Array<DuplicateSuggestion<Driver>>>('/drivers/duplicates/');
+}
+
+export async function mergeDriver(id: string, targetId: string, confirmationToken?: string) {
+  return apiClient.post<MergePreview | {
+    source: Driver;
+    target: Driver;
+    reassignment_counts: Record<string, number>;
+  }>(`/drivers/${id}/merge/`, {
+    target_id: targetId,
+    ...(confirmationToken ? { confirmation_token: confirmationToken } : {}),
+  });
 }
 
 export async function listLoans() {
@@ -975,6 +1154,34 @@ export async function listDocumentPage(filters: DocumentFilters = {}, page = 1):
   return normalizePage(response, page);
 }
 
+export type DocumentRegisterFilters = {
+  status?: DocumentRegisterStatus | 'attention' | '';
+  type?: string;
+  language?: string;
+  search?: string;
+  plate?: string;
+};
+
+export async function listDocumentRegisterPage(
+  filters: DocumentRegisterFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<DocumentRegisterRow>> {
+  const response = await apiClient.get<DocumentRegisterRow[] | PaginatedResponse<DocumentRegisterRow>>(
+    pathWithQuery('/documents/register/', { ...filters, page }),
+    { signal },
+  );
+  return normalizePage(response, page);
+}
+
+export async function retryDocuments(items: Array<{
+  document_type: string;
+  record_id: string;
+  language: string;
+}>) {
+  return apiClient.post<{ count: number; results: GeneratedDocument[] }>('/documents/retry/', { items });
+}
+
 export async function listDocuments(filters: DocumentFilters = {}) {
   return fetchAllPages<GeneratedDocument>(pathWithQuery('/documents/', filters));
 }
@@ -991,4 +1198,44 @@ export async function remapVehicleImport(id: string, mapping: Record<string, num
 
 export async function commitVehicleImport(id: string) {
   return apiClient.post<ImportJob>(`/imports/${id}/commit/`);
+}
+
+export async function excludeVehicleImportRows(id: string, rowNumbers: number[]) {
+  return apiClient.post<ImportJob>(`/imports/${id}/exclude-rows/`, { row_numbers: rowNumbers });
+}
+
+export async function getImportJob(id: string, signal?: AbortSignal) {
+  return apiClient.get<ImportJob>(`/imports/${id}/`, { signal });
+}
+
+export async function listImportPage(page = 1, signal?: AbortSignal): Promise<PageResult<ImportJob>> {
+  const response = await apiClient.get<ImportJob[] | PaginatedResponse<ImportJob>>(
+    pathWithQuery('/imports/', { page }),
+    { signal },
+  );
+  return normalizePage(response, page);
+}
+
+export async function listAuditLogPage(
+  filters: AuditLogFilters = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<AuditLogEntry>> {
+  const response = await apiClient.get<AuditLogEntry[] | PaginatedResponse<AuditLogEntry>>(
+    pathWithQuery('/audit-logs/', { ...filters, page }),
+    { signal },
+  );
+  return normalizePage(response, page);
+}
+
+export async function listQrBulkPage(
+  filters: VehicleFilters & { include_inactive?: boolean } = {},
+  page = 1,
+  signal?: AbortSignal,
+): Promise<PageResult<QrBulkRow>> {
+  const response = await apiClient.get<QrBulkRow[] | PaginatedResponse<QrBulkRow>>(
+    pathWithQuery('/vehicles/qr-bulk/', { ...filters, page }),
+    { signal },
+  );
+  return normalizePage(response, page);
 }

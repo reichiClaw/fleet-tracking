@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { getDashboardSummary, type DashboardSummary, type VehicleStatus } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { AdminHomePanel } from '../components/AdminOverview';
 import { ActivityChart, DonutChart, type DonutSegment } from '../components/Charts';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -292,6 +293,7 @@ export function DashboardPage() {
         }
       />
 
+      {canManageVehicles ? <AdminHomePanel /> : null}
       <OperatorTaskBoard compact />
 
       <div className="kpi-grid">

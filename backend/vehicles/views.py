@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import Now
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -49,7 +49,7 @@ from workflows.services import complete_maintenance, start_maintenance
 
 
 class VehicleCategoryViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
-    queryset = VehicleCategory.objects.all().order_by("name")
+    queryset = VehicleCategory.objects.annotate(vehicle_count=Count("vehicles")).order_by("name")
     serializer_class = VehicleCategorySerializer
     permission_classes = [AuthenticatedReadAdminWrite]
     audit_entity_type = "vehicle_category"
@@ -504,7 +504,7 @@ class VehicleViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                     for value in (vehicle.internal_number, vehicle.manufacturer, vehicle.model)
                     if value
                 ),
-                "public_url": f"{settings.PUBLIC_BASE_URL.rstrip('/')}/vehicles/qr/{vehicle.qr_code}",
+                "public_url": f"{settings.PUBLIC_BASE_URL.rstrip('/')}/v/{vehicle.qr_code}",
             }
             for vehicle in rows
         ]

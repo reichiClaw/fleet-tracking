@@ -23,17 +23,22 @@ const navigationItems: NavigationItem[] = [
   { key: 'loanReturn', to: '/app/workflows/loan-return', translationKey: 'navigation.returnLoan', roles: ['admin', 'operations'] },
   { key: 'manufacturerWorkflows', to: '/app/workflows/manufacturer-return', translationKey: 'navigation.returnManufacturer', roles: ['admin', 'operations'] },
   { key: 'maintenance', to: '/app/tasks#condition_attention', translationKey: 'navigation.conditionTasks', roles: ['admin', 'operations'] },
-  { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['operations', 'readonly'] },
   { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['operations', 'readonly'] },
   { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
 ];
 
-// Grouped under a "Settings" submenu at the bottom of the navigation.
+// Admin-only information architecture grouped separately from operational tasks.
 const settingsNavItems: NavigationItem[] = [
+  { key: 'setup', to: '/app/setup', translationKey: 'navigation.setup', roles: ['admin'] },
   { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
   { key: 'categories', to: '/app/categories', translationKey: 'navigation.categories', roles: ['admin'] },
+  { key: 'directory', to: '/app/directory', translationKey: 'navigation.directory', roles: ['admin'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
+  { key: 'documents', to: '/app/documents', translationKey: 'navigation.documents', roles: ['admin'] },
+  { key: 'audit', to: '/app/audit', translationKey: 'navigation.audit', roles: ['admin'] },
+  { key: 'qr', to: '/app/qr/print', translationKey: 'navigation.qrLabels', roles: ['admin'] },
 ];
 
 function NavIcon({ name }: { name: string }) {
@@ -245,6 +250,7 @@ export function AppLayout() {
           <div className="top-bar__actions">
             <div className="top-bar__actions-desktop">
               <LanguageSelector />
+              <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
               <button className="secondary-button" type="button" onClick={() => void logout()}>
                 {t('navigation.logout')}
               </button>
@@ -269,6 +275,7 @@ export function AppLayout() {
               aria-hidden={!isQuickActionsOpen}
             >
               <LanguageSelector />
+              <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
               <button className="secondary-button" type="button" onClick={() => void logout()}>
                 {t('navigation.logout')}
               </button>
@@ -306,7 +313,7 @@ export function AppLayout() {
                   onClick={() => setIsSettingsOpen((open) => !open)}
                 >
                   <NavIcon name="settings" />
-                  {t('navigation.settings')}
+                  {t('navigation.administration')}
                   <svg className="nav-group__caret" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
@@ -327,6 +334,7 @@ export function AppLayout() {
           <div className="side-nav__account">
             <p>{t('layout.signedInAs')} <strong>{user?.name}</strong></p>
             <LanguageSelector />
+            <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
             <button className="secondary-button" type="button" onClick={() => void logout()}>
               {t('navigation.logout')}
             </button>

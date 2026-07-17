@@ -49,10 +49,66 @@ describe('App smoke flow', () => {
     expect(screen.getByRole('link', { name: 'Fahrzeug ausleihen' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Scannen' }).length).toBeGreaterThanOrEqual(1);
 
-    // Admin functions are grouped under the Settings submenu.
-    fireEvent.click(screen.getByRole('button', { name: 'Einstellungen' }));
+    // Admin functions are grouped separately from operational tasks.
+    fireEvent.click(screen.getByRole('button', { name: 'Administration' }));
+    expect(await screen.findByRole('link', { name: 'Einrichtung' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Benutzer' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Importe' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dokumente' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Audit-Protokoll' })).toBeInTheDocument();
+  });
+
+  it('uses effective admin capabilities for Django superusers', async () => {
+    window.history.pushState({}, '', '/app/users');
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/me/')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          id: 'superuser-1',
+          username: 'root',
+          display_name: 'Root Admin',
+          role: 'readonly',
+          effective_role: 'admin',
+          capabilities: { is_app_admin: true, can_manage_users: true, can_view_audit_log: true },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      return Promise.resolve(new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Benutzerverwaltung' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Administration' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Audit-Protokoll' })).toHaveAttribute('href', '/app/audit');
+  });
+
+  it('gates temporary-password sessions on the change-password route', async () => {
+    window.history.pushState({}, '', '/app/users');
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/me/')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          id: 'user-1',
+          username: 'temporary',
+          display_name: 'Temporary User',
+          role: 'operations',
+          must_change_password: true,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      return Promise.resolve(new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Passwort ändern' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('temporäre Passwort ersetzt');
+    expect(window.location.pathname).toBe('/app/change-password');
   });
 
   it('routes to workflow screens from the authenticated shell', async () => {
@@ -64,6 +120,16 @@ describe('App smoke flow', () => {
     expect(await screen.findByRole('heading', { name: 'Fahrzeug einchecken' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fahrzeugpool' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Importe' })).not.toBeInTheDocument();
+  });
+
+  it('guards administration routes from non-admin users', async () => {
+    window.localStorage.setItem('fleet-auth-user', JSON.stringify({ name: 'Ada', role: 'operations' }));
+    window.history.pushState({}, '', '/app/directory');
+
+    render(<App />);
+
+    expect(await screen.findByText('Ihre Rolle erlaubt keinen Zugriff auf diese Seite.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Firmen & Fahrer' })).not.toBeInTheDocument();
   });
 
   it('shows field-level validation on the loan checkout workflow', async () => {

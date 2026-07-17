@@ -58,6 +58,13 @@
     "imports": "Imports",
     "users": "Users",
     "settings": "Settings",
+    "administration": "Administration",
+    "setup": "Setup",
+    "directory": "Directory",
+    "documents": "Documents",
+    "audit": "Audit log",
+    "qrLabels": "QR labels",
+    "changePassword": "Change password",
     "logout": "Log out",
     "categories": "Vehicle categories"
   },
@@ -230,6 +237,26 @@
       "passwordPlaceholder": "Enter password"
     }
   },
+  "password": {
+    "eyebrow": "Account security",
+    "title": "Change password",
+    "description": "Update your own sign-in password.",
+    "mandatory": "You must choose a permanent password before continuing.",
+    "mandatoryNotice": "Access to the rest of the application is paused until your temporary password is replaced.",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "hint": "Use at least eight characters and avoid personal or reused passwords.",
+    "submit": "Change password",
+    "success": "Your password was changed and the current session remains secure.",
+    "continue": "Continue to dashboard",
+    "saveError": "The password could not be changed.",
+    "backendRequired": "Password changes require a backend account.",
+    "validation": {
+      "length": "Enter a new password with at least eight characters.",
+      "match": "The new passwords do not match."
+    }
+  },
   "pagination": {
     "label": "Result pages",
     "count": "Showing {{first}}–{{last}} of {{count}}",
@@ -258,7 +285,169 @@
     "supplier_company": "Supplier",
     "recipient_company": "Recipient company",
     "new_password": "New password",
-    "current_password": "Current password"
+    "current_password": "Current password",
+    "status": "Status"
+  },
+  "setup": {
+    "eyebrow": "Administration",
+    "title": "First-run setup",
+    "description": "A resumable checklist for a secure, operational fleet deployment. Completion is calculated from current server data.",
+    "refresh": "Refresh status",
+    "summaryTitle": "Setup status",
+    "complete": "Setup checks are complete",
+    "progress": "{{complete}} of {{total}} core checks complete",
+    "review": "Review setup",
+    "continue": "Continue setup",
+    "recommendation": "Complete the remaining setup items before broad rollout.",
+    "loadError": "Setup readiness could not be loaded.",
+    "ready": "Complete",
+    "todo": "To do",
+    "optional": "Optional",
+    "actions": {
+      "changePassword": "Change my password",
+      "manageUsers": "Manage users",
+      "manageCategories": "Manage categories",
+      "openDirectory": "Open directory",
+      "importVehicles": "Import vehicles",
+      "addVehicle": "Add one vehicle",
+      "openCheckins": "Open pending check-ins",
+      "manageQr": "Manage QR labels",
+      "openDocuments": "Open document register",
+      "backupGuidance": "Review backup guidance"
+    },
+    "steps": {
+      "security": {
+        "title": "Secure admin and password recovery",
+        "description": "Keep an active administrator, secure cookies, production settings, and a tested temporary-password recovery process.",
+        "detail": "{{admins}} active superuser(s); {{temporary}} account(s) still use a temporary password."
+      },
+      "users": {
+        "title": "Users and roles",
+        "description": "Create named accounts and assign only the capabilities each person needs.",
+        "detail": "{{count}} active account(s)."
+      },
+      "categories": {
+        "title": "Categories and meter modes",
+        "description": "Define vehicle groups and whether each records distance, operating hours, both, or neither.",
+        "detail": "{{count}} active category/categories."
+      },
+      "suppliers": {
+        "title": "Supplier and manufacturer companies",
+        "description": "At least one active supplier or manufacturer is needed for intake and return workflows.",
+        "detail": "{{count}} eligible company/companies."
+      },
+      "drivers": {
+        "title": "Drivers",
+        "description": "Drivers are optional but make reservations and handovers faster and more consistent.",
+        "detail": "{{count}} driver record(s)."
+      },
+      "vehicles": {
+        "title": "Vehicles and import",
+        "description": "Add a vehicle manually or validate a bilingual Excel import before committing it.",
+        "detail": "{{count}} vehicle record(s)."
+      },
+      "checkins": {
+        "title": "Pending check-ins",
+        "description": "Imported and announced vehicles stay unavailable until their intake is completed.",
+        "detail": "{{count}} vehicle(s) await check-in."
+      },
+      "qr": {
+        "title": "QR rollout",
+        "description": "Select active vehicles and print only the labels needed for rollout.",
+        "detail": "{{count}} vehicle(s) are missing a QR code."
+      },
+      "documents": {
+        "title": "Document readiness",
+        "description": "Resolve missing or failed workflow PDFs before relying on the register.",
+        "detail": "{{count}} document failure(s)."
+      },
+      "backup": {
+        "title": "Backup readiness",
+        "description": "Configure, run, and restore-test database and media backups outside the application.",
+        "detail": "Backup readiness is reported without exposing configuration secrets."
+      }
+    },
+    "backupGuidance": {
+      "title": "Backup and restore ownership",
+      "description": "The application reports only a safe readiness state. Follow the deployment runbook to back up PostgreSQL and media together, encrypt off-host copies, and record a successful restore test."
+    },
+    "backupStatus": {
+      "ok": "The deployment reports backup status as OK.",
+      "ready": "The deployment reports backup status as ready.",
+      "configured": "Backup reporting is configured; verify a restore test.",
+      "warning": "Backup reporting has a warning that needs attention.",
+      "failed": "The latest reported backup state failed.",
+      "unavailable": "Backup status has not been configured.",
+      "unknown": "Backup status is unknown."
+    }
+  },
+  "adminInbox": {
+    "adminHomeLabel": "Administration overview",
+    "title": "Admin inbox",
+    "description": "Data-quality, setup, and recovery work that needs administrator attention.",
+    "loadError": "The admin inbox could not be loaded.",
+    "empty": "No administrator items need attention.",
+    "items": {
+      "imports": "actionable import jobs",
+      "announced": "announced vehicles awaiting check-in",
+      "duplicates": "duplicate company or driver candidate groups",
+      "documents": "failed or missing PDFs",
+      "accounts": "inactive, unused, or temporary-password accounts"
+    }
+  },
+  "audit": {
+    "eyebrow": "Administration",
+    "title": "Audit log",
+    "description": "Review append-only system activity, security changes, imports, and workflow outcomes.",
+    "vehicleHistoryDistinction": "This system audit records who changed what. Vehicle history remains the operational timeline for one vehicle.",
+    "loadError": "Audit activity could not be loaded.",
+    "export": "Export filtered CSV",
+    "caption": "Filtered system audit events",
+    "system": "System",
+    "noDiff": "No before/after values",
+    "showDiff": "Show {{count}} changed field(s)",
+    "emptyValue": "Empty",
+    "filters": {
+      "area": "Area",
+      "action": "Action",
+      "actionPlaceholder": "e.g. vehicle.archived",
+      "entity": "Entity",
+      "actor": "Actor",
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "allEntities": "All entities",
+      "allActors": "All actors",
+      "apply": "Apply filters"
+    },
+    "areas": {
+      "all": "All activity",
+      "import": "Imports",
+      "workflow": "Workflows",
+      "vehicle": "Vehicle changes",
+      "user": "Users and security",
+      "document": "Documents"
+    },
+    "entities": {
+      "vehicle": "Vehicle",
+      "user": "User",
+      "company": "Company",
+      "driver": "Driver",
+      "vehicle_category": "Vehicle category",
+      "import_job": "Import job",
+      "document_register": "Document register"
+    },
+    "columns": {
+      "date": "Date",
+      "actor": "Actor",
+      "action": "Action",
+      "entity": "Entity",
+      "changes": "Before / after"
+    },
+    "empty": {
+      "title": "No audit events found",
+      "description": "Adjust the filters or wait for audited activity."
+    },
+    "actions": {}
   },
   "dashboard": {
     "eyebrow": "Overview",
@@ -675,14 +864,39 @@
     "description": "Vehicles that have left the active fleet — handed back to the manufacturer or archived.",
     "action": "Archive vehicle",
     "confirmTitle": "Archive this vehicle?",
-    "confirmDescription": "The complete history will be preserved, but the vehicle will remain outside the active fleet.",
+    "confirmDescription": "The complete history and PDFs will be preserved. The vehicle will be removed from active workflows; use only the audited correction to recover an accidental archive.",
+    "irreversibleConsequence": "Archiving is the final operational removal. The vehicle can no longer be selected, loaned, reserved, or returned through normal workflows.",
     "reason": "Archive reason",
     "reasonRequired": "Enter the reason for archiving this vehicle.",
     "success": "Vehicle archived.",
     "error": "The vehicle could not be archived.",
+    "unarchiveTitle": "Correct an accidental archive",
+    "unarchiveDescription": "This audited correction returns the vehicle to its pre-archive manufacturer-return state. Use it only when the archive itself was an error.",
+    "correctionReason": "Correction reason",
+    "unarchive": "Unarchive as correction",
+    "unarchiveConfirmTitle": "Apply archive correction?",
+    "unarchiveConfirmDescription": "The reason and resulting status change will be written to the system audit log.",
+    "unarchiveSuccess": "Archive correction completed.",
+    "unarchiveError": "The archive correction could not be completed.",
+    "recoveryUnavailable": "Your capabilities do not allow archive correction. Contact an administrator and retain the vehicle history as evidence.",
+    "tabs": {
+      "label": "Manufacturer and archive views",
+      "manufacturer_checkout": "At manufacturer",
+      "archived": "Archived"
+    },
+    "tabDescriptions": {
+      "manufacturer_checkout": "Vehicles handed to a manufacturer or supplier but not yet finally archived.",
+      "archived": "Final removals preserved with complete history and PDFs."
+    },
     "empty": {
-      "title": "Archive is empty",
-      "body": "No vehicles have been removed from the pool yet."
+      "manufacturer_checkout": {
+        "title": "No vehicles are at a manufacturer",
+        "body": "Manufacturer returns appear here before final archive."
+      },
+      "archived": {
+        "title": "Archive is empty",
+        "body": "No vehicles have been finally archived."
+      }
     }
   },
   "partners": {
@@ -697,7 +911,7 @@
     "deactivateCompanyLabel": "Deactivate company {{company}}",
     "confirmDeactivateTitle": "Deactivate this company?",
     "confirmDeactivate": "Deactivate company",
-    "deactivateWarning": "Deactivate \"{{company}}\"? The company and its drivers are preserved, but the company can no longer be selected for new workflows.",
+    "deactivateWarning": "Deactivate \"{{company}}\"? {{count}} assigned driver(s) remain preserved, but the company can no longer be selected for new workflows.",
     "deactivateError": "The company could not be deactivated.",
     "addDriver": "Add driver",
     "editDriver": "Edit driver",
@@ -711,7 +925,34 @@
     "independentTitle": "Independent drivers",
     "independentHint": "Drivers that are not assigned to any company.",
     "emptyDrivers": "No drivers in this group yet.",
-    "emptyCompanies": "No companies yet. Create your first group to get started."
+    "emptyCompanies": "No companies yet. Create your first group to get started.",
+    "useInReservation": "Use in reservation",
+    "useInCheckout": "Use in checkout",
+    "filters": {
+      "label": "Directory filters",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "type": "Company type",
+      "allTypes": "All types",
+      "company": "Company",
+      "allCompanies": "All companies"
+    },
+    "merge": {
+      "title": "Duplicate suggestions",
+      "description": "Preview affected records before reassigning references and deactivating the duplicate source.",
+      "empty": "No exact normalized duplicate groups found.",
+      "loadError": "Duplicate suggestions could not be loaded.",
+      "error": "The duplicate merge could not be completed.",
+      "success": "Duplicate records were merged and the source was deactivated.",
+      "companyCandidate": "Company duplicate candidates",
+      "driverCandidate": "Driver duplicate candidates",
+      "source": "Duplicate source to deactivate",
+      "target": "Record to keep",
+      "preview": "Preview reassignment",
+      "confirmTitle": "Merge these records?",
+      "confirmDescription": "{{count}} related record(s) will be reassigned to the target. The source will be deactivated and the result audited.",
+      "confirm": "Merge and reassign"
+    }
   },
   "management": {
     "loadError": "Management data could not be loaded.",
@@ -722,6 +963,8 @@
     "edit": "Edit",
     "cancel": "Cancel",
     "save": "Save changes",
+    "saved": "Changes saved.",
+    "activeBadge": "Active",
     "inactiveBadge": "Inactive",
     "validation": {
       "nameRequired": "Please enter a company name.",
@@ -761,7 +1004,23 @@
     "description": "Upload an Excel file, validate rows, then commit a clean import.",
     "availabilityHint": "Imported vehicles start in the \"announced\" state. Check each one in (Check-in workflow) to add it to the pool and make it available for loan.",
     "fileLabel": "Excel file",
-    "templateHint": "Required columns: category, manufacturer, model. Optional: internal_number (auto-generated when blank), serial_number, license_plate, current_odometer_km, current_operating_hours, current_location, supplier, notes. Common German headers (Kategorie, Hersteller, Modell, Kennzeichen, Kilometerstand, Betriebsstunden, Standort, Notizen) are recognized; any column you leave out stays blank. Unknown or blank categories are placed in the \"Sonstiges\" category.",
+    "templateHint": "Manufacturer and model are required. Category is optional; a blank or unknown category uses the localized fallback category. A missing column leaves existing data unchanged, while a present blank cell explicitly clears a clearable field.",
+    "newTitle": "Start a vehicle import",
+    "startNew": "Start new import",
+    "downloadTemplateDe": "Download German Excel template",
+    "downloadTemplateEn": "Download English Excel template",
+    "templateDownloadError": "The Excel template could not be downloaded.",
+    "activeJob": "Active import job",
+    "jobId": "Job {{id}}",
+    "loadJobError": "The saved import job could not be reopened.",
+    "downloadSource": "Download source file",
+    "downloadErrors": "Download error-only CSV",
+    "downloadReview": "Download annotated review CSV",
+    "downloadGeneratedIds": "Download generated IDs",
+    "rowExcluded": "Row {{row}} excluded.",
+    "rowIncluded": "Row {{row}} included.",
+    "excludeError": "The row selection could not be saved.",
+    "committed": "Import committed and audited.",
     "validate": "Upload and validate",
     "uploading": "Validating...",
     "mapping": {
@@ -774,7 +1033,8 @@
       "requiredTag": "required",
       "sampleLabel": "e.g. {{sample}}",
       "apply": "Apply mapping & re-validate",
-      "applying": "Re-validating..."
+      "applying": "Re-validating...",
+      "applied": "Column mapping saved and validation refreshed."
     },
     "resultTitle": "Validation result",
     "errorsTitle": "What needs to be fixed",
@@ -786,6 +1046,9 @@
     "commitHint": "Commit is available only after a validated import without errors.",
     "confirmTitle": "Commit this import?",
     "confirmDescription": "This will apply all {{count}} validated rows.",
+    "confirmDestructiveTitle": "Commit destructive clears?",
+    "confirmDestructiveDescription": "{{count}} row(s) explicitly clear existing values. This will apply all {{rows}} included rows atomically.",
+    "noRows": "No import rows are available for review.",
     "validation": {
       "fileRequired": "Please choose an Excel file."
     },
@@ -796,7 +1059,8 @@
       "validated": "Validated",
       "failed": "Failed",
       "committed": "Committed",
-      "uploaded": "Uploaded"
+      "uploaded": "Uploaded",
+      "superseded": "Superseded"
     },
     "table": {
       "row": "Row",
@@ -809,9 +1073,49 @@
     "errorSeparator": "; ",
     "actions": {
       "create": "Create",
-      "update": "Update"
+      "update": "Update",
+      "error": "Error"
+    },
+    "summary": {
+      "create": "Create",
+      "update": "Update",
+      "clear": "Explicit clears",
+      "fallback": "Category fallbacks",
+      "error": "Rows with errors",
+      "excluded": "Excluded"
+    },
+    "review": {
+      "rowTitle": "Source row {{row}}",
+      "identity": "Identity: {{identity}}",
+      "include": "Include in commit",
+      "matchedTarget": "Matched existing target: {{target}}",
+      "presentColumns": "Columns present in this workbook: {{columns}}. Absent columns do not change stored values.",
+      "explicitClear": "Clear stored value",
+      "emptyValue": "Empty",
+      "fallbackCategory": "Fallback category",
+      "noChanges": "No normalized field changes.",
+      "existingVehicle": "Existing vehicle",
+      "duplicates": "{{count}} duplicate candidate(s)",
+      "supplier": {
+        "matched": "Supplier “{{name}}” matched an active directory record.",
+        "create_proposal": "Supplier “{{name}}” is only a proposal. Create or match it in the directory; it will not be created silently."
+      }
+    },
+    "history": {
+      "title": "Import history",
+      "description": "Reopen committed jobs or resume a stored validation without uploading the workbook again.",
+      "caption": "Vehicle import jobs",
+      "created": "Created",
+      "creator": "Creator",
+      "status": "Status",
+      "rows": "Rows",
+      "actions": "Actions",
+      "resume": "Resume",
+      "reopen": "Reopen",
+      "empty": "No import jobs have been created."
     },
     "fields": {
+      "external_key": "External key",
       "internal_number": "Internal number",
       "category": "Category",
       "manufacturer": "Manufacturer",
@@ -833,19 +1137,50 @@
     "eyebrow": "Administration",
     "title": "User management",
     "description": "Create accounts, assign roles, and activate or deactivate users.",
+    "createTitle": "Create account",
     "addUser": "Add user",
     "saving": "Saving...",
     "created": "User created.",
     "roleUpdated": "User role updated.",
     "deactivated": "User deactivated.",
     "activated": "User activated.",
+    "resetSuccess": "A temporary password was set for {{user}} and the audited must-change state is active.",
     "confirmTitle": "Confirm user change",
     "confirmRole": "Change {{user}} to the {{role}} role?",
     "confirmActive": "Change the active state for {{user}}?",
+    "confirmDeactivate": "Deactivate {{user}}? They will immediately lose sign-in and workflow access. Historical records and audit attribution remain.",
+    "confirmReactivate": "Reactivate {{user}}? They will regain the capabilities assigned to their current role.",
     "loadError": "Users could not be loaded.",
     "saveError": "The user could not be saved.",
     "empty": "No users found.",
     "you": "You",
+    "never": "Never",
+    "roleExplanation": {
+      "admin": "Full administration, configuration, imports, audit access, and operational workflows.",
+      "operations": "Daily vehicle workflows and editable directory data; no user, import, setup, or audit administration.",
+      "readonly": "View fleet status, histories, and generated documents without changing operational data."
+    },
+    "filters": {
+      "label": "User filters",
+      "search": "Search",
+      "role": "Role",
+      "allRoles": "All roles",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "active": "Active",
+      "inactive": "Inactive",
+      "must_change": "Temporary password",
+      "unused": "Never signed in",
+      "attention": "Needs attention"
+    },
+    "temporary": {
+      "title": "One-time temporary password",
+      "description": "Give this password to {{user}} through an approved secure channel. It is shown only here and must be changed at the next sign-in.",
+      "copy": "Copy password",
+      "hide": "Hide permanently",
+      "resetTitle": "Set temporary password for {{user}}",
+      "resetDescription": "The user will be required to choose a new password after signing in. The action is recorded in the audit log."
+    },
     "validation": {
       "usernameRequired": "Please enter a username.",
       "passwordRequired": "Please enter a password with at least 8 characters."
@@ -855,15 +1190,21 @@
       "fullName": "Full name",
       "email": "Email",
       "role": "Role",
-      "password": "Password"
+      "password": "Password",
+      "temporaryPassword": "Temporary password",
+      "lastLogin": "Last login",
+      "dateJoined": "Date joined"
     },
     "status": {
       "active": "Active",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "mustChange": "Must change password"
     },
     "actions": {
       "activate": "Activate",
-      "deactivate": "Deactivate"
+      "deactivate": "Deactivate",
+      "resetPassword": "Reset password",
+      "setTemporaryPassword": "Set temporary password"
     }
   },
   "loanCheckout": {
@@ -905,6 +1246,30 @@
     "export": "Export URLs (CSV)",
     "exportPage": "Export this page (CSV)",
     "compact": "Compact labels for label printers",
+    "bulk": {
+      "eyebrow": "Administration",
+      "title": "QR bulk management",
+      "description": "Search the server-paginated active fleet, select only the required vehicles, then print or export that selection.",
+      "scannerTask": "Open scanner task",
+      "includeInactive": "Include at-manufacturer and archived vehicles",
+      "selectPage": "Select this page",
+      "selectedCount": "{{count}} selected",
+      "labelFormat": "Label format",
+      "paperSize": "Page size",
+      "formats": {
+        "standard": "Standard",
+        "compact": "Compact"
+      },
+      "printSelected": "Print selected",
+      "exportSelected": "Export selected CSV",
+      "clearSelection": "Clear selection",
+      "caption": "Paginated vehicle QR selection",
+      "select": "Select",
+      "selectVehicle": "Select {{vehicle}}",
+      "preview": "Selected QR label preview",
+      "noSelection": "Select one or more vehicles. QR codes are rendered only for the selection.",
+      "empty": "No vehicles match the active fleet filters."
+    },
     "scan": {
       "title": "Scan QR code",
       "description": "Use a tablet or phone camera to open a vehicle's status page.",
@@ -1148,9 +1513,29 @@
     "eyebrow": "Documents",
     "title": "Reports",
     "description": "Search and download every workflow PDF report. Reports are generated automatically when a workflow is completed.",
+    "registerTitle": "Document register",
+    "registerDescription": "Check every expected workflow PDF, including generated, failed, and missing documents.",
+    "completenessHint": "Generated reports remain immutable. Retrying creates the missing expected document from stored workflow data and records the result in the audit log.",
     "loadError": "Reports could not be loaded.",
     "tableCaption": "Generated workflow reports",
+    "registerCaption": "Expected and generated workflow documents",
     "download": "Download",
+    "exportIndex": "Export current index CSV",
+    "selectAttention": "Select all retryable rows on this page",
+    "selectedCount": "{{count}} selected",
+    "selectRow": "Select document for {{vehicle}}",
+    "retryOne": "Retry PDF",
+    "retryBulk": "Retry selected PDFs",
+    "retryProgress": "Retrying {{count}} document(s)…",
+    "retrySuccess": "{{count}} document(s) generated successfully; the result was audited.",
+    "retryError": "The selected document retry could not be completed.",
+    "retryConfirmTitle": "Retry selected documents?",
+    "retryConfirmDescription": "Generate {{count}} expected document(s) from immutable workflow data and audit the result.",
+    "status": {
+      "generated": "Generated",
+      "missing": "Missing",
+      "failed": "Failed"
+    },
     "filters": {
       "search": "Search",
       "searchPlaceholder": "Vehicle, plate, or borrower",
@@ -1158,18 +1543,27 @@
       "allTypes": "All types",
       "language": "Language",
       "allLanguages": "All languages",
+      "status": "Completeness",
+      "allStatuses": "All states",
+      "attention": "Missing or failed",
       "apply": "Apply filters"
     },
     "columns": {
       "type": "Report",
+      "status": "Status",
       "vehicle": "Vehicle",
+      "plate": "License plate",
       "language": "Language",
       "created": "Created",
+      "creator": "Creator",
+      "failure": "Failure reason",
+      "select": "Select",
       "actions": "Actions"
     },
     "empty": {
       "title": "No reports found",
-      "body": "Reports are created automatically when you complete a workflow. Adjust the filters or run a workflow."
+      "body": "Adjust the filters or complete a workflow to create an expected document.",
+      "action": "Open operational tasks"
     },
     "types": {
       "check_in_protocol_pdf": "Check-in report",
@@ -1188,16 +1582,39 @@
     "active": "Active",
     "inactive": "Inactive",
     "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
     "confirmTitle": "Deactivate category?",
-    "confirmDescription": "Existing vehicles keep the category “{{name}}”, but it cannot be selected for new vehicles.",
+    "confirmDescription": "{{count}} existing vehicle(s) keep the category “{{name}}”, but it cannot be selected for new vehicles. Meter history remains unchanged.",
     "created": "Category created.",
     "updated": "Category updated.",
     "deactivated": "Category deactivated.",
+    "reactivated": "Category reactivated.",
+    "duplicateName": "A category with this name already exists.",
+    "affectedVehicles": "Affected vehicles",
     "loadError": "Categories could not be loaded.",
     "saveError": "The category could not be saved.",
     "fields": {
       "name": "Name",
-      "description": "Description"
+      "description": "Description",
+      "meterMode": "Meter mode"
+    },
+    "meterModes": {
+      "odometer": {
+        "label": "Odometer",
+        "description": "Distance readings are required in applicable workflows."
+      },
+      "hours": {
+        "label": "Operating hours",
+        "description": "Operating-hour readings are required in applicable workflows."
+      },
+      "both": {
+        "label": "Odometer and operating hours",
+        "description": "Both readings are required and must not decrease."
+      },
+      "none": {
+        "label": "No meter",
+        "description": "This category does not collect distance or operating-hour readings."
+      }
     }
   },
   "notFound": {

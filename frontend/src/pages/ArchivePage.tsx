@@ -18,10 +18,6 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { PaginationControls } from '../components/PaginationControls';
 
-// Vehicles that have left the active fleet (handed back to the manufacturer or
-// otherwise archived) live here instead of the vehicle pool.
-const ARCHIVED_STATUSES = new Set(['manufacturer_checkout', 'archived']);
-
 export function ArchivePage() {
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -33,6 +29,7 @@ export function ArchivePage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
+  const [tab, setTab] = useState<'manufacturer_checkout' | 'archived'>('manufacturer_checkout');
 
   useEffect(() => {
     let isMounted = true;
@@ -70,7 +67,7 @@ export function ArchivePage() {
   const archivedVehicles = useMemo(() => {
     const query = search.trim().toLowerCase();
     return vehicles
-      .filter((vehicle) => ARCHIVED_STATUSES.has(vehicle.status))
+      .filter((vehicle) => vehicle.status === tab)
       .filter((vehicle) => {
         if (category) {
           const categoryId = typeof vehicle.category === 'string' ? vehicle.category : vehicle.category?.id;
@@ -94,7 +91,7 @@ export function ArchivePage() {
           .toLowerCase()
           .includes(query);
       });
-  }, [vehicles, category, search]);
+  }, [vehicles, category, search, tab]);
   const pageSize = 50;
   const visibleVehicles = archivedVehicles.slice((page - 1) * pageSize, page * pageSize);
   const archivePage: PageResult<Vehicle> = {
@@ -115,6 +112,21 @@ export function ArchivePage() {
   return (
     <section className="page-stack">
       <PageHeader eyebrow={t('archive.eyebrow')} title={t('archive.title')} description={t('archive.description')} />
+      <div className="tab-list" role="tablist" aria-label={t('archive.tabs.label')}>
+        {(['manufacturer_checkout', 'archived'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            className={tab === value ? 'is-active' : 'secondary-button'}
+            onClick={() => { setTab(value); setPage(1); }}
+          >
+            {t(`archive.tabs.${value}`)}
+          </button>
+        ))}
+      </div>
+      <p className="info-panel">{t(`archive.tabDescriptions.${tab}`)}</p>
 
       <form className="filter-panel" onSubmit={handleSearch}>
         <label>
@@ -176,7 +188,7 @@ export function ArchivePage() {
       </div> : null}
 
       {!isLoading && !error && !archivedVehicles.length ? (
-        <EmptyState title={t('archive.empty.title')} description={t('archive.empty.body')} />
+        <EmptyState title={t(`archive.empty.${tab}.title`)} description={t(`archive.empty.${tab}.body`)} />
       ) : null}
       {!isLoading && !error && archivedVehicles.length ? (
         <PaginationControls page={archivePage} onPageChange={setPage} />

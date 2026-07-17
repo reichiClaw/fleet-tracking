@@ -1375,6 +1375,8 @@ tbody tr:hover td {
 @media print {
   .top-bar,
   .side-nav,
+  .mobile-bottom-nav,
+  .print-hidden,
   .qr-scanner,
   .content-card > .action-row,
   .card-title-row .checkbox-inline,
@@ -1415,6 +1417,225 @@ tbody tr:hover td {
 
   .qr-label {
     page-break-inside: avoid;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Administration, setup, registers, and review surfaces
+   -------------------------------------------------------------------------- */
+
+.info-panel {
+  margin: 0;
+  border: 1px solid var(--info-line);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  color: var(--info-fg);
+  background: var(--info-bg);
+}
+
+.admin-home {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 1rem;
+}
+
+.setup-summary progress {
+  width: 100%;
+  height: 0.75rem;
+  accent-color: var(--success-fg);
+}
+
+.setup-summary--ready {
+  border-color: var(--success-line);
+}
+
+.setup-checklist,
+.admin-inbox {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-checklist > li {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+}
+
+.setup-step__status {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--brand-700);
+  background: var(--brand-50);
+  font-weight: 800;
+}
+
+.setup-step--ready .setup-step__status {
+  color: var(--success-fg);
+  background: var(--success-bg);
+}
+
+.admin-inbox {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.admin-inbox a {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem;
+  color: inherit;
+  background: var(--surface-muted);
+  text-decoration: none;
+}
+
+.admin-inbox strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  align-items: end;
+}
+
+.tab-list,
+.bulk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.tab-list [role="tab"].is-active {
+  color: #fff;
+  background: var(--brand-700);
+}
+
+.bulk-toolbar > strong {
+  margin-right: auto;
+}
+
+.mobile-data-cards {
+  display: none;
+}
+
+.data-card {
+  gap: 0.35rem;
+}
+
+.audit-diff,
+.import-diff {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.65rem 0 0;
+}
+
+.audit-diff > div,
+.import-diff > div {
+  display: grid;
+  gap: 0.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.45rem;
+}
+
+.audit-diff dd,
+.import-diff dd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.4rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.audit-diff dt,
+.import-diff dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.import-diff--clear {
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+}
+
+.import-row-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.import-review-row {
+  box-shadow: none;
+}
+
+.import-review-row.is-excluded {
+  opacity: 0.68;
+  background: var(--surface-muted);
+}
+
+.import-summary {
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.duplicate-group {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.one-time-secret {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.one-time-secret code {
+  display: block;
+  width: fit-content;
+  margin-top: 0.5rem;
+  border: 1px solid var(--warning-line);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.narrow-form {
+  max-width: 36rem;
+}
+
+.table-secondary {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 719px) {
+  .desktop-data-table {
+    display: none;
+  }
+
+  .mobile-data-cards {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .setup-checklist > li {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -6,6 +6,8 @@ import {
   cancelReservation,
   createReservation,
   displayDriverName,
+  getCompany,
+  getDriver,
   listReservationPage,
   markReservationNoShow,
   searchCompanies,
@@ -58,13 +60,15 @@ function defaultEnd() {
 export function ReservationsPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
+  const requestedDriver = searchParams.get('driver') || '';
+  const requestedCompany = searchParams.get('company') || '';
   const scopeRef = useRef(`reservation-${Date.now()}-${Math.random()}`);
   const [step, setStep] = useState(0);
   const [vehicleId, setVehicleId] = useState(searchParams.get('vehicle') || '');
   const [vehicleOptions, setVehicleOptions] = useState<SearchableOption[]>([]);
-  const [partyMode, setPartyMode] = useState<PartyMode>('driver');
-  const [driverId, setDriverId] = useState('');
-  const [companyId, setCompanyId] = useState('');
+  const [partyMode, setPartyMode] = useState<PartyMode>(requestedCompany ? 'company' : 'driver');
+  const [driverId, setDriverId] = useState(requestedDriver);
+  const [companyId, setCompanyId] = useState(requestedDriver ? '' : requestedCompany);
   const [manualName, setManualName] = useState('');
   const [phone, setPhone] = useState('');
   const [drivers, setDrivers] = useState<Record<string, Driver>>({});
@@ -87,6 +91,34 @@ export function ReservationsPage() {
   const [editNotes, setEditNotes] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const vehicleState = useVehicleContext(vehicleId);
+
+  useEffect(() => {
+    if (searchParams.get('draft') || (!requestedDriver && !requestedCompany)) return;
+    const controller = new AbortController();
+    const request = requestedDriver
+      ? getDriver(requestedDriver, controller.signal).then((driver) => {
+        const label = `${displayDriverName(driver)} · ${driver.phone || ''}`;
+        setDrivers((current) => ({ ...current, [driver.id]: driver }));
+        setDriverOptions((current) => [{ value: driver.id, label }, ...current.filter((item) => item.value !== driver.id)]);
+        setDriverId(driver.id);
+        setCompanyId(driver.company || '');
+        setPhone(driver.phone || '');
+        setPartyMode('driver');
+      })
+      : getCompany(requestedCompany, controller.signal).then((company) => {
+        const label = `${company.name} · ${company.contact_name || ''} · ${company.phone || ''}`;
+        setCompanies((current) => ({ ...current, [company.id]: company }));
+        setCompanyOptions((current) => [{ value: company.id, label }, ...current.filter((item) => item.value !== company.id)]);
+        setCompanyId(company.id);
+        setManualName(company.contact_name || '');
+        setPhone(company.phone || '');
+        setPartyMode('company');
+      });
+    request.catch((loadError) => {
+      if (!controller.signal.aborted) setError(getApiErrorMessage(loadError, t, t('management.loadError')));
+    });
+    return () => controller.abort();
+  }, [requestedCompany, requestedDriver, searchParams, t]);
 
   const hydrate = useCallback((draft: WorkflowDraft) => {
     const data = draft.form_data;

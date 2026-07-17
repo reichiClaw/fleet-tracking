@@ -10,7 +10,9 @@ const AddVehiclePage = lazy(() => import('../pages/AddVehiclePage').then((module
 const AccessDeniedPage = lazy(() => import('../pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })));
 const AdminImportPage = lazy(() => import('../pages/AdminImportPage').then((module) => ({ default: module.AdminImportPage })));
 const ArchivePage = lazy(() => import('../pages/ArchivePage').then((module) => ({ default: module.ArchivePage })));
+const AuditLogPage = lazy(() => import('../pages/AuditLogPage').then((module) => ({ default: module.AuditLogPage })));
 const CategoryManagementPage = lazy(() => import('../pages/CategoryManagementPage').then((module) => ({ default: module.CategoryManagementPage })));
+const ChangePasswordPage = lazy(() => import('../pages/ChangePasswordPage').then((module) => ({ default: module.ChangePasswordPage })));
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const LoanCheckoutPage = lazy(() => import('../pages/LoanCheckoutPage').then((module) => ({ default: module.LoanCheckoutPage })));
 const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -19,6 +21,7 @@ const PartnersPage = lazy(() => import('../pages/PartnersPage').then((module) =>
 const QRAccessPage = lazy(() => import('../pages/QRAccessPage').then((module) => ({ default: module.QRAccessPage })));
 const QRPrintPage = lazy(() => import('../pages/QRPrintPage').then((module) => ({ default: module.QRPrintPage })));
 const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })));
+const SetupPage = lazy(() => import('../pages/SetupPage').then((module) => ({ default: module.SetupPage })));
 const TasksPage = lazy(() => import('../pages/TasksPage').then((module) => ({ default: module.TasksPage })));
 const IntakePage = lazy(() => import('../pages/IntakePage').then((module) => ({ default: module.IntakePage })));
 const MaintenanceTaskPage = lazy(() => import('../pages/MaintenanceTaskPage').then((module) => ({ default: module.MaintenanceTaskPage })));
@@ -32,7 +35,7 @@ const WorkflowMenuPage = lazy(() => import('../pages/WorkflowMenuPage').then((mo
 const WorkflowPage = lazy(() => import('../pages/WorkflowPage').then((module) => ({ default: module.WorkflowPage })));
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -41,6 +44,10 @@ function RequireAuth({ children }: { children: ReactElement }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user?.mustChangePassword && location.pathname !== '/app/change-password') {
+    return <Navigate to="/app/change-password" replace state={{ mandatory: true }} />;
   }
 
   return children;
@@ -90,8 +97,10 @@ export function AppRoutes() {
         <Route path="history" element={<RouteContent><VehicleHistoryPage /></RouteContent>} />
         <Route path="archive" element={<RouteContent><ArchivePage /></RouteContent>} />
         <Route path="reports" element={<RouteContent><ReportsPage /></RouteContent>} />
+        <Route path="documents" element={<RouteContent><RequireRole roles={adminRoles}><ReportsPage /></RequireRole></RouteContent>} />
         <Route path="qr" element={<RouteContent><QRAccessPage /></RouteContent>} />
-        <Route path="qr/print" element={<RouteContent><QRPrintPage /></RouteContent>} />
+        <Route path="qr/print" element={<RouteContent><RequireRole roles={adminRoles}><QRPrintPage /></RequireRole></RouteContent>} />
+        <Route path="change-password" element={<RouteContent><ChangePasswordPage /></RouteContent>} />
         <Route path="workflows/loans" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowMenuPage type="loan" /></RequireRole></RouteContent>} />
         <Route path="workflows/manufacturer" element={<RouteContent><RequireRole roles={workflowRoles}><WorkflowMenuPage type="manufacturer" /></RequireRole></RouteContent>} />
         <Route path="workflows/add-vehicle" element={<RouteContent><RequireRole roles={adminRoles}><AddVehiclePage /></RequireRole></RouteContent>} />
@@ -104,12 +113,15 @@ export function AppRoutes() {
         <Route path="tasks/maintenance" element={<RouteContent><RequireRole roles={workflowRoles}><MaintenanceTaskPage /></RequireRole></RouteContent>} />
         <Route path="reservations" element={<RouteContent><RequireRole roles={workflowRoles}><ReservationsPage /></RequireRole></RouteContent>} />
         <Route path="partners" element={<RouteContent><PartnersPage /></RouteContent>} />
+        <Route path="directory" element={<RouteContent><RequireRole roles={adminRoles}><PartnersPage /></RequireRole></RouteContent>} />
         {/* Legacy paths kept as redirects so existing links keep working. */}
         <Route path="drivers" element={<Navigate to="/app/partners" replace />} />
         <Route path="companies" element={<Navigate to="/app/partners" replace />} />
         <Route path="imports" element={<RouteContent><RequireRole roles={adminRoles}><AdminImportPage /></RequireRole></RouteContent>} />
         <Route path="users" element={<RouteContent><RequireRole roles={adminRoles}><UserManagementPage /></RequireRole></RouteContent>} />
         <Route path="categories" element={<RouteContent><RequireRole roles={adminRoles}><CategoryManagementPage /></RequireRole></RouteContent>} />
+        <Route path="setup" element={<RouteContent><RequireRole roles={adminRoles}><SetupPage /></RequireRole></RouteContent>} />
+        <Route path="audit" element={<RouteContent><RequireRole roles={adminRoles}><AuditLogPage /></RequireRole></RouteContent>} />
       </Route>
       <Route path="*" element={<RouteContent><NotFoundPage /></RouteContent>} />
     </Routes>

@@ -13,6 +13,9 @@ type MockUser = {
   email?: string;
   role: string;
   is_active: boolean;
+  must_change_password?: boolean;
+  last_login?: string | null;
+  date_joined?: string;
 };
 
 const adminSession = {
@@ -53,6 +56,13 @@ function installFetchMock() {
     if (deactivate && method === 'POST') {
       users = users.map((user) => (user.id === deactivate[1] ? { ...user, is_active: false } : user));
       return jsonResponse(users.find((user) => user.id === deactivate[1]));
+    }
+    const temporaryPassword = url.match(/\/users\/([^/]+)\/set-temporary-password\/$/);
+    if (temporaryPassword && method === 'POST') {
+      users = users.map((user) => (
+        user.id === temporaryPassword[1] ? { ...user, must_change_password: true } : user
+      ));
+      return jsonResponse({ must_change_password: true });
     }
     const detail = url.match(/\/users\/([^/]+)\/$/);
     if (detail && method === 'PATCH') {
@@ -121,6 +131,21 @@ describe('UserManagementPage', () => {
       '/api/v1/users/',
       expect.objectContaining({ method: 'POST' }),
     );
+    expect(screen.getAllByText(/Vollständige Administration/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sets and reveals a one-time temporary password with must-change state', async () => {
+    renderPage();
+
+    const card = (await screen.findByText('Mara Ops')).closest('article') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Passwort zurücksetzen' }));
+    const temporaryInput = screen.getByLabelText('Temporäres Passwort');
+    fireEvent.change(temporaryInput, { target: { value: 'Temporary-Password-42!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Temporäres Passwort setzen' }));
+
+    expect(await screen.findByText('Temporary-Password-42!')).toBeInTheDocument();
+    expect(screen.getByText(/Pflichtwechsel ist aktiv/)).toBeInTheDocument();
+    await waitFor(() => expect(users.find((user) => user.id === 'u-ops')?.must_change_password).toBe(true));
   });
 
   it('rejects passwords shorter than eight characters before calling the API', async () => {

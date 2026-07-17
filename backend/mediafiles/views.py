@@ -1,11 +1,13 @@
 """Media metadata and secure file download API viewsets."""
 
+import csv
+
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.db import transaction
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils.translation import gettext as _
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -143,25 +145,49 @@ class GeneratedDocumentViewSet(MediaDownloadMixin, mixins.ListModelMixin, mixins
 
     @action(detail=False, methods=["get"], url_path="register")
     def register(self, request):
-        rows = _document_register_rows()
-        params = request.query_params
-        if params.get("status"):
-            rows = [row for row in rows if row["status"] == params["status"]]
-        if params.get("type"):
-            rows = [row for row in rows if row["document_type"] == params["type"]]
-        if params.get("language"):
-            rows = [row for row in rows if row["language"] == params["language"]]
-        search = (params.get("search") or params.get("plate") or "").casefold().strip()
-        if search:
-            rows = [
-                row
-                for row in rows
-                if search in row["vehicle_label"].casefold()
-                or search in (row["license_plate"] or "").casefold()
-            ]
+        rows = _filter_document_register_rows(_document_register_rows(), request.query_params)
         rows.sort(key=lambda row: row["performed_at"], reverse=True)
         page = self.paginate_queryset(rows)
         return self.get_paginated_response(page) if page is not None else Response(rows)
+
+    @action(detail=False, methods=["get"], url_path="register-export-csv")
+    def register_export_csv(self, request):
+        rows = _filter_document_register_rows(_document_register_rows(), request.query_params)
+        rows.sort(key=lambda row: row["performed_at"], reverse=True)
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="document-register.csv"'
+        response.write("\ufeff")
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "status",
+                "document_type",
+                "vehicle",
+                "license_plate",
+                "performed_at",
+                "creator",
+                "language",
+                "failure_reason",
+                "record_id",
+                "media_id",
+            ]
+        )
+        for row in rows:
+            writer.writerow(
+                [
+                    row["status"],
+                    row["document_type"],
+                    row["vehicle_label"],
+                    row["license_plate"] or "",
+                    row["performed_at"],
+                    row["creator_label"],
+                    row["language"],
+                    row["failure_reason"],
+                    row["record_id"],
+                    row["media_id"] or "",
+                ]
+            )
+        return response
 
     @action(detail=False, methods=["post"], url_path="retry")
     def retry(self, request):
@@ -231,7 +257,7 @@ def _document_register_rows():
         for item in MediaFile.objects.filter(media_type=MediaType.PDF, is_generated=True)
     }
     expected = []
-    for record in CheckInProtocol.objects.select_related("vehicle"):
+    for record in CheckInProtocol.objects.select_related("vehicle", "performed_by"):
         expected.append(
             (
                 CHECK_IN_DOCUMENT,
@@ -239,9 +265,10 @@ def _document_register_rows():
                 record.performed_at,
                 record.pdf_language or default_language,
                 record.pdf_generation_error,
+                record.performed_by,
             )
         )
-    for loan in Loan.objects.select_related("vehicle"):
+    for loan in Loan.objects.select_related("vehicle", "created_by", "returned_by"):
         expected.append(
             (
                 LOAN_CHECKOUT_DOCUMENT,
@@ -249,6 +276,7 @@ def _document_register_rows():
                 loan.created_at,
                 loan.checkout_pdf_language or default_language,
                 loan.checkout_pdf_generation_error,
+                loan.created_by,
             )
         )
         if loan.status == LoanStatus.RETURNED:
@@ -259,9 +287,10 @@ def _document_register_rows():
                     loan.actual_return_at,
                     loan.return_pdf_language or default_language,
                     loan.return_pdf_generation_error,
+                    loan.returned_by or loan.created_by,
                 )
             )
-    for record in ManufacturerCheckOutProtocol.objects.select_related("vehicle"):
+    for record in ManufacturerCheckOutProtocol.objects.select_related("vehicle", "performed_by"):
         expected.append(
             (
                 MANUFACTURER_CHECKOUT_DOCUMENT,
@@ -269,10 +298,11 @@ def _document_register_rows():
                 record.performed_at,
                 record.pdf_language or default_language,
                 record.pdf_generation_error,
+                record.performed_by,
             )
         )
     rows = []
-    for document_type, record, performed_at, language, failure_reason in expected:
+    for document_type, record, performed_at, language, failure_reason, creator in expected:
         media = generated.get((document_type, record.id, language))
         state = "generated" if media else ("failed" if failure_reason else "missing")
         vehicle = record.vehicle
@@ -286,6 +316,8 @@ def _document_register_rows():
                 ),
                 "license_plate": vehicle.license_plate,
                 "performed_at": performed_at.isoformat(),
+                "creator": str(creator.id) if creator else None,
+                "creator_label": creator.display_name if creator else "",
                 "language": language,
                 "status": state,
                 "failure_reason": failure_reason or "",
@@ -301,6 +333,26 @@ def _document_register_rows():
                 else None,
             }
         )
+    return rows
+
+
+def _filter_document_register_rows(rows, params):
+    if params.get("status") == "attention":
+        rows = [row for row in rows if row["status"] in {"failed", "missing"}]
+    elif params.get("status"):
+        rows = [row for row in rows if row["status"] == params["status"]]
+    if params.get("type"):
+        rows = [row for row in rows if row["document_type"] == params["type"]]
+    if params.get("language"):
+        rows = [row for row in rows if row["language"] == params["language"]]
+    search = (params.get("search") or params.get("plate") or "").casefold().strip()
+    if search:
+        rows = [
+            row
+            for row in rows
+            if search in row["vehicle_label"].casefold()
+            or search in (row["license_plate"] or "").casefold()
+        ]
     return rows
 
 

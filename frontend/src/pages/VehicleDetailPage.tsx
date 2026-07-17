@@ -8,6 +8,7 @@ import {
   updateVehicle,
   getVehicleHistory,
   listVehicleCategories,
+  unarchiveVehicle,
   type CreateVehiclePayload,
   type Vehicle,
   type VehicleCategory,
@@ -60,6 +61,9 @@ export function VehicleDetailPage() {
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [confirmUnarchive, setConfirmUnarchive] = useState(false);
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   useEffect(() => {
     if (!vehicleId) return;
@@ -143,6 +147,23 @@ export function VehicleDetailPage() {
       setArchiveError(getApiErrorMessage(error, t, t('archive.error')));
     } finally {
       setIsArchiving(false);
+    }
+  }
+
+  async function handleUnarchive() {
+    if (!vehicleId || isUnarchiving || !correctionReason.trim()) return;
+    setIsUnarchiving(true);
+    setArchiveError(null);
+    try {
+      await unarchiveVehicle(vehicleId, correctionReason.trim());
+      setNotice(t('archive.unarchiveSuccess'));
+      setCorrectionReason('');
+      setConfirmUnarchive(false);
+      reload();
+    } catch (error) {
+      setArchiveError(getApiErrorMessage(error, t, t('archive.unarchiveError')));
+    } finally {
+      setIsUnarchiving(false);
     }
   }
 
@@ -308,6 +329,7 @@ export function VehicleDetailPage() {
       {capabilities.can_archive ? (
         <section className="content-card danger-zone">
           <h3>{t('archive.action')}</h3>
+          <p>{t('archive.irreversibleConsequence')}</p>
           <Field label={t('archive.reason')} error={archiveError || undefined} required>
             <textarea value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} />
           </Field>
@@ -320,6 +342,22 @@ export function VehicleDetailPage() {
           </button>
         </section>
       ) : null}
+      {capabilities.can_unarchive ? (
+        <section className="content-card">
+          <h3>{t('archive.unarchiveTitle')}</h3>
+          <p>{t('archive.unarchiveDescription')}</p>
+          <Field label={t('archive.correctionReason')} required>
+            <textarea value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} />
+          </Field>
+          <button
+            type="button"
+            disabled={!correctionReason.trim()}
+            onClick={() => setConfirmUnarchive(true)}
+          >
+            {t('archive.unarchive')}
+          </button>
+        </section>
+      ) : vehicle.status === 'archived' ? <p className="info-panel">{t('archive.recoveryUnavailable')}</p> : null}
 
       <ConfirmDialog
         open={confirmArchive}
@@ -329,6 +367,15 @@ export function VehicleDetailPage() {
         busy={isArchiving}
         onCancel={() => setConfirmArchive(false)}
         onConfirm={() => void handleArchive()}
+      />
+      <ConfirmDialog
+        open={confirmUnarchive}
+        title={t('archive.unarchiveConfirmTitle')}
+        description={t('archive.unarchiveConfirmDescription')}
+        confirmLabel={t('archive.unarchive')}
+        busy={isUnarchiving}
+        onCancel={() => setConfirmUnarchive(false)}
+        onConfirm={() => void handleUnarchive()}
       />
     </section>
   );
