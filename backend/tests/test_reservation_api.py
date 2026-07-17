@@ -49,7 +49,8 @@ class ReservationAPITests(TestCase):
         del data["driver"]
         response = self.client_for(self.operations_user).post(RESERVATIONS_URL, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("driver", response.data)
+        self.assertIn("driver", response.data["error"]["details"])
+        self.assertEqual(response.data["error"]["code"], "invalid")
 
     def test_operations_can_create_reservation(self):
         response = self.client_for(self.operations_user).post(RESERVATIONS_URL, self.payload(), format="json")

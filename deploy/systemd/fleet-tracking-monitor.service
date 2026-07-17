@@ -1,0 +1,22 @@
+[Unit]
+Description=Fleet Tracking HTTPS, certificate, backup, and disk checks
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fleet-tracking
+Group=fleet-tracking
+WorkingDirectory=/opt/fleet-tracking
+Environment=ENV_FILE=/opt/fleet-tracking/.env.production
+Environment=DEPLOYMENT_MODE=production
+ExecStart=/opt/fleet-tracking/scripts/monitor-deployment.sh
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+LockPersonality=true
+RestrictSUIDSGID=true
+

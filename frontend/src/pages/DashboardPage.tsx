@@ -5,10 +5,12 @@ import { Link } from 'react-router-dom';
 import { getDashboardSummary, type DashboardSummary, type VehicleStatus } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { AdminHomePanel } from '../components/AdminOverview';
 import { ActivityChart, DonutChart, type DonutSegment } from '../components/Charts';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { OperatorTaskBoard } from '../components/OperatorTaskBoard';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -100,8 +102,14 @@ function KpiCard({
   );
 }
 
-function reservationHandoverHref(reservation: { vehicle: string; driver: string | null; company: string | null; reserved_for: string }) {
-  const params = new URLSearchParams({ vehicle: reservation.vehicle });
+function reservationHandoverHref(reservation: {
+  id: string;
+  vehicle: string;
+  driver: string | null;
+  company: string | null;
+  reserved_for: string;
+}) {
+  const params = new URLSearchParams({ vehicle: reservation.vehicle, reservation: reservation.id });
   if (reservation.driver) {
     params.set('driver', reservation.driver);
   } else if (reservation.company) {
@@ -131,16 +139,17 @@ export function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function load() {
       setIsLoading(true);
       setError(null);
       try {
-        const summary = await getDashboardSummary();
+        const summary = await getDashboardSummary(controller.signal);
         if (isMounted) {
           setData(summary);
         }
       } catch (loadError) {
-        if (isMounted) {
+        if (isMounted && !controller.signal.aborted) {
           setError(getApiErrorMessage(loadError, t, t('dashboard.loadError')));
         }
       } finally {
@@ -152,6 +161,7 @@ export function DashboardPage() {
     load();
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [t, reloadToken]);
 
@@ -218,6 +228,7 @@ export function DashboardPage() {
 
   const totals = data.totals;
   const canManageVehicles = user?.role === 'admin';
+  const canRunWorkflows = user?.role === 'admin' || user?.role === 'operations';
 
   if (totals.vehicles === 0) {
     return (
@@ -257,15 +268,33 @@ export function DashboardPage() {
         description={t('dashboard.description')}
         actions={
           <div className="action-row action-row--wrap">
-            <Link className="button-link" to="/app/workflows/loan-checkout">
-              {t('dashboard.primaryAction')}
-            </Link>
+            {canManageVehicles ? (
+              <Link className="button-link secondary-button" to="/app/workflows/add-vehicle">
+                {t('tasks.actions.createRecord')}
+              </Link>
+            ) : null}
+            {canRunWorkflows ? (
+              <>
+                <Link className="button-link success-button" to="/app/workflows/intake">
+                  {t('tasks.actions.intake')}
+                </Link>
+                <Link className="button-link success-button" to="/app/workflows/check-in">
+                  {t('tasks.actions.checkIn')}
+                </Link>
+                <Link className="button-link" to="/app/tasks">
+                  {t('tasks.title')}
+                </Link>
+              </>
+            ) : null}
             <Link className="button-link secondary-button" to="/app/vehicles">
               {t('dashboard.secondaryAction')}
             </Link>
           </div>
         }
       />
+
+      {canManageVehicles ? <AdminHomePanel /> : null}
+      <OperatorTaskBoard compact />
 
       <div className="kpi-grid">
         <KpiCard tone="brand" icon="fleet" label={t('dashboard.kpis.fleet.label')} value={totals.vehicles} helper={t('dashboard.kpis.fleet.helper', { count: totals.manufacturer_checkout + totals.archived })} />
@@ -395,9 +424,11 @@ export function DashboardPage() {
                 {reservation.conflict ? (
                   <span className="status-badge status-badge--damaged">{t('dashboard.reservations.overdue')}</span>
                 ) : null}
-                <Link className="button-link success-button" to={reservationHandoverHref(reservation)}>
-                  {t('dashboard.reservations.handover')}
-                </Link>
+                {canRunWorkflows ? (
+                  <Link className="button-link success-button" to={reservationHandoverHref(reservation)}>
+                    {t('dashboard.reservations.handover')}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -444,12 +475,13 @@ export function DashboardPage() {
         {data.recent_loans.length ? (
           <div className="table-scroll">
             <table>
+            <caption>{t('dashboard.recent.title')}</caption>
               <thead>
                 <tr>
-                  <th>{t('dashboard.recent.columns.vehicle')}</th>
-                  <th>{t('dashboard.recent.columns.borrower')}</th>
-                  <th>{t('dashboard.recent.columns.status')}</th>
-                  <th>{t('dashboard.recent.columns.date')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.vehicle')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.borrower')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.status')}</th>
+                  <th scope="col">{t('dashboard.recent.columns.date')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -474,14 +506,18 @@ export function DashboardPage() {
       <section className="content-card">
         <h3>{t('dashboard.quickActions.title')}</h3>
         <div className="quick-actions">
-          <Link className="quick-action" to="/app/workflows/loan-checkout">
-            <Icon name="loaned" />
-            <span>{t('dashboard.quickActions.loan')}</span>
-          </Link>
-          <Link className="quick-action" to="/app/workflows/loan-return">
-            <Icon name="available" />
-            <span>{t('dashboard.quickActions.return')}</span>
-          </Link>
+          {canRunWorkflows ? (
+            <>
+              <Link className="quick-action" to="/app/workflows/loan-checkout">
+                <Icon name="loaned" />
+                <span>{t('dashboard.quickActions.loan')}</span>
+              </Link>
+              <Link className="quick-action" to="/app/workflows/loan-return">
+                <Icon name="available" />
+                <span>{t('dashboard.quickActions.return')}</span>
+              </Link>
+            </>
+          ) : null}
           {canManageVehicles ? (
             <Link className="quick-action" to="/app/workflows/add-vehicle">
               <Icon name="fleet" />

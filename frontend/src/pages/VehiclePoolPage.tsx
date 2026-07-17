@@ -3,14 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import {
-  displayDriverName,
   displayVehicleName,
-  listDrivers,
-  listLoans,
   listVehicleCategories,
-  listVehicles,
-  type Driver,
-  type Loan,
+  listVehiclePage,
+  type PageResult,
   type Vehicle,
   type VehicleCategory,
 } from '../api/fleet';
@@ -18,7 +14,12 @@ import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
+import { PageHeader } from '../components/PageHeader';
+import { PaginationControls } from '../components/PaginationControls';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAuth } from '../auth/AuthContext';
+import { canLoan, canMutate } from '../utils/capabilities';
+import { formatDateTime, formatNumber } from '../utils/format';
 
 const statuses = [
   '',
@@ -37,13 +38,15 @@ const ARCHIVED_STATUSES = new Set(['manufacturer_checkout', 'archived']);
 
 export function VehiclePoolPage() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const requestedStatus = searchParams.get('status') ?? '';
   const initialStatus = ARCHIVED_STATUSES.has(requestedStatus) ? '' : requestedStatus;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [searchInput, setSearchInput] = useState('');
@@ -55,15 +58,9 @@ export function VehiclePoolPage() {
     let isMounted = true;
     async function loadSupportData() {
       try {
-        const [nextCategories, nextLoans, nextDrivers] = await Promise.all([
-          listVehicleCategories(),
-          listLoans(),
-          listDrivers(),
-        ]);
+        const nextCategories = await listVehicleCategories();
         if (isMounted) {
           setCategories(nextCategories);
-          setLoans(nextLoans);
-          setDrivers(nextDrivers);
         }
       } catch (error) {
         if (isMounted) {
@@ -80,16 +77,22 @@ export function VehiclePoolPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function loadVehicles() {
       setIsLoading(true);
       setError(null);
       try {
-        const nextVehicles = await listVehicles({ status, category, search });
+        const nextPage = await listVehiclePage(
+          { status, category, search, active: status ? undefined : true },
+          page,
+          controller.signal,
+        );
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextPage.results);
+          setVehiclePage(nextPage);
         }
       } catch (error) {
-        if (isMounted) {
+        if (isMounted && !controller.signal.aborted) {
           setError(getApiErrorMessage(error, t, t('vehicles.loadError')));
           setVehicles([]);
         }
@@ -103,43 +106,30 @@ export function VehiclePoolPage() {
     loadVehicles();
     return () => {
       isMounted = false;
+      controller.abort();
     };
-  }, [category, search, status, t]);
-
-  const activeLoansByVehicle = useMemo(() => {
-    const driverNames = new Map(drivers.map((driver) => [driver.id, displayDriverName(driver)]));
-    return new Map(
-      loans
-        .filter((loan) => loan.status === 'active')
-        .map((loan) => [
-          loan.vehicle,
-          {
-            ...loan,
-            borrower_name: loan.driver ? driverNames.get(loan.driver) || loan.borrower_name : loan.borrower_name,
-          },
-        ]),
-    );
-  }, [drivers, loans]);
+  }, [category, page, reloadToken, search, status, t]);
 
   const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => !ARCHIVED_STATUSES.has(vehicle.status)), [vehicles]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   return (
     <section className="page-stack">
-      <div className="page-header page-header--with-actions">
-        <div>
-          <p className="eyebrow">{t('vehicles.eyebrow')}</p>
-          <h2>{t('vehicles.title')}</h2>
-          <p>{t('vehicles.description')}</p>
-        </div>
-        <Link className="button-link" to="/app/workflows/loans">
-          {t('navigation.loanWorkflows')}
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow={t('vehicles.eyebrow')}
+        title={t('vehicles.title')}
+        description={t('vehicles.description')}
+        actions={canMutate(user?.role) ? (
+          <Link className="button-link" to="/app/workflows/loans">
+            {t('navigation.loanWorkflows')}
+          </Link>
+        ) : undefined}
+      />
 
       <form className="filter-panel" onSubmit={handleSearch}>
         <label>
@@ -148,7 +138,7 @@ export function VehiclePoolPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.status')}</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
             {statuses.map((statusOption) => (
               <option key={statusOption || 'all'} value={statusOption}>
                 {statusOption ? t(`status.${statusOption}`) : t('vehicles.filters.allStatuses')}
@@ -158,7 +148,7 @@ export function VehiclePoolPage() {
         </label>
         <label>
           <span>{t('vehicles.filters.category')}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
             <option value="">{t('vehicles.filters.allCategories')}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
@@ -171,11 +161,11 @@ export function VehiclePoolPage() {
       </form>
 
       {isLoading ? <LoadingState variant="skeleton" rows={6} /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
-      <div className="vehicle-grid">
+      {!isLoading && !error ? <div className="vehicle-grid">
         {visibleVehicles.map((vehicle) => {
-          const activeLoan = activeLoansByVehicle.get(vehicle.id);
+          const activeLoan = vehicle.active_loan;
           return (
             <article className="content-card vehicle-card" key={vehicle.id}>
               <div className="card-title-row">
@@ -192,11 +182,11 @@ export function VehiclePoolPage() {
                 </div>
                 <div>
                   <dt>{t('vehicles.fields.odometer')}</dt>
-                  <dd>{vehicle.current_odometer_km ?? t('common.notAvailable')}</dd>
+                  <dd>{formatNumber(vehicle.current_odometer_km, i18n.language, t('common.notAvailable'))}</dd>
                 </div>
                 <div>
                   <dt>{t('vehicles.fields.hours')}</dt>
-                  <dd>{vehicle.current_operating_hours ?? t('common.notAvailable')}</dd>
+                  <dd>{formatNumber(vehicle.current_operating_hours, i18n.language, t('common.notAvailable'), { maximumFractionDigits: 1 })}</dd>
                 </div>
               </dl>
               {activeLoan ? (
@@ -205,7 +195,7 @@ export function VehiclePoolPage() {
                   <span>{activeLoan.borrower_name || t('common.unknown')}</span>
                   <small>
                     {t('vehicles.expectedReturn', {
-                      date: new Intl.DateTimeFormat(i18n.language).format(new Date(activeLoan.expected_return_at)),
+                      date: formatDateTime(activeLoan.expected_return_at, i18n.language, t('common.notAvailable')),
                     })}
                   </small>
                 </div>
@@ -214,7 +204,7 @@ export function VehiclePoolPage() {
                 <Link className="button-link secondary-button" to={`/app/vehicles/${vehicle.id}`}>
                   {t('vehicles.actions.details')}
                 </Link>
-                {vehicle.status === 'available' ? (
+                {canLoan(user?.role, vehicle.status) ? (
                   <Link className="button-link" to={`/app/workflows/loan-checkout?vehicle=${vehicle.id}`}>
                     {t('workflows.loanCheckout.shortTitle')}
                   </Link>
@@ -223,10 +213,13 @@ export function VehiclePoolPage() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
 
-      {!isLoading && !visibleVehicles.length ? (
+      {!isLoading && !error && !visibleVehicles.length ? (
         <EmptyState title={t('vehicles.empty.title')} description={t('vehicles.empty.body')} />
+      ) : null}
+      {!isLoading && !error && vehiclePage && vehiclePage.count > 0 ? (
+        <PaginationControls page={vehiclePage} onPageChange={setPage} />
       ) : null}
     </section>
   );

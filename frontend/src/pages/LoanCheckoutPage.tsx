@@ -1,33 +1,51 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { Field } from '../components/Field';
-
 import {
-  createDriver,
   createLoanCheckout,
   displayDriverName,
-  displayVehicleName,
-  generateLoanCheckoutPdf,
-  listCompanies,
-  listDrivers,
-  listVehicleCategories,
-  listVehicles,
-  mediaDownloadUrl,
+  getCompany,
+  getDriver,
+  getReservation,
+  getVehicle,
+  searchCompanies,
+  searchDrivers,
+  searchVehicles,
   type Company,
   type Driver,
   type MediaFile,
+  type Reservation,
   type Vehicle,
-  type VehicleCategory,
+  type WorkflowDraft,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { ErrorState } from '../components/ErrorState';
-import { LoadingState } from '../components/LoadingState';
-import { MediaUploadField, SignatureInput, type SignatureInputHandle } from '../components/MediaUploadField';
+import { Field } from '../components/Field';
+import { FormErrorSummary } from '../components/FormErrorSummary';
+import {
+  markMediaAttached,
+  MediaUploadField,
+  SignatureInput,
+  type SignatureInputHandle,
+} from '../components/MediaUploadField';
+import { PageHeader } from '../components/PageHeader';
+import { ProtocolReceipt } from '../components/ProtocolReceipt';
 import { SearchableSelect, type SearchableOption } from '../components/SearchableSelect';
+import {
+  CurrentConditionPanel,
+  VehicleContextBanner,
+  VehicleContextGate,
+  useVehicleContext,
+  vehicleSearchLabel,
+} from '../components/VehicleContextBanner';
+import { DraftConflictNotice, WorkflowWizard } from '../components/WorkflowWizard';
+import { useWorkflowDraft } from '../hooks/useWorkflowDraft';
+import { formatDateTime, localDateTimeToIso, isValidPhone } from '../utils/format';
+import { useDirtyFormWarning } from '../utils/useDirtyFormWarning';
 
-type BorrowerType = 'driver' | 'company' | 'other';
+type BorrowerType = 'driver' | 'company' | 'manual';
+type ConditionChoice = '' | 'unchanged' | 'new_damage';
 type FieldErrors = Record<string, string>;
 
 function defaultReturnDate() {
@@ -37,477 +55,623 @@ function defaultReturnDate() {
   return date.toISOString().slice(0, 16);
 }
 
+function randomScope() {
+  return typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+}
+
+function dateTimeInput(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
 export function LoanCheckoutPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
-  const language = i18n.language.startsWith('de') ? 'de' : 'en';
-
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [categories, setCategories] = useState<VehicleCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-
-  // Pre-fill from a reservation hand-over link
-  // (?vehicle=&driver=|company=|reserved=) so the borrower is set automatically.
-  const presetDriver = searchParams.get('driver') ?? '';
-  const presetCompany = searchParams.get('company') ?? '';
-  const presetReserved = searchParams.get('reserved') ?? '';
-  const presetBorrowerType: BorrowerType = presetDriver ? 'driver' : presetCompany ? 'company' : presetReserved ? 'other' : 'driver';
-
-  const [vehicle, setVehicle] = useState(searchParams.get('vehicle') ?? '');
-  const [borrowerType, setBorrowerType] = useState<BorrowerType>(presetBorrowerType);
-  const [driver, setDriver] = useState(presetDriver);
-  const [company, setCompany] = useState(presetCompany);
-  const [borrowerName, setBorrowerName] = useState(presetReserved);
+  const signatureRef = useRef<SignatureInputHandle>(null);
+  const scopeRef = useRef(`loan-${randomScope()}`);
+  const [step, setStep] = useState(0);
+  const [vehicleId, setVehicleId] = useState(searchParams.get('vehicle') ?? '');
+  const [reservationId, setReservationId] = useState(searchParams.get('reservation') ?? '');
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [vehicleOptions, setVehicleOptions] = useState<SearchableOption[]>([]);
+  const [driverOptions, setDriverOptions] = useState<SearchableOption[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<SearchableOption[]>([]);
+  const [drivers, setDrivers] = useState<Record<string, Driver>>({});
+  const [companies, setCompanies] = useState<Record<string, Company>>({});
+  const [borrowerType, setBorrowerType] = useState<BorrowerType>('driver');
+  const [driverId, setDriverId] = useState(searchParams.get('driver') ?? '');
+  const [companyId, setCompanyId] = useState(searchParams.get('company') ?? '');
+  const [borrowerName, setBorrowerName] = useState(searchParams.get('reserved') ?? '');
   const [borrowerPhone, setBorrowerPhone] = useState('');
-  const [expectedReturnAt, setExpectedReturnAt] = useState(defaultReturnDate());
+  const [expectedReturnAt, setExpectedReturnAt] = useState(defaultReturnDate);
   const [odometer, setOdometer] = useState('');
   const [hours, setHours] = useState('');
+  const [conditionChoice, setConditionChoice] = useState<ConditionChoice>('');
   const [notes, setNotes] = useState('');
-  const [mediaFileIds, setMediaFileIds] = useState<string[]>([]);
-  const signatureRef = useRef<SignatureInputHandle>(null);
+  const [damageDescription, setDamageDescription] = useState('');
+  const [damageSeverity, setDamageSeverity] = useState('minor');
+  const [generalMediaIds, setGeneralMediaIds] = useState<string[]>([]);
+  const [damageMediaIds, setDamageMediaIds] = useState<string[]>([]);
+  const [signatureMediaIds, setSignatureMediaIds] = useState<string[]>([]);
+  const [signatureDrawn, setSignatureDrawn] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<{
+    loanId: string;
+    vehicleId: string;
+    pdfId?: string | null;
+    pdfError?: string;
+    warnings: string[];
+  } | null>(null);
+  const vehicleState = useVehicleContext(vehicleId);
+  const meterMode = vehicleState.context?.meter?.mode;
+  const stagedMediaIds = useMemo(
+    () => [...new Set([...generalMediaIds, ...damageMediaIds, ...signatureMediaIds])],
+    [damageMediaIds, generalMediaIds, signatureMediaIds],
+  );
 
-  const [result, setResult] = useState<{ id: string; detail: string } | null>(null);
-  const [generatedPdf, setGeneratedPdf] = useState<MediaFile | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const hydrate = useCallback((draft: WorkflowDraft) => {
+    const data = draft.form_data;
+    setStep(Math.max(0, Math.min(3, draft.step || 0)));
+    setVehicleId(String(data.vehicle_id || ''));
+    setReservationId(String(data.reservation_id || ''));
+    setBorrowerType((data.borrower_type as BorrowerType) || 'driver');
+    setDriverId(String(data.driver_id || ''));
+    setCompanyId(String(data.company_id || ''));
+    setBorrowerName(String(data.borrower_name || ''));
+    setBorrowerPhone(String(data.borrower_phone || ''));
+    setExpectedReturnAt(String(data.expected_return_at || defaultReturnDate()));
+    setOdometer(String(data.odometer ?? ''));
+    setHours(String(data.hours ?? ''));
+    setConditionChoice((data.condition_choice as ConditionChoice) || '');
+    setNotes(String(data.notes || ''));
+    setDamageDescription(String(data.damage_description || ''));
+    setDamageSeverity(String(data.damage_severity || 'minor'));
+    setGeneralMediaIds(Array.isArray(data.general_media_ids) ? data.general_media_ids.map(String) : []);
+    setDamageMediaIds(Array.isArray(data.damage_media_ids) ? data.damage_media_ids.map(String) : []);
+    setSignatureMediaIds(Array.isArray(data.signature_media_ids) ? data.signature_media_ids.map(String) : []);
+  }, []);
 
-  // Quick-add driver inline so a loan is not blocked by a missing driver record.
-  const [isAddingDriver, setIsAddingDriver] = useState(false);
-  const [newDriverFirstName, setNewDriverFirstName] = useState('');
-  const [newDriverLastName, setNewDriverLastName] = useState('');
-  const [newDriverPhone, setNewDriverPhone] = useState('');
-  const [isSavingDriver, setIsSavingDriver] = useState(false);
-  const [quickDriverError, setQuickDriverError] = useState<string | null>(null);
+  const draftFormData = useMemo(() => ({
+    vehicle_id: vehicleId,
+    reservation_id: reservationId,
+    borrower_type: borrowerType,
+    driver_id: driverId,
+    company_id: companyId,
+    borrower_name: borrowerName,
+    borrower_phone: borrowerPhone,
+    expected_return_at: expectedReturnAt,
+    odometer,
+    hours,
+    condition_choice: conditionChoice,
+    notes,
+    damage_description: damageDescription,
+    damage_severity: damageSeverity,
+    general_media_ids: generalMediaIds,
+    damage_media_ids: damageMediaIds,
+    signature_media_ids: signatureMediaIds,
+  }), [
+    borrowerName,
+    borrowerPhone,
+    borrowerType,
+    companyId,
+    conditionChoice,
+    damageDescription,
+    damageMediaIds,
+    damageSeverity,
+    driverId,
+    expectedReturnAt,
+    generalMediaIds,
+    hours,
+    notes,
+    odometer,
+    reservationId,
+    signatureMediaIds,
+    vehicleId,
+  ]);
 
-  async function handleQuickAddDriver() {
-    if (!newDriverFirstName.trim() || !newDriverLastName.trim()) {
-      setQuickDriverError(t('management.validation.driverNameRequired'));
-      return;
-    }
-    setIsSavingDriver(true);
-    setQuickDriverError(null);
-    try {
-      const created = await createDriver({
-        first_name: newDriverFirstName.trim(),
-        last_name: newDriverLastName.trim(),
-        phone: newDriverPhone.trim(),
-        is_active: true,
-      });
-      setDrivers((current) => [created, ...current]);
-      setDriver(created.id);
-      setNewDriverFirstName('');
-      setNewDriverLastName('');
-      setNewDriverPhone('');
-      setIsAddingDriver(false);
-    } catch (saveError) {
-      setQuickDriverError(getApiErrorMessage(saveError, t, t('management.saveError')));
-    } finally {
-      setIsSavingDriver(false);
-    }
-  }
+  const draft = useWorkflowDraft({
+    workflowType: 'loan_checkout',
+    scopeKey: scopeRef.current,
+    objectId: reservationId || vehicleId || null,
+    formData: draftFormData,
+    stagedMediaIds,
+    step,
+    enabled: !result,
+    resumeId: searchParams.get('draft'),
+    onHydrate: hydrate,
+  });
+
+  useDirtyFormWarning(!result && Boolean(vehicleId || driverId || companyId || borrowerName || stagedMediaIds.length), t('forms.unsaved'));
 
   useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const [nextVehicles, nextDrivers, nextCompanies, nextCategories] = await Promise.all([
-          listVehicles(),
-          listDrivers(),
-          listCompanies(),
-          listVehicleCategories(),
-        ]);
-        if (isMounted) {
-          setVehicles(nextVehicles);
-          setDrivers(nextDrivers.filter((item) => item.is_active));
-          setCompanies(nextCompanies.filter((item) => item.is_active));
-          setCategories(nextCategories);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setError(getApiErrorMessage(error, t, t('workflows.loadError')));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
+    if (!vehicleId) return;
+    const controller = new AbortController();
+    getVehicle(vehicleId, controller.signal)
+      .then((vehicle) => setVehicleOptions([{
+        value: vehicle.id,
+        label: vehicleSearchLabel(vehicle, t(`status.${vehicle.status}`)),
+      }]))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [t, vehicleId]);
+
+  useEffect(() => {
+    if (!vehicleState.context) return;
+    if (!odometer && vehicleState.context.meter.odometer_km != null) {
+      setOdometer(String(vehicleState.context.meter.odometer_km));
     }
-    load();
-    return () => {
-      isMounted = false;
-    };
+    if (!hours && vehicleState.context.meter.operating_hours != null) {
+      setHours(String(vehicleState.context.meter.operating_hours));
+    }
+    // Baselines only prefill untouched values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleState.context]);
+
+  useEffect(() => {
+    if (!reservationId) {
+      setReservation(null);
+      return;
+    }
+    const controller = new AbortController();
+    getReservation(reservationId, controller.signal)
+      .then(async (nextReservation) => {
+        setReservation(nextReservation);
+        setVehicleId(nextReservation.vehicle);
+        setExpectedReturnAt(dateTimeInput(nextReservation.end_at));
+        const party = nextReservation.snapshot?.party;
+        setBorrowerName(party?.name || nextReservation.reserved_for || '');
+        setBorrowerPhone(party?.phone || nextReservation.manual_phone || '');
+        if (nextReservation.driver) {
+          setBorrowerType('driver');
+          setDriverId(nextReservation.driver);
+          const driver = await getDriver(nextReservation.driver, controller.signal);
+          setDrivers((current) => ({ ...current, [driver.id]: driver }));
+          setDriverOptions([{ value: driver.id, label: `${displayDriverName(driver)} · ${driver.phone || ''}` }]);
+        } else if (nextReservation.company) {
+          setBorrowerType('company');
+          setCompanyId(nextReservation.company);
+          const company = await getCompany(nextReservation.company, controller.signal);
+          setCompanies((current) => ({ ...current, [company.id]: company }));
+          setCompanyOptions([{ value: company.id, label: `${company.name} · ${company.contact_name || ''} · ${company.phone || ''}` }]);
+        } else {
+          setBorrowerType('manual');
+        }
+      })
+      .catch((loadError) => {
+        if (!controller.signal.aborted) setError(getApiErrorMessage(loadError, t, t('checkoutWorkflow.reservationError')));
+      });
+    return () => controller.abort();
+  }, [reservationId, t]);
+
+  const loadVehicles = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchVehicles(query, { is_available: true }, signal);
+    return page.results.map((vehicle) => ({
+      value: vehicle.id,
+      label: vehicleSearchLabel(vehicle, t(`status.${vehicle.status}`)),
+      keywords: [vehicle.license_plate, vehicle.serial_number, vehicle.current_location, vehicle.status].filter(Boolean).join(' '),
+    }));
   }, [t]);
 
-  const loanableVehicles = useMemo(
-    () => vehicles.filter((item) => item.status === 'available' || item.id === vehicle),
-    [vehicles, vehicle],
-  );
-  const selectedDriver = useMemo(() => drivers.find((item) => item.id === driver), [driver, drivers]);
-  const selectedCompany = useMemo(() => companies.find((item) => item.id === company), [company, companies]);
+  const loadDrivers = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchDrivers(query, signal);
+    const records: Record<string, Driver> = {};
+    const options = page.results.filter((driver) => driver.is_active).map((driver) => {
+      records[driver.id] = driver;
+      return {
+        value: driver.id,
+        label: `${displayDriverName(driver)}${driver.phone ? ` · ${driver.phone}` : ''}`,
+        keywords: [driver.phone, driver.email].filter(Boolean).join(' '),
+      };
+    });
+    setDrivers((current) => ({ ...current, ...records }));
+    setDriverOptions((current) => [...options, ...current.filter((item) => !options.some((next) => next.value === item.value))]);
+    return options;
+  }, []);
 
-  const categoryNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    categories.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [categories]);
-
-  // Vehicle options carry every searchable field (name/number, manufacturer,
-  // model, plate, serial, category, location, status) so the search box finds a
-  // vehicle by anything stored about it.
-  const vehicleOptions = useMemo<SearchableOption[]>(
-    () =>
-      loanableVehicles.map((item) => {
-        const categoryName =
-          typeof item.category === 'string' ? categoryNameById.get(item.category) ?? '' : item.category?.name ?? '';
-        const keywords = [
-          item.internal_number,
-          item.manufacturer,
-          item.model,
-          item.license_plate,
-          item.serial_number,
-          item.current_location,
-          categoryName,
-          item.status,
-          t(`status.${item.status}`),
-        ]
-          .filter(Boolean)
-          .join(' ');
-        return { value: item.id, label: displayVehicleName(item), keywords };
-      }),
-    [loanableVehicles, categoryNameById, t],
-  );
-
-  const driverOptions = useMemo<SearchableOption[]>(
-    () =>
-      drivers.map((item) => {
-        const companyName = item.company ? companies.find((c) => c.id === item.company)?.name ?? '' : '';
-        const keywords = [item.phone, item.email, item.license_classes, companyName].filter(Boolean).join(' ');
+  const loadCompanies = useCallback(async (query: string, signal: AbortSignal) => {
+    const page = await searchCompanies(query, signal);
+    const records: Record<string, Company> = {};
+    const options = page.results
+      .filter((company) => company.is_active && ['subcontractor', 'internal'].includes(company.company_type))
+      .map((company) => {
+        records[company.id] = company;
         return {
-          value: item.id,
-          label: `${displayDriverName(item)}${item.phone ? ` (${item.phone})` : ''}`,
-          keywords,
+          value: company.id,
+          label: `${company.name}${company.contact_name ? ` · ${company.contact_name}` : ''}${company.phone ? ` · ${company.phone}` : ''}`,
         };
-      }),
-    [drivers, companies],
-  );
+      });
+    setCompanies((current) => ({ ...current, ...records }));
+    setCompanyOptions((current) => [...options, ...current.filter((item) => !options.some((next) => next.value === item.value))]);
+    return options;
+  }, []);
 
-  const companyOptions = useMemo<SearchableOption[]>(
-    () =>
-      companies.map((item) => ({
-        value: item.id,
-        label: item.name,
-        keywords: [item.contact_name, item.email, item.phone, t(`companyTypes.${item.company_type}`)]
-          .filter(Boolean)
-          .join(' '),
-      })),
-    [companies, t],
-  );
-
-  function addMedia(media: MediaFile) {
-    setMediaFileIds((current) => [...current, media.id]);
+  function selectDriver(id: string) {
+    setDriverId(id);
+    const driver = drivers[id];
+    if (driver) {
+      setBorrowerName(displayDriverName(driver));
+      setBorrowerPhone(driver.phone || '');
+      setCompanyId(driver.company || '');
+    }
   }
 
-  function resolveBorrower() {
-    if (borrowerType === 'driver' && selectedDriver) {
-      return { name: displayDriverName(selectedDriver), phone: selectedDriver.phone ?? '' };
+  function selectCompany(id: string) {
+    setCompanyId(id);
+    const company = companies[id];
+    if (company) {
+      setBorrowerName(company.contact_name || company.name);
+      setBorrowerPhone(company.phone || '');
     }
-    if (borrowerType === 'company' && selectedCompany) {
-      return { name: borrowerName.trim() || selectedCompany.contact_name || selectedCompany.name, phone: borrowerPhone.trim() };
-    }
-    return { name: borrowerName.trim(), phone: borrowerPhone.trim() };
   }
 
-  function validate() {
+  function validateStep(target: number) {
     const next: FieldErrors = {};
-    if (!vehicle) {
-      next.vehicle = t('workflows.validation.vehicleRequired');
+    if (target === 0) {
+      if (!vehicleId) next.vehicle = t('workflows.validation.vehicleRequired');
+      else if (!vehicleState.context || vehicleState.context.vehicle.status !== 'available') {
+        next.vehicle = t('workflows.validation.vehicleNotEligible');
+      }
+      if (reservationId && reservation?.status !== 'active') {
+        next.vehicle = t('checkoutWorkflow.validation.reservationInactive');
+      }
     }
-    if (borrowerType === 'driver' && !driver) {
-      next.driver = t('loanCheckout.validation.driverRequired');
+    if (target === 1) {
+      if (borrowerType === 'driver' && !driverId) next.party = t('loanCheckout.validation.driverRequired');
+      if (borrowerType === 'company' && !companyId) next.party = t('loanCheckout.validation.companyRequired');
+      if (!borrowerName.trim()) next.borrowerName = t('workflows.validation.borrowerRequired');
+      if (!isValidPhone(borrowerPhone)) next.borrowerPhone = t('workflows.validation.phoneInvalid');
+      if (!expectedReturnAt || !localDateTimeToIso(expectedReturnAt) || new Date(expectedReturnAt).getTime() <= Date.now()) {
+        next.expectedReturnAt = t('workflows.validation.expectedReturnFuture');
+      }
     }
-    if (borrowerType === 'company' && !company) {
-      next.company = t('loanCheckout.validation.companyRequired');
-    }
-    if (borrowerType === 'other' && !borrowerName.trim()) {
-      next.borrowerName = t('workflows.validation.borrowerRequired');
-    }
-    if (!expectedReturnAt) {
-      next.expectedReturnAt = t('workflows.validation.expectedReturnRequired');
+    if (target === 2) {
+      if ((meterMode === 'odometer' || meterMode === 'both') && odometer === '') {
+        next.odometer = t('workflowRedesign.validation.odometerRequired');
+      }
+      if ((meterMode === 'hours' || meterMode === 'both') && hours === '') {
+        next.hours = t('workflowRedesign.validation.hoursRequired');
+      }
+      if (vehicleState.context?.meter.odometer_km != null && odometer && Number(odometer) < Number(vehicleState.context.meter.odometer_km)) {
+        next.odometer = t('workflows.validation.odometerDecrease');
+      }
+      if (vehicleState.context?.meter.operating_hours != null && hours && Number(hours) < Number(vehicleState.context.meter.operating_hours)) {
+        next.hours = t('workflows.validation.hoursDecrease');
+      }
+      if (!conditionChoice) next.condition = t('checkoutWorkflow.validation.damageChoiceRequired');
+      if (conditionChoice === 'new_damage' && !damageDescription.trim()) {
+        next.damageDescription = t('workflows.validation.damageDescriptionRequired');
+      }
+      if (conditionChoice === 'new_damage' && !damageMediaIds.length) {
+        next.damagePhoto = t('workflows.validation.damagePhotoRequired');
+      }
+      if (!signatureDrawn && !signatureMediaIds.length) {
+        next.signature = t('workflows.validation.checkoutSignatureRequired');
+      }
     }
     setFieldErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setResult(null);
-    setGeneratedPdf(null);
-    setPdfError(null);
-    if (!validate()) {
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      // Save the drawn signature (if any) automatically on submit.
-      let signatureMediaId: string | null = null;
+  async function nextStep() {
+    if (!validateStep(step)) return;
+    if (step === 2 && signatureDrawn) {
       try {
-        const signature = await signatureRef.current?.commit();
-        signatureMediaId = signature?.id ?? null;
-      } catch (signatureError) {
-        setError(getApiErrorMessage(signatureError, t, t('media.uploadError')));
-        setIsSubmitting(false);
+        const drawn = await signatureRef.current?.commit();
+        if (drawn) {
+          setSignatureMediaIds((current) => current.includes(drawn.id) ? current : [...current, drawn.id]);
+        }
+      } catch (uploadError) {
+        setError(getApiErrorMessage(uploadError, t, t('media.uploadError')));
         return;
       }
-      const borrower = resolveBorrower();
+    }
+    setStep((current) => Math.min(3, current + 1));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (step < 3) {
+      nextStep();
+      return;
+    }
+    if (isSubmitting) return;
+    for (const requiredStep of [0, 1, 2]) {
+      if (!validateStep(requiredStep)) {
+        setStep(requiredStep);
+        return;
+      }
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const drawn = await signatureRef.current?.commit();
+      const mediaIds = [...new Set([...generalMediaIds, ...signatureMediaIds, ...(drawn ? [drawn.id] : [])])];
       const payload: Record<string, unknown> = {
-        vehicle,
-        borrower_name: borrower.name,
-        borrower_phone: borrower.phone,
-        expected_return_at: new Date(expectedReturnAt).toISOString(),
-        media_file_ids: signatureMediaId ? [...mediaFileIds, signatureMediaId] : mediaFileIds,
+        vehicle: vehicleId,
+        borrower_name: borrowerName.trim(),
+        borrower_phone: borrowerPhone.trim(),
+        expected_return_at: localDateTimeToIso(expectedReturnAt),
+        media_file_ids: mediaIds,
       };
+      if (reservationId) payload.reservation_id = reservationId;
       if (borrowerType === 'driver') {
-        payload.driver = driver;
-        if (selectedDriver?.company) {
-          payload.company = selectedDriver.company;
-        }
+        payload.driver = driverId;
+        if (companyId) payload.company = companyId;
       }
-      if (borrowerType === 'company') {
-        payload.company = company;
-      }
-      if (odometer !== '') {
-        payload.checkout_odometer_km = Number(odometer);
-      }
-      if (hours !== '') {
-        payload.checkout_operating_hours = hours;
-      }
-      if (notes.trim()) {
-        payload.checkout_notes = notes.trim();
+      if (borrowerType === 'company') payload.company = companyId;
+      if (meterMode === 'odometer' || meterMode === 'both') payload.checkout_odometer_km = Number(odometer);
+      if (meterMode === 'hours' || meterMode === 'both') payload.checkout_operating_hours = hours;
+      if (notes.trim()) payload.checkout_notes = notes.trim();
+      if (conditionChoice === 'new_damage') {
+        payload.damage_reports = [{
+          description: damageDescription.trim(),
+          severity: damageSeverity,
+          media_file_ids: damageMediaIds,
+        }];
       }
       const loan = await createLoanCheckout(payload);
-      setResult({ id: loan.id, detail: loan.borrower_name || borrower.name || t('common.unknown') });
-    } catch (error) {
-      setError(getApiErrorMessage(error, t, t('workflows.submitError')));
+      markMediaAttached([...mediaIds, ...damageMediaIds]);
+      setResult({
+        loanId: loan.id,
+        vehicleId,
+        pdfId: loan.checkout_pdf_media,
+        pdfError: loan.checkout_pdf_generation_error,
+        warnings: (loan.warnings || []).map((warning) => t(`checkoutWorkflow.warnings.${warning.code}`, {
+          date: warning.start_at ? formatDateTime(warning.start_at, i18n.language) : '',
+        })),
+      });
+      await draft.completed();
+    } catch (submitError) {
+      const message = getApiErrorMessage(submitError, t, t('workflows.submitError'));
+      setError(submitError instanceof TypeError ? `${message} ${t('workflowRedesign.ambiguousFailure')}` : message);
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleGeneratePdf() {
-    if (!result) {
-      return;
-    }
-    setPdfError(null);
-    try {
-      setGeneratedPdf(await generateLoanCheckoutPdf(result.id, language));
-    } catch (error) {
-      setPdfError(getApiErrorMessage(error, t, t('pdf.error')));
-    }
-  }
+  const reservationWarning = useMemo(() => {
+    if (reservationId || !vehicleState.context || !expectedReturnAt) return null;
+    const expected = new Date(expectedReturnAt).getTime();
+    const conflict = vehicleState.context.reservations.find((item) => new Date(item.start_at).getTime() < expected);
+    return conflict ? t('checkoutWorkflow.upcomingReservationWarning', {
+      party: conflict.reserved_for,
+      date: formatDateTime(conflict.start_at, i18n.language),
+    }) : null;
+  }, [expectedReturnAt, i18n.language, reservationId, t, vehicleState.context]);
 
-  if (isLoading) {
-    return <LoadingState />;
+  if (result) {
+    return (
+      <section className="page-stack">
+        <PageHeader title={t('workflowRedesign.completed.loanCheckout')} eyebrow={t('workflows.eyebrow')} />
+        <article className="content-card success-card" role="status" aria-live="polite">
+          <h3 tabIndex={-1} autoFocus>{t('workflowRedesign.completed.loanCheckout')}</h3>
+          {result.warnings.map((warning) => <p className="warning-panel" key={warning}>{warning}</p>)}
+          <ProtocolReceipt
+            mediaId={result.pdfId}
+            error={result.pdfError}
+            documentType="loan_checkout_pdf"
+            recordId={result.loanId}
+          />
+          <div className="action-row">
+            <Link className="button-link secondary-button" to={`/app/vehicles/${result.vehicleId}`}>{t('workflowRedesign.openHistory')}</Link>
+          </div>
+        </article>
+      </section>
+    );
   }
 
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <p className="eyebrow">{t('workflows.eyebrow')}</p>
-        <h2>{t('workflows.loanCheckout.title')}</h2>
-        <p>{t('loanCheckout.intro')}</p>
-      </div>
-
+      <PageHeader
+        title={t('workflowRedesign.titles.loanCheckout')}
+        eyebrow={t('workflows.eyebrow')}
+        description={t('workflowRedesign.titles.loanCheckoutDescription')}
+      />
       {error ? <ErrorState message={error} /> : null}
-      {pdfError ? <ErrorState message={pdfError} /> : null}
+      {draft.conflictingDraft ? <DraftConflictNotice onUseServer={draft.useServerVersion} onOverwrite={draft.overwriteServerVersion} /> : null}
+      <form className="content-card form-stack" noValidate onSubmit={handleSubmit}>
+        <FormErrorSummary errors={fieldErrors} />
+        <WorkflowWizard
+          currentStep={step}
+          onBack={() => setStep((current) => Math.max(0, current - 1))}
+          onNext={nextStep}
+          onGoToStep={setStep}
+          submitLabel={t('workflowRedesign.titles.loanCheckout')}
+          submitting={isSubmitting}
+          saveStatus={draft.status}
+          navigationDisabled={Boolean(vehicleId && (vehicleState.isLoading || vehicleState.error))}
+          onRetrySave={draft.retry}
+          consequence={t('workflowRedesign.consequences.loanCheckout')}
+        >
+          {step === 0 ? (
+            <SearchableSelect
+              label={t('workflows.fields.vehicle')}
+              value={vehicleId}
+              options={vehicleOptions}
+              onChange={(value) => { setVehicleId(value); setReservationId(''); setReservation(null); }}
+              loadOptions={loadVehicles}
+              loadingText={t('states.loading')}
+              placeholder={t('loanCheckout.searchVehicle')}
+              emptyText={t('loanCheckout.noVehicles')}
+              error={fieldErrors.vehicle}
+              required
+              disabled={Boolean(reservationId)}
+            >
+              {reservation ? <small className="success-text">{t('checkoutWorkflow.fromReservation')}</small> : null}
+            </SearchableSelect>
+          ) : null}
 
-      {result ? (
-        <article className="content-card success-card">
-          <h3>{t('workflows.loanCheckout.completed')}</h3>
-          <p>{result.detail}</p>
-          <div className="action-row">
-            <button type="button" onClick={handleGeneratePdf}>
-              {t('pdf.generate')}
-            </button>
-            {generatedPdf ? <a href={mediaDownloadUrl(generatedPdf)}>{generatedPdf.original_filename}</a> : null}
-            <Link className="button-link secondary-button" to="/app/vehicles">
-              {t('vehicles.title')}
-            </Link>
-          </div>
-        </article>
-      ) : null}
+          {vehicleId ? (
+            <VehicleContextGate state={vehicleState}>
+              {vehicleState.context ? (
+                <>
+                  <VehicleContextBanner context={vehicleState.context} category={vehicleState.category} thumbnailUrl={vehicleState.thumbnailUrl} />
+                  <CurrentConditionPanel context={vehicleState.context} media={vehicleState.media} />
+                </>
+              ) : null}
+            </VehicleContextGate>
+          ) : null}
 
-      {!result ? (
-        <form className="content-card form-stack" onSubmit={handleSubmit}>
-          <SearchableSelect
-            label={t('workflows.fields.vehicle')}
-            options={vehicleOptions}
-            value={vehicle}
-            onChange={setVehicle}
-            placeholder={t('loanCheckout.searchVehicle')}
-            emptyText={t('loanCheckout.noMatches')}
-            error={fieldErrors.vehicle}
-          >
-            {loanableVehicles.length === 0 ? <small className="hint-text">{t('loanCheckout.noVehicles')}</small> : null}
-          </SearchableSelect>
-
-          <fieldset className="fieldset-card">
-            <legend>{t('loanCheckout.borrowerType.label')}</legend>
-            <div className="segmented">
-              {(['driver', 'company', 'other'] as BorrowerType[]).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  className={`segmented__option${borrowerType === type ? ' is-active' : ''}`}
-                  onClick={() => setBorrowerType(type)}
-                >
-                  {t(`loanCheckout.borrowerType.${type}`)}
-                </button>
-              ))}
-            </div>
-
-            {borrowerType === 'driver' ? (
-              <>
-                <SearchableSelect
-                  label={t('workflows.fields.driver')}
-                  options={driverOptions}
-                  value={driver}
-                  onChange={setDriver}
-                  placeholder={t('loanCheckout.searchDriver')}
-                  emptyText={t('loanCheckout.noMatches')}
-                  error={fieldErrors.driver}
-                >
-                  {drivers.length === 0 ? <small className="hint-text">{t('loanCheckout.noDrivers')}</small> : null}
-                </SearchableSelect>
-
-                {isAddingDriver ? (
-                  <div className="quick-add">
-                    {quickDriverError ? <ErrorState message={quickDriverError} /> : null}
-                    <div className="form-grid form-grid--two">
-                      <Field label={t('management.fields.firstName')}>
-                        <input value={newDriverFirstName} onChange={(event) => setNewDriverFirstName(event.target.value)} />
-                      </Field>
-                      <Field label={t('management.fields.lastName')}>
-                        <input value={newDriverLastName} onChange={(event) => setNewDriverLastName(event.target.value)} />
-                      </Field>
-                    </div>
-                    <Field label={t('loanCheckout.phoneOptional')}>
-                      <input type="tel" value={newDriverPhone} onChange={(event) => setNewDriverPhone(event.target.value)} />
-                    </Field>
-                    <div className="action-row">
-                      <button type="button" className="success-button" disabled={isSavingDriver} onClick={handleQuickAddDriver}>
-                        {isSavingDriver ? t('management.saving') : t('loanCheckout.saveDriver')}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={isSavingDriver}
-                        onClick={() => setIsAddingDriver(false)}
-                      >
-                        {t('management.cancel')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="button" className="ghost-button add-driver-button" onClick={() => setIsAddingDriver(true)}>
-                    {`+ ${t('loanCheckout.quickAddDriver')}`}
-                  </button>
-                )}
-              </>
-            ) : null}
-
-            {borrowerType === 'company' ? (
-              <>
-                <SearchableSelect
-                  label={t('workflows.fields.company')}
-                  options={companyOptions}
-                  value={company}
-                  onChange={setCompany}
-                  placeholder={t('loanCheckout.searchCompany')}
-                  emptyText={t('loanCheckout.noMatches')}
-                  error={fieldErrors.company}
-                >
-                  {companies.length === 0 ? (
-                    <small className="hint-text">
-                      {t('loanCheckout.noCompanies')} <Link to="/app/partners">{t('navigation.partners')}</Link>
-                    </small>
-                  ) : null}
-                </SearchableSelect>
-                <Field label={t('loanCheckout.contactPersonOptional')}>
-                  <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
+          {step === 1 ? (
+            <>
+              <fieldset className="fieldset-card">
+                <legend>{t('loanCheckout.borrowerType.label')}</legend>
+                <div className="segmented">
+                  {(['driver', 'company', 'manual'] as BorrowerType[]).map((type) => (
+                    <button
+                      type="button"
+                      key={type}
+                      aria-pressed={borrowerType === type}
+                      className={`segmented__option${borrowerType === type ? ' is-active' : ''}`}
+                      disabled={Boolean(reservationId)}
+                      onClick={() => setBorrowerType(type)}
+                    >
+                      {t(`checkoutWorkflow.partyTypes.${type}`)}
+                    </button>
+                  ))}
+                </div>
+                {borrowerType === 'driver' ? (
+                  <SearchableSelect
+                    label={t('workflows.fields.driver')}
+                    value={driverId}
+                    options={driverOptions}
+                    onChange={selectDriver}
+                    loadOptions={loadDrivers}
+                    loadingText={t('states.loading')}
+                    placeholder={t('loanCheckout.searchDriver')}
+                    emptyText={t('loanCheckout.noMatches')}
+                    error={fieldErrors.party}
+                    disabled={Boolean(reservationId)}
+                  />
+                ) : null}
+                {borrowerType === 'company' ? (
+                  <SearchableSelect
+                    label={t('workflows.fields.company')}
+                    value={companyId}
+                    options={companyOptions}
+                    onChange={selectCompany}
+                    loadOptions={loadCompanies}
+                    loadingText={t('states.loading')}
+                    placeholder={t('loanCheckout.searchCompany')}
+                    emptyText={t('loanCheckout.noMatches')}
+                    error={fieldErrors.party}
+                    disabled={Boolean(reservationId)}
+                  />
+                ) : null}
+                <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName} required>
+                  <input value={borrowerName} disabled={Boolean(reservationId)} onChange={(event) => setBorrowerName(event.target.value)} />
                 </Field>
-                <Field label={t('loanCheckout.phoneOptional')}>
-                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
+                <Field label={t('workflows.fields.borrowerPhone')} error={fieldErrors.borrowerPhone} required>
+                  <input type="tel" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
                 </Field>
-              </>
-            ) : null}
-
-            {borrowerType === 'other' ? (
-              <>
-                <Field label={t('workflows.fields.borrowerName')} error={fieldErrors.borrowerName}>
-                  <input value={borrowerName} onChange={(event) => setBorrowerName(event.target.value)} />
-                </Field>
-                <Field label={t('loanCheckout.phoneOptional')}>
-                  <input min="0" step="1" type="number" value={borrowerPhone} onChange={(event) => setBorrowerPhone(event.target.value)} />
-                </Field>
-              </>
-            ) : null}
-          </fieldset>
-
-          <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt}>
-            <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
-          </Field>
-
-          <fieldset className="fieldset-card">
-            <legend>{t('loanCheckout.moreDetails')}</legend>
-            <div className="form-grid form-grid--two">
-              <Field label={t('workflows.fields.checkoutOdometer')}>
-                <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+              </fieldset>
+              <Field label={t('workflows.fields.expectedReturn')} error={fieldErrors.expectedReturnAt} required>
+                <input type="datetime-local" value={expectedReturnAt} onChange={(event) => setExpectedReturnAt(event.target.value)} />
               </Field>
-              <Field label={t('workflows.fields.checkoutHours')}>
-                <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
-              </Field>
-              <div className="form-grid__full">
-                <Field label={t('workflows.fields.notes')}>
-                  <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
-                </Field>
+              {reservationWarning ? <p className="warning-panel" role="alert">{reservationWarning}</p> : null}
+            </>
+          ) : null}
+
+          {step === 2 ? (
+            <>
+              <div className="form-grid form-grid--two">
+                {meterMode === 'odometer' || meterMode === 'both' ? (
+                  <Field label={t('workflows.fields.checkoutOdometer')} error={fieldErrors.odometer} required>
+                    <input min="0" type="number" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+                  </Field>
+                ) : null}
+                {meterMode === 'hours' || meterMode === 'both' ? (
+                  <Field label={t('workflows.fields.checkoutHours')} error={fieldErrors.hours} required>
+                    <input min="0" step="0.1" type="number" value={hours} onChange={(event) => setHours(event.target.value)} />
+                  </Field>
+                ) : null}
               </div>
-            </div>
-          </fieldset>
+              <fieldset className="fieldset-card">
+                <legend>{t('checkoutWorkflow.damageChoice')}</legend>
+                <div className="condition-options">
+                  {(['unchanged', 'new_damage'] as ConditionChoice[]).map((choice) => (
+                    <label className="condition-option" key={choice}>
+                      <input
+                        type="radio"
+                        name="checkout-condition"
+                        checked={conditionChoice === choice}
+                        onChange={() => setConditionChoice(choice)}
+                      />
+                      <span>{t(`checkoutWorkflow.condition.${choice}`)}</span>
+                    </label>
+                  ))}
+                </div>
+                {fieldErrors.condition ? <small className="field-error">{fieldErrors.condition}</small> : null}
+                {conditionChoice === 'new_damage' ? (
+                  <>
+                    <Field label={t('workflows.damage.description')} error={fieldErrors.damageDescription} required>
+                      <textarea value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} />
+                    </Field>
+                    <Field label={t('workflows.damage.severity')}>
+                      <select value={damageSeverity} onChange={(event) => setDamageSeverity(event.target.value)}>
+                        {['unknown', 'minor', 'major', 'critical'].map((severity) => (
+                          <option value={severity} key={severity}>{t(`severity.${severity}`)}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <MediaUploadField
+                      mediaType="photo"
+                      label={t('workflows.damage.photoLabel')}
+                      accept="image/*"
+                      capture
+                      preserveOnUnmount
+                      required
+                      validationError={fieldErrors.damagePhoto}
+                      onUploaded={(media) => setDamageMediaIds((current) => [...current, media.id])}
+                      onRemoved={(media) => setDamageMediaIds((current) => current.filter((id) => id !== media.id))}
+                    />
+                  </>
+                ) : null}
+              </fieldset>
+              <Field label={t('workflows.fields.notes')}>
+                <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+              </Field>
+              <MediaUploadField
+                mediaType="photo"
+                label={t('media.generalPhotoLabel')}
+                accept="image/*"
+                capture
+                preserveOnUnmount
+                onUploaded={(media) => setGeneralMediaIds((current) => [...current, media.id])}
+                onRemoved={(media) => setGeneralMediaIds((current) => current.filter((id) => id !== media.id))}
+              />
+              <SignatureInput
+                ref={signatureRef}
+                label={t('media.signatureLabel')}
+                preserveOnUnmount
+                required
+                validationError={fieldErrors.signature}
+                onDrawnChange={setSignatureDrawn}
+                onUploaded={(media: MediaFile) => setSignatureMediaIds((current) => [...current, media.id])}
+                onRemoved={(media) => setSignatureMediaIds((current) => current.filter((id) => id !== media.id))}
+              />
+            </>
+          ) : null}
 
-          <fieldset className="fieldset-card">
-            <legend>{t('loanCheckout.documentHandover')}</legend>
-            <MediaUploadField
-              mediaType="photo"
-              vehicleId={vehicle || undefined}
-              relatedType="workflow_draft"
-              label={t('media.photoLabel')}
-              accept="image/*"
-              capture
-              onUploaded={addMedia}
-            />
-            <SignatureInput
-              ref={signatureRef}
-              vehicleId={vehicle || undefined}
-              relatedType="workflow_draft"
-              label={t('media.signatureLabel')}
-              onUploaded={addMedia}
-            />
-            <p className="hint-text">{t('media.handoffNote')}</p>
-          </fieldset>
-
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? t('workflows.submitting') : t('loanCheckout.submit')}
-          </button>
-        </form>
-      ) : null}
+          {step === 3 ? (
+            <section className="review-panel">
+              <h4>{t('workflowRedesign.reviewTitle')}</h4>
+              <dl className="detail-list detail-list--wide">
+                <div><dt>{t('workflows.fields.vehicle')}</dt><dd>{vehicleState.context?.vehicle.internal_number}</dd></div>
+                <div><dt>{t('workflows.fields.borrowerName')}</dt><dd>{borrowerName}</dd></div>
+                <div><dt>{t('workflows.fields.borrowerPhone')}</dt><dd>{borrowerPhone}</dd></div>
+                <div><dt>{t('workflows.fields.expectedReturn')}</dt><dd>{formatDateTime(localDateTimeToIso(expectedReturnAt), i18n.language)}</dd></div>
+                <div><dt>{t('checkoutWorkflow.damageChoice')}</dt><dd>{t(`checkoutWorkflow.condition.${conditionChoice}`)}</dd></div>
+                <div><dt>{t('workflowRedesign.evidenceCount')}</dt><dd>{stagedMediaIds.length}</dd></div>
+              </dl>
+            </section>
+          ) : null}
+        </WorkflowWizard>
+      </form>
     </section>
   );
 }
-

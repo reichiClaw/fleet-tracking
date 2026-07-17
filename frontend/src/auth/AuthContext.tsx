@@ -1,14 +1,23 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import { ApiError } from '../api/client';
+import {
+  acknowledgeAuthRecovery,
+  ApiError,
+  AUTH_CONTINUATION_KEY,
+  AUTH_EXPIRED_EVENT,
+} from '../api/client';
 import { getCurrentUser, loginWithPassword, logoutSession, type CurrentUser, type UserRole } from '../api/fleet';
 
 export type { UserRole } from '../api/fleet';
 
 export type AuthUser = {
+  id?: string;
   name: string;
   username?: string;
   role: UserRole;
+  capabilities?: CurrentUser['capabilities'];
+  mustChangePassword?: boolean;
   isBackendSession?: boolean;
 };
 
@@ -24,6 +33,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   login: (input: LoginInput) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AUTH_STORAGE_KEY = 'fleet-auth-user';
@@ -32,9 +42,12 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function userFromApi(user: CurrentUser): AuthUser {
   return {
+    id: user.id,
     name: user.display_name || user.full_name || user.username,
     username: user.username,
-    role: user.role,
+    role: user.effective_role ?? (user.capabilities?.is_app_admin ? 'admin' : user.role),
+    capabilities: user.capabilities,
+    mustChangePassword: Boolean(user.must_change_password),
     isBackendSession: true,
   };
 }
@@ -59,8 +72,14 @@ function isBackendReachableError(error: unknown) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const refreshUser = useCallback(async () => {
+    const currentUser = await getCurrentUser();
+    setUser(userFromApi(currentUser));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,6 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    function handleExpired() {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      setUser(null);
+      const from = `${location.pathname}${location.search}${location.hash}`;
+      if (location.pathname !== '/login') {
+        navigate('/login', { replace: true, state: { from, sessionExpired: true } });
+      }
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+  }, [location.hash, location.pathname, location.search, navigate]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isAuthenticated: Boolean(user),
@@ -103,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const backendUser = await loginWithPassword(username, password);
           window.localStorage.removeItem(AUTH_STORAGE_KEY);
           setUser(userFromApi(backendUser));
+          acknowledgeAuthRecovery();
         } catch (error) {
           if (isBackendReachableError(error) || !DEMO_AUTH_ENABLED) {
             throw error;
@@ -118,10 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Local fallback sessions and expired backend sessions both clear client-side state.
         }
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.sessionStorage.removeItem(AUTH_CONTINUATION_KEY);
         setUser(null);
       },
+      refreshUser,
     }),
-    [isLoading, user],
+    [isLoading, refreshUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

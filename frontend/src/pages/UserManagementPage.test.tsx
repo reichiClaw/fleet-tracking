@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from '../i18n';
@@ -13,6 +13,9 @@ type MockUser = {
   email?: string;
   role: string;
   is_active: boolean;
+  must_change_password?: boolean;
+  last_login?: string | null;
+  date_joined?: string;
 };
 
 const adminSession = {
@@ -54,6 +57,13 @@ function installFetchMock() {
       users = users.map((user) => (user.id === deactivate[1] ? { ...user, is_active: false } : user));
       return jsonResponse(users.find((user) => user.id === deactivate[1]));
     }
+    const temporaryPassword = url.match(/\/users\/([^/]+)\/set-temporary-password\/$/);
+    if (temporaryPassword && method === 'POST') {
+      users = users.map((user) => (
+        user.id === temporaryPassword[1] ? { ...user, must_change_password: true } : user
+      ));
+      return jsonResponse({ must_change_password: true });
+    }
     const detail = url.match(/\/users\/([^/]+)\/$/);
     if (detail && method === 'PATCH') {
       users = users.map((user) => (user.id === detail[1] ? { ...user, ...body } : user));
@@ -66,13 +76,18 @@ function installFetchMock() {
 }
 
 function renderPage() {
-  return render(
-    <MemoryRouter>
+  const router = createMemoryRouter(
+    [{
+      path: '*',
+      element: (
       <AuthProvider>
         <UserManagementPage />
       </AuthProvider>
-    </MemoryRouter>,
+      ),
+    }],
+    { initialEntries: ['/app/settings/users'] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 describe('UserManagementPage', () => {
@@ -80,6 +95,7 @@ describe('UserManagementPage', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    document.cookie = 'csrftoken=test-token; path=/';
     users = [
       { id: 'me', username: 'admin', full_name: 'Site Admin', role: 'admin', is_active: true },
       { id: 'u-ops', username: 'mara', full_name: 'Mara Ops', role: 'operations', is_active: true },
@@ -115,6 +131,21 @@ describe('UserManagementPage', () => {
       '/api/v1/users/',
       expect.objectContaining({ method: 'POST' }),
     );
+    expect(screen.getAllByText(/Vollständige Administration/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sets and reveals a one-time temporary password with must-change state', async () => {
+    renderPage();
+
+    const card = (await screen.findByText('Mara Ops')).closest('article') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Passwort zurücksetzen' }));
+    const temporaryInput = screen.getByLabelText('Temporäres Passwort');
+    fireEvent.change(temporaryInput, { target: { value: 'Temporary-Password-42!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Temporäres Passwort setzen' }));
+
+    expect(await screen.findByText('Temporary-Password-42!')).toBeInTheDocument();
+    expect(screen.getByText(/Pflichtwechsel ist aktiv/)).toBeInTheDocument();
+    await waitFor(() => expect(users.find((user) => user.id === 'u-ops')?.must_change_password).toBe(true));
   });
 
   it('rejects passwords shorter than eight characters before calling the API', async () => {
@@ -136,6 +167,8 @@ describe('UserManagementPage', () => {
 
     const card = (await screen.findByText('Mara Ops')).closest('article') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Deaktivieren' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Bestätigen' }));
 
     await waitFor(() => {
       const updated = screen.getByText('Mara Ops').closest('article') as HTMLElement;

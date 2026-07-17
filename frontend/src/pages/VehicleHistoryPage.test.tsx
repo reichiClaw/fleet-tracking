@@ -39,6 +39,7 @@ function installFetchMock() {
     return jsonResponse({});
   });
   vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 describe('VehicleHistoryPage', () => {
@@ -54,6 +55,7 @@ describe('VehicleHistoryPage', () => {
   });
 
   it('lists all vehicles including manufacturer check-out status', async () => {
+    const fetchMock = installFetchMock();
     render(
       <MemoryRouter>
         <VehicleHistoryPage />
@@ -63,5 +65,8 @@ describe('VehicleHistoryPage', () => {
     expect(await screen.findByRole('heading', { name: 'Fahrzeughistorie' })).toBeInTheDocument();
     expect(document.querySelector('.status-badge--manufacturer_checkout')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Komplette Historie öffnen' })).toHaveLength(2);
+    const vehicleRequests = fetchMock.mock.calls.filter(([input]) => String(input).includes('/vehicles/'));
+    expect(vehicleRequests).toHaveLength(1);
+    expect(String(vehicleRequests[0][0])).toContain('page=1');
   });
 });

@@ -21,6 +21,10 @@ class User(AbstractUser):
     email = models.EmailField(blank=True)
     full_name = models.CharField(max_length=255, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.READONLY)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text=_("Require this user to choose a new password at the next opportunity."),
+    )
 
     @property
     def display_name(self) -> str:

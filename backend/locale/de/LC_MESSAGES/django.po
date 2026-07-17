@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fleet-tracking backend\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-21 17:07+0200\n"
+"POT-Creation-Date: 2026-07-17 08:41+0200\n"
 "PO-Revision-Date: 2026-05-21 00:00+0000\n"
 "Last-Translator: Fleet Tracking Team\n"
 "Language-Team: German\n"
@@ -12,404 +12,930 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: accounts/apps.py:8
 msgid "Accounts"
 msgstr "Konten"
 
-#: accounts/models.py:16
 msgid "Admin"
 msgstr "Admin"
 
-#: accounts/models.py:17
 msgid "Operations"
 msgstr "Disposition"
 
-#: accounts/models.py:18
 msgid "Read-only"
 msgstr "Nur Lesen"
 
-#: accounts/serializers.py:65
+msgid "Require this user to choose a new password at the next opportunity."
+msgstr "Dieser Benutzer muss bei nächster Gelegenheit ein neues Passwort wählen."
+
+msgid "This privilege flag cannot be changed through the application API."
+msgstr "Dieses Berechtigungsmerkmal kann nicht über die Anwendungs-API geändert werden."
+
+msgid "Use the password update endpoint to change a password."
+msgstr "Verwenden Sie zum Ändern eines Passworts den Passwort-Endpunkt."
+
+msgid "Use the dedicated deactivate action."
+msgstr "Verwenden Sie die dafür vorgesehene Deaktivierungsaktion."
+
 msgid "Unable to log in with the provided credentials."
 msgstr "Anmeldung mit den angegebenen Zugangsdaten nicht möglich."
 
-#: accounts/serializers.py:66
 msgid "This user account is inactive."
 msgstr "Dieses Benutzerkonto ist inaktiv."
 
-#: audit/apps.py:8
+msgid "The current password is incorrect."
+msgstr "Das aktuelle Passwort ist falsch."
+
+msgid "You cannot deactivate your own account."
+msgstr "Sie können Ihr eigenes Konto nicht deaktivieren."
+
+msgid "You may only change your own password."
+msgstr "Sie dürfen nur Ihr eigenes Passwort ändern."
+
+msgid "Application administrators cannot modify a superuser."
+msgstr "Anwendungsadministratoren dürfen Superuser nicht ändern."
+
+msgid "Use the normal password action to change your own password."
+msgstr "Verwenden Sie die reguläre Passwortaktion, um Ihr eigenes Passwort zu ändern."
+
 msgid "Audit"
 msgstr "Audit"
 
-#: audit/models.py:31
 msgid "Audit logs are immutable."
 msgstr "Audit-Logs sind unveränderlich."
 
-#: config/settings.py:130
+msgid "Confirmation token is invalid or expired."
+msgstr "Das Bestätigungstoken ist ungültig oder abgelaufen."
+
+msgid "Confirmation token does not match this merge."
+msgstr "Das Bestätigungstoken gehört nicht zu dieser Zusammenführung."
+
+msgid "CSRF verification failed."
+msgstr "Die CSRF-Prüfung ist fehlgeschlagen."
+
+# Backend hardening wave
+msgid "Request validation failed."
+msgstr "Die Anfragevalidierung ist fehlgeschlagen."
+
 msgid "German"
 msgstr "Deutsch"
 
-#: config/settings.py:131
 msgid "English"
 msgstr "Englisch"
 
-#: config/views.py:16
 msgid "Service is healthy."
 msgstr "Der Dienst ist fehlerfrei."
 
-#: damages/apps.py:8
 msgid "Damages"
 msgstr "Schäden"
 
-#: damages/models.py:15
 msgid "Minor"
 msgstr "Gering"
 
-#: damages/models.py:16
 msgid "Major"
 msgstr "Erheblich"
 
-#: damages/models.py:17
 msgid "Critical"
 msgstr "Kritisch"
 
-#: damages/models.py:18
 msgid "Unknown"
 msgstr "Unbekannt"
 
-#: damages/models.py:22
 msgid "General"
 msgstr "Allgemein"
 
-#: damages/models.py:23
 msgid "Check-in"
 msgstr "Check-in"
 
-#: damages/models.py:24
 msgid "Loan checkout"
 msgstr "Ausleihe-Ausgabe"
 
-#: damages/models.py:25
 msgid "Loan return"
 msgstr "Ausleihe-Rückgabe"
 
-#: damages/models.py:26
 msgid "Manufacturer check-out"
 msgstr "Hersteller-Check-out"
 
-#: damages/models.py:61 tests/test_settings.py:39 tests/test_settings.py:43
 msgid "Damage description is required."
 msgstr "Eine Schadensbeschreibung ist erforderlich."
 
-#: drivers/apps.py:8 imports/models.py:15
+msgid "A damage report can belong to only one workflow record."
+msgstr "Eine Schadensmeldung darf nur einem Workflow-Datensatz zugeordnet sein."
+
+msgid "The loan and damage report must belong to the same vehicle."
+msgstr "Ausleihe und Schadensmeldung müssen zum selben Fahrzeug gehören."
+
+msgid "The check-in and damage report must belong to the same vehicle."
+msgstr "Check-in und Schadensmeldung müssen zum selben Fahrzeug gehören."
+
+msgid "The damage workflow phase does not match its check-in."
+msgstr "Die Workflow-Phase des Schadens passt nicht zum Check-in."
+
+msgid "The manufacturer check-out and damage report must belong to the same vehicle."
+msgstr "Hersteller-Check-out und Schadensmeldung müssen zum selben Fahrzeug gehören."
+
+msgid "The damage workflow phase does not match its manufacturer check-out."
+msgstr "Die Workflow-Phase des Schadens passt nicht zum Hersteller-Check-out."
+
+msgid "A loan workflow damage requires a loan."
+msgstr "Ein Schaden im Ausleih-Workflow erfordert eine Ausleihe."
+
+msgid "General damage cannot reference a workflow record."
+msgstr "Ein allgemeiner Schaden darf keinen Workflow-Datensatz referenzieren."
+
+msgid "Damage resolution requires both a timestamp and resolving user."
+msgstr "Die Schadenserledigung erfordert einen Zeitpunkt und einen bearbeitenden Benutzer."
+
+msgid "Damage workflow relationships are immutable."
+msgstr "Workflow-Zuordnungen eines Schadens sind unveränderlich."
+
+msgid "Damage resolution is immutable."
+msgstr "Die Schadenserledigung ist unveränderlich."
+
+msgid "This field is managed by its workflow endpoint."
+msgstr "Dieses Feld wird durch den zugehörigen Workflow-Endpunkt verwaltet."
+
+msgid "Damage discovery time cannot be in the future."
+msgstr "Der Entdeckungszeitpunkt eines Schadens darf nicht in der Zukunft liegen."
+
 msgid "Drivers"
 msgstr "Fahrer"
 
-#: imports/apps.py:8
+msgid "Only administrators may change active status."
+msgstr "Nur Administratoren dürfen den Aktivstatus ändern."
+
+msgid "Choose a different target driver."
+msgstr "Wählen Sie einen anderen Zielfahrer."
+
+msgid "The target driver is unavailable."
+msgstr "Der Zielfahrer ist nicht verfügbar."
+
+msgid "Both drivers must still be active."
+msgstr "Beide Fahrer müssen weiterhin aktiv sein."
+
 msgid "Imports"
 msgstr "Importe"
 
-#: imports/models.py:14 vehicles/apps.py:8
 msgid "Vehicles"
 msgstr "Fahrzeuge"
 
-#: imports/models.py:16
 msgid "Companies"
 msgstr "Firmen"
 
-#: imports/models.py:19
 msgid "Uploaded"
 msgstr "Hochgeladen"
 
-#: imports/models.py:20
 msgid "Validated"
 msgstr "Validiert"
 
-#: imports/models.py:21
 msgid "Failed"
 msgstr "Fehlgeschlagen"
 
-#: imports/models.py:22
 msgid "Committed"
 msgstr "Übernommen"
 
-#: imports/services.py:86
 msgid "Only .xlsx or .xlsm files are supported."
 msgstr "Nur .xlsx- oder .xlsm-Dateien werden unterstützt."
 
-#: imports/services.py:91
 msgid "The uploaded Excel file could not be read."
 msgstr "Die hochgeladene Excel-Datei konnte nicht gelesen werden."
 
-#: imports/services.py:104
+#, python-format
+msgid "The workbook exceeds the maximum of %(count)d columns."
+msgstr "Die Arbeitsmappe überschreitet die Höchstzahl von %(count)d Spalten."
+
+#, python-format
+msgid "The workbook exceeds the maximum of %(count)d data rows."
+msgstr "Die Arbeitsmappe überschreitet die Höchstzahl von %(count)d Datenzeilen."
+
 msgid "The workbook must contain a header row."
 msgstr "Die Arbeitsmappe muss eine Kopfzeile enthalten."
 
-#: imports/services.py:185
-msgid "Only vehicle import jobs can be committed by this endpoint."
-msgstr "Über diesen Endpunkt können nur Fahrzeugimporte übernommen werden."
+msgid "External key and internal number refer to different vehicles."
+msgstr "Externer Schlüssel und interne Nummer verweisen auf unterschiedliche Fahrzeuge."
 
-#: imports/services.py:187
+msgid "The import validation result is too large."
+msgstr "Das Ergebnis der Importvalidierung ist zu groß."
+
+msgid "Only vehicle import jobs can be remapped by this endpoint."
+msgstr "Über diesen Endpunkt können nur Fahrzeugimporte neu zugeordnet werden."
+
 msgid "This import job has already been committed."
 msgstr "Dieser Importauftrag wurde bereits übernommen."
 
-#: imports/services.py:189
+msgid "The original import file is no longer available."
+msgstr "Die ursprüngliche Importdatei ist nicht mehr verfügbar."
+
+msgid "Committed imports cannot be changed."
+msgstr "Übernommene Importe können nicht geändert werden."
+
+msgid "One or more excluded row numbers do not exist in this import."
+msgstr "Eine oder mehrere ausgeschlossene Zeilennummern sind in diesem Import nicht vorhanden."
+
+msgid "Only vehicle import jobs can be committed by this endpoint."
+msgstr "Über diesen Endpunkt können nur Fahrzeugimporte übernommen werden."
+
 msgid "Import job must be successfully validated before commit."
 msgstr "Der Importauftrag muss vor der Übernahme erfolgreich validiert sein."
 
-#: imports/services.py:293
+#, python-format
+msgid "Row %(row)s changed after validation; validate the import again."
+msgstr "Zeile %(row)s wurde nach der Validierung geändert; validieren Sie den Import erneut."
+
+#, python-format
+msgid "Row %(row)s references an inactive or missing category."
+msgstr "Zeile %(row)s verweist auf eine inaktive oder fehlende Kategorie."
+
+#, python-format
+msgid "Row %(row)s could not be imported: %(error)s"
+msgstr "Zeile %(row)s konnte nicht importiert werden: %(error)s"
+
+msgid "The workbook ZIP archive contains too many entries."
+msgstr "Das ZIP-Archiv der Arbeitsmappe enthält zu viele Einträge."
+
+msgid "The workbook ZIP archive expands beyond the allowed size."
+msgstr "Das ZIP-Archiv der Arbeitsmappe überschreitet entpackt die zulässige Größe."
+
+msgid "The workbook ZIP archive contains an invalid compressed entry."
+msgstr "Das ZIP-Archiv der Arbeitsmappe enthält einen ungültigen komprimierten Eintrag."
+
+msgid "The workbook ZIP archive has an unsafe compression ratio."
+msgstr "Das ZIP-Archiv der Arbeitsmappe hat ein unsicheres Kompressionsverhältnis."
+
+msgid "The uploaded Excel file is not a valid ZIP workbook."
+msgstr "Die hochgeladene Excel-Datei ist keine gültige ZIP-Arbeitsmappe."
+
 #, python-format
 msgid "Missing required column: %(column)s."
 msgstr "Erforderliche Spalte fehlt: %(column)s."
 
-#: imports/services.py:330
 #, python-format
 msgid "%(field)s is required."
 msgstr "%(field)s ist erforderlich."
 
-#: imports/services.py:338
 #, python-format
-msgid "Unknown or inactive vehicle category: %(category)s."
-msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
+msgid "%(field)s must be at most %(limit)d characters."
+msgstr "%(field)s darf höchstens %(limit)d Zeichen lang sein."
 
-#: imports/services.py:371
 #, python-format
 msgid "Duplicate internal_number in import file. First seen on row %(row)s."
 msgstr "Doppelte interne Nummer in der Importdatei. Erstmals in Zeile %(row)s."
 
-#: imports/services.py:386
+msgid "External key already belongs to another vehicle."
+msgstr "Der externe Schlüssel gehört bereits zu einem anderen Fahrzeug."
+
+#, python-format
+msgid "Duplicate external_key in import file. First seen on row %(row)s."
+msgstr "Doppelter external_key in der Importdatei. Erstmals in Zeile %(row)s."
+
 msgid "Serial number already belongs to another vehicle."
 msgstr "Die Seriennummer gehört bereits zu einem anderen Fahrzeug."
 
-#: imports/services.py:387
 #, python-format
 msgid "Duplicate serial_number in import file. First seen on row %(row)s."
 msgstr "Doppelte serial_number in der Importdatei. Erstmals in Zeile %(row)s."
 
-#: imports/services.py:397
 msgid "License plate already belongs to another vehicle."
 msgstr "Das Kennzeichen gehört bereits zu einem anderen Fahrzeug."
 
-#: imports/services.py:398
 #, python-format
 msgid "Duplicate license_plate in import file. First seen on row %(row)s."
 msgstr "Doppelte license_plate in der Importdatei. Erstmals in Zeile %(row)s."
 
-#: imports/services.py:443 vehicles/models.py:116 workflows/services.py:320
-msgid "Odometer value must not decrease."
-msgstr "Der Kilometerstand darf nicht sinken."
-
-#: imports/services.py:449 vehicles/models.py:122 workflows/services.py:326
-msgid "Operating hours must not decrease."
-msgstr "Betriebsstunden dürfen nicht sinken."
-
-#: imports/services.py:478
 #, python-format
 msgid "%(field)s must be a non-negative integer."
 msgstr "%(field)s muss eine nicht negative Ganzzahl sein."
 
-#: imports/services.py:498
 #, python-format
 msgid "%(field)s must be a non-negative decimal number."
 msgstr "%(field)s muss eine nicht negative Dezimalzahl sein."
 
-#: imports/views.py:26
+msgid "A database constraint was violated (e.g. a duplicate serial number or license plate)."
+msgstr "Eine Datenbankbedingung wurde verletzt (z. B. durch eine doppelte Seriennummer oder ein doppeltes Kennzeichen)."
+
 msgid "Import file is required."
 msgstr "Eine Importdatei ist erforderlich."
 
-#: imports/views.py:28
 msgid "Import file must not be empty."
 msgstr "Die Importdatei darf nicht leer sein."
 
-#: mediafiles/apps.py:8
+msgid "Mapping must be an object of column to source index."
+msgstr "Die Zuordnung muss ein Objekt aus Spalten und Quellindizes sein."
+
+msgid "Row numbers must be a list."
+msgstr "Zeilennummern müssen als Liste angegeben werden."
+
+msgid "Generated IDs are available only after commit."
+msgstr "Erzeugte IDs sind erst nach der Übernahme verfügbar."
+
 msgid "Media files"
 msgstr "Mediendateien"
 
-#: mediafiles/models.py:14
 msgid "Photo"
 msgstr "Foto"
 
-#: mediafiles/models.py:15
 msgid "Signature"
 msgstr "Unterschrift"
 
-#: mediafiles/models.py:16
 msgid "PDF"
 msgstr "PDF"
 
-#: mediafiles/models.py:17
 msgid "Import"
 msgstr "Import"
 
-#: mediafiles/models.py:44
 msgid "File size must be greater than zero."
 msgstr "Die Dateigröße muss größer als null sein."
 
-#: mediafiles/services.py:146
+msgid "A SHA-256 content digest is required."
+msgstr "Ein SHA-256-Inhaltsprüfwert ist erforderlich."
+
+msgid "Attached media requires a typed related record."
+msgstr "Zugeordnete Medien erfordern einen typisierten Bezugsdatensatz."
+
+msgid "The media attachment target is inconsistent."
+msgstr "Das Zuordnungsziel der Mediendatei ist inkonsistent."
+
+msgid "The loan and media must belong to the same vehicle."
+msgstr "Ausleihe und Medium müssen zum selben Fahrzeug gehören."
+
+msgid "The damage report and media must belong to the same vehicle."
+msgstr "Schadensmeldung und Medium müssen zum selben Fahrzeug gehören."
+
+msgid "The damage report and media must belong to the same loan."
+msgstr "Schadensmeldung und Medium müssen zur selben Ausleihe gehören."
+
+msgid "PDF media can only be generated by the server."
+msgstr "PDF-Medien dürfen nur vom Server erzeugt werden."
+
+msgid "Generated PDFs require a language."
+msgstr "Erzeugte PDFs erfordern eine Sprache."
+
+msgid "Only generated PDFs may have a document language."
+msgstr "Nur erzeugte PDFs dürfen eine Dokumentsprache haben."
+
+msgid "Only PDF media can be server generated."
+msgstr "Nur PDF-Medien dürfen vom Server erzeugt werden."
+
+msgid "Stored media metadata is immutable."
+msgstr "Gespeicherte Medienmetadaten sind unveränderlich."
+
+msgid "Attached media cannot be reassociated."
+msgstr "Zugeordnete Medien können nicht neu zugeordnet werden."
+
+msgid "The media attachment timestamp is immutable."
+msgstr "Der Zuordnungszeitpunkt des Mediums ist unveränderlich."
+
+msgid "Attached and generated media cannot be deleted."
+msgstr "Zugeordnete und erzeugte Medien können nicht gelöscht werden."
+
+msgid "Uploads must be staged and attached through a workflow."
+msgstr "Uploads müssen zwischengespeichert und über einen Workflow zugeordnet werden."
+
+msgid "Uploads must be staged before they are attached to a domain record."
+msgstr "Uploads müssen zwischengespeichert werden, bevor sie einem Fachdaten-Datensatz zugeordnet werden."
+
 msgid "Stored media file is missing."
 msgstr "Die gespeicherte Mediendatei fehlt."
 
-#: mediafiles/services.py:151
+msgid "Stored media content failed its integrity check."
+msgstr "Die Integritätsprüfung des gespeicherten Medieninhalts ist fehlgeschlagen."
+
+msgid "One or more media files are unavailable."
+msgstr "Eine oder mehrere Mediendateien sind nicht verfügbar."
+
+msgid "This media type cannot be attached to the requested record."
+msgstr "Dieser Medientyp kann dem angeforderten Datensatz nicht zugeordnet werden."
+
+msgid "You may only attach media that you uploaded."
+msgstr "Sie dürfen nur selbst hochgeladene Medien zuordnen."
+
+msgid "Media can only be attached once."
+msgstr "Medien dürfen nur einmal zugeordnet werden."
+
+msgid "A vehicle is required for operational media."
+msgstr "Für betriebliche Medien ist ein Fahrzeug erforderlich."
+
+msgid "The staged upload file quota has been reached."
+msgstr "Das Dateikontingent für zwischengespeicherte Uploads ist erreicht."
+
+msgid "The staged upload size quota has been reached."
+msgstr "Das Größenkontingent für zwischengespeicherte Uploads ist erreicht."
+
 msgid "Unsupported media type."
 msgstr "Nicht unterstützter Medientyp."
 
-#: mediafiles/services.py:153
 msgid "File must not be empty."
 msgstr "Die Datei darf nicht leer sein."
 
-#: mediafiles/services.py:157
 #, python-format
 msgid "File exceeds the maximum upload size of %(size)d MB."
 msgstr "Die Datei überschreitet die maximale Uploadgröße von %(size)d MB."
 
-#: mediafiles/services.py:163
 msgid "File extension is not allowed for this media type."
 msgstr "Die Dateiendung ist für diesen Medientyp nicht erlaubt."
 
-#: mediafiles/services.py:165
 msgid "File content type is not allowed for this media type."
 msgstr "Der Dateiinhaltstyp ist für diesen Medientyp nicht erlaubt."
 
-#: mediafiles/services.py:167
 msgid "File content does not match the selected media type."
 msgstr "Der Dateiinhalt passt nicht zum ausgewählten Medientyp."
 
-#: parties/apps.py:8
+msgid "Media file not found."
+msgstr "Mediendatei nicht gefunden."
+
+msgid "You may only discard media that you uploaded."
+msgstr "Sie dürfen nur selbst hochgeladene Medien verwerfen."
+
+msgid "Only staged media can be discarded."
+msgstr "Nur zwischengespeicherte Medien können verworfen werden."
+
+msgid "Provide between one and 100 document retry items."
+msgstr "Geben Sie zwischen einem und 100 Dokumente für den Wiederholungsversuch an."
+
+msgid "Bulk document retry is restricted to administrators."
+msgstr "Massenwiederholungen für Dokumente sind auf Administratoren beschränkt."
+
+msgid "A requested document record does not exist."
+msgstr "Ein angeforderter Dokumentdatensatz ist nicht vorhanden."
+
+msgid "Unsupported workflow document type."
+msgstr "Nicht unterstützter Workflow-Dokumenttyp."
+
 msgid "Parties"
 msgstr "Parteien"
 
-#: parties/models.py:13
 msgid "Subcontractor"
 msgstr "Subunternehmer"
 
-#: parties/models.py:14
 msgid "Manufacturer"
 msgstr "Hersteller"
 
-#: parties/models.py:15
 msgid "Supplier"
 msgstr "Lieferant"
 
-#: parties/models.py:16
 msgid "Internal"
 msgstr "Intern"
 
-#: tests/test_settings.py:38 tests/test_settings.py:42 vehicles/models.py:19
+msgid "Choose a different target company."
+msgstr "Wählen Sie ein anderes Zielunternehmen."
+
+msgid "The target company is unavailable."
+msgstr "Das Zielunternehmen ist nicht verfügbar."
+
+msgid "Companies must have the same type to merge."
+msgstr "Unternehmen müssen für die Zusammenführung denselben Typ haben."
+
+msgid "Both companies must still be active."
+msgstr "Beide Unternehmen müssen weiterhin aktiv sein."
+
 msgid "Available"
 msgstr "Verfügbar"
 
-#: vehicles/models.py:17
 msgid "Announced"
 msgstr "Angekündigt"
 
-#: vehicles/models.py:18
 msgid "Checked in"
 msgstr "Eingecheckt"
 
-#: vehicles/models.py:20
 msgid "Reserved"
 msgstr "Reserviert"
 
-#: vehicles/models.py:21
 msgid "Loaned"
 msgstr "Ausgeliehen"
 
-#: vehicles/models.py:22
 msgid "Maintenance"
 msgstr "Wartung"
 
-#: vehicles/models.py:23
 msgid "Damaged"
 msgstr "Beschädigt"
 
-#: vehicles/models.py:24
 msgid "Manufacturer checkout"
 msgstr "Hersteller-Check-out"
 
-#: vehicles/models.py:25
 msgid "Archived"
 msgstr "Archiviert"
 
-#: vehicles/models.py:100 workflows/models.py:61 workflows/models.py:63
-#: workflows/models.py:109 workflows/models.py:141
+msgid "Odometer"
+msgstr "Kilometerzähler"
+
+msgid "Operating hours"
+msgstr "Betriebsstunden"
+
+msgid "Odometer and operating hours"
+msgstr "Kilometerzähler und Betriebsstunden"
+
+msgid "No meter"
+msgstr "Kein Zähler"
+
 msgid "Operating hours must be non-negative."
 msgstr "Betriebsstunden müssen nicht negativ sein."
 
-#: vehicles/models.py:108
 #, python-format
 msgid "Invalid vehicle status transition from %(old)s to %(new)s."
 msgstr "Ungültiger Fahrzeugstatuswechsel von %(old)s zu %(new)s."
 
-#: workflows/apps.py:8
+msgid "Odometer value must not decrease."
+msgstr "Der Kilometerstand darf nicht sinken."
+
+msgid "Operating hours must not decrease."
+msgstr "Betriebsstunden dürfen nicht sinken."
+
+msgid "An archive reason is required."
+msgstr "Ein Archivierungsgrund ist erforderlich."
+
+msgid "The archiving user is required."
+msgstr "Der archivierende Benutzer ist erforderlich."
+
+msgid "Archived vehicles require the audited unarchive action."
+msgstr "Archivierte Fahrzeuge erfordern die protokollierte Wiederherstellungsaktion."
+
+msgid "Use the dedicated workflow or admin correction action."
+msgstr "Verwenden Sie den vorgesehenen Workflow oder die Admin-Korrekturaktion."
+
+msgid "The selected vehicle category is inactive."
+msgstr "Die ausgewählte Fahrzeugkategorie ist inaktiv."
+
+msgid "This vehicle is already archived."
+msgstr "Dieses Fahrzeug ist bereits archiviert."
+
+msgid "Only a vehicle returned to its manufacturer may be archived."
+msgstr "Nur ein an den Hersteller zurückgegebenes Fahrzeug darf archiviert werden."
+
+msgid "Only archived vehicles can be restored."
+msgstr "Nur archivierte Fahrzeuge können wiederhergestellt werden."
+
+msgid "A correction reason is required."
+msgstr "Ein Korrekturgrund ist erforderlich."
+
+msgid "A vehicle with an active loan cannot be restored."
+msgstr "Ein Fahrzeug mit aktiver Ausleihe kann nicht wiederhergestellt werden."
+
+msgid "A vehicle under maintenance cannot be restored."
+msgstr "Ein Fahrzeug in Wartung kann nicht wiederhergestellt werden."
+
+msgid "The recorded pre-archive state is not safe for automatic restoration."
+msgstr "Der gespeicherte Zustand vor der Archivierung kann nicht sicher automatisch wiederhergestellt werden."
+
+msgid "This state can only be entered through its workflow."
+msgstr "Dieser Zustand kann nur über den zugehörigen Workflow erreicht werden."
+
+msgid "Return the active loan before correcting status."
+msgstr "Schließen Sie die aktive Ausleihe ab, bevor Sie den Status korrigieren."
+
+msgid "Complete active maintenance before correcting status."
+msgstr "Schließen Sie die aktive Wartung ab, bevor Sie den Status korrigieren."
+
+msgid "Resolve open damage before correcting status to available."
+msgstr "Beheben Sie offene Schäden, bevor Sie den Status auf verfügbar korrigieren."
+
+msgid "This status cannot be set by correction."
+msgstr "Dieser Status kann nicht durch eine Korrektur gesetzt werden."
+
+msgid "Enter a non-negative integer."
+msgstr "Geben Sie eine nicht negative Ganzzahl ein."
+
+msgid "This vehicle has no active loan."
+msgstr "Dieses Fahrzeug hat keine aktive Ausleihe."
+
+msgid "Enter a valid date (YYYY-MM-DD)."
+msgstr "Geben Sie ein gültiges Datum ein (JJJJ-MM-TT)."
+
+msgid "Vehicle QR code was not found."
+msgstr "Der Fahrzeug-QR-Code wurde nicht gefunden."
+
 msgid "Workflows"
 msgstr "Arbeitsabläufe"
 
-#: workflows/models.py:17
+msgid "Expected version is required when updating a draft."
+msgstr "Beim Aktualisieren eines Entwurfs ist die erwartete Version erforderlich."
+
+msgid "You may only discard your own workflow drafts."
+msgstr "Sie dürfen nur Ihre eigenen Workflow-Entwürfe verwerfen."
+
+msgid "Draft media must be staged uploads owned by the draft user."
+msgstr "Entwurfsmedien müssen zwischengespeicherte Uploads des Entwurfsbenutzers sein."
+
+msgid "This media type cannot be held by a workflow draft."
+msgstr "Dieser Medientyp kann nicht in einem Workflow-Entwurf gehalten werden."
+
 msgid "Active"
 msgstr "Aktiv"
 
-#: workflows/models.py:18
 msgid "Returned"
 msgstr "Zurückgegeben"
 
-#: workflows/models.py:19
 msgid "Cancelled"
 msgstr "Storniert"
 
-#: workflows/models.py:59 workflows/serializers.py:57
-#: workflows/serializers.py:125
+msgid "Fit for service"
+msgstr "Einsatzbereit"
+
+msgid "New damage"
+msgstr "Neuer Schaden"
+
+msgid "Maintenance required"
+msgstr "Wartung erforderlich"
+
 msgid "Borrower name is required when no driver is selected."
 msgstr "Name des Entleihers ist erforderlich, wenn kein Fahrer ausgewählt ist."
 
-#: workflows/models.py:69 workflows/serializers.py:63
 msgid "Return odometer must not be lower than checkout odometer."
-msgstr ""
-"Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei "
-"Ausleihe."
+msgstr "Rückgabe-Kilometerstand darf nicht niedriger sein als der Kilometerstand bei Ausleihe."
 
-#: workflows/models.py:76 workflows/serializers.py:69
 msgid "Return operating hours must not be lower than checkout operating hours."
-msgstr ""
-"Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden "
-"bei Ausleihe."
+msgstr "Rückgabe-Betriebsstunden dürfen nicht niedriger sein als die Betriebsstunden bei Ausleihe."
 
-#: workflows/pdf.py:177
+msgid "Fulfilled"
+msgstr "Erfüllt"
+
+msgid "No-show"
+msgstr "Nicht erschienen"
+
+msgid "Reservation end must be after its start."
+msgstr "Das Reservierungsende muss nach dem Beginn liegen."
+
+msgid "A fulfilled reservation requires its timestamp, user, and loan."
+msgstr "Eine erfüllte Reservierung erfordert Zeitpunkt, Benutzer und Ausleihe."
+
+msgid "Only fulfilled reservations may link a loan."
+msgstr "Nur erfüllte Reservierungen dürfen mit einer Ausleihe verknüpft sein."
+
+msgid "Completed or cancelled reservations are immutable."
+msgstr "Abgeschlossene oder stornierte Reservierungen sind unveränderlich."
+
+msgid "Reservation fulfillment is immutable."
+msgstr "Die Erfüllung einer Reservierung ist unveränderlich."
+
+msgid "Completed"
+msgstr "Abgeschlossen"
+
+msgid "A maintenance reason is required."
+msgstr "Ein Wartungsgrund ist erforderlich."
+
+msgid "Completed maintenance requires a timestamp and user."
+msgstr "Eine abgeschlossene Wartung erfordert Zeitpunkt und Benutzer."
+
+msgid "Active maintenance cannot contain completion metadata."
+msgstr "Eine aktive Wartung darf keine Abschlussdaten enthalten."
+
+msgid "Maintenance completion cannot be earlier than its start."
+msgstr "Der Wartungsabschluss darf nicht vor dem Beginn liegen."
+
+msgid "Maintenance start evidence is immutable."
+msgstr "Die Nachweise zum Wartungsbeginn sind unveränderlich."
+
+msgid "Maintenance completion evidence is immutable."
+msgstr "Die Nachweise zum Wartungsabschluss sind unveränderlich."
+
+msgid "Manufacturer return"
+msgstr "Herstellerrückgabe"
+
+msgid "Reservation"
+msgstr "Reservierung"
+
+msgid "Draft expiry must be in the future."
+msgstr "Der Ablaufzeitpunkt des Entwurfs muss in der Zukunft liegen."
+
+msgid "Draft form data must be an object."
+msgstr "Die Formulardaten des Entwurfs müssen ein Objekt sein."
+
+msgid "Draft media IDs must be a list."
+msgstr "Die Medien-IDs des Entwurfs müssen als Liste angegeben werden."
+
+msgid "Completed workflow data is immutable."
+msgstr "Abgeschlossene Workflow-Daten sind unveränderlich."
+
 msgid "Loan return PDF requires a returned loan."
 msgstr "Das Rückgabe-PDF erfordert eine zurückgegebene Ausleihe."
 
-#: workflows/pdf.py:454
+msgid "Generated PDF failed validation or exceeds the configured size limit."
+msgstr "Das erzeugte PDF ist ungültig oder überschreitet die konfigurierte Größenbegrenzung."
+
+msgid "The immutable PDF file is missing from storage."
+msgstr "Die unveränderliche PDF-Datei fehlt im Speicher."
+
+msgid "Protocol evidence media is missing."
+msgstr "Ein Medium für den Protokollnachweis fehlt."
+
+msgid "Protocol evidence image exceeds the size limit."
+msgstr "Das Bild für den Protokollnachweis überschreitet die Größenbegrenzung."
+
+msgid "Protocol evidence failed its integrity check."
+msgstr "Die Integritätsprüfung des Protokollnachweises ist fehlgeschlagen."
+
+msgid "Protocol evidence image dimensions exceed the configured pixel limit."
+msgstr "Die Bildabmessungen des Protokollnachweises überschreiten die konfigurierte Pixelbegrenzung."
+
+msgid "Protocol evidence is not a valid image."
+msgstr "Der Protokollnachweis ist kein gültiges Bild."
+
 msgid "Unsupported PDF language."
 msgstr "Nicht unterstützte PDF-Sprache."
 
-#: workflows/services.py:31
-msgid "This vehicle cannot be checked in from its current status."
-msgstr ""
-"Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+msgid "Reservation party identity is immutable; create a replacement reservation."
+msgstr "Die Identität der reservierenden Partei ist unveränderlich; erstellen Sie eine Ersatzreservierung."
 
-#: workflows/services.py:99
-msgid "Only available or checked-in vehicles can be loaned."
-msgstr "Nur verfügbare oder eingecheckte Fahrzeuge können ausgeliehen werden."
+msgid "Choose exactly one reservation party: driver, company/contact, or manual contact."
+msgstr "Wählen Sie genau eine reservierende Partei: Fahrer, Unternehmen/Kontakt oder manueller Kontakt."
 
-#: workflows/services.py:102
+msgid "The selected driver is inactive."
+msgstr "Der ausgewählte Fahrer ist inaktiv."
+
+msgid "The selected company is inactive."
+msgstr "Das ausgewählte Unternehmen ist inaktiv."
+
+msgid "The driver does not belong to the selected company."
+msgstr "Der Fahrer gehört nicht zum ausgewählten Unternehmen."
+
+msgid "A company reservation requires a stored contact name."
+msgstr "Eine Unternehmensreservierung erfordert einen gespeicherten Kontaktnamen."
+
+msgid "A company reservation requires a contact phone."
+msgstr "Eine Unternehmensreservierung erfordert eine Kontakttelefonnummer."
+
+msgid "A manual reservation requires a phone number."
+msgstr "Eine manuelle Reservierung erfordert eine Telefonnummer."
+
+msgid "This vehicle already has an active reservation that overlaps this period."
+msgstr "Dieses Fahrzeug hat bereits eine aktive Reservierung, die sich mit diesem Zeitraum überschneidet."
+
+msgid "Check-in requires an active supplier or manufacturer."
+msgstr "Der Check-in erfordert einen aktiven Lieferanten oder Hersteller."
+
+msgid "Borrower name is required."
+msgstr "Der Name des Ausleihers ist erforderlich."
+
+msgid "Borrower phone is required."
+msgstr "Die Telefonnummer des Ausleihers ist erforderlich."
+
+msgid "A loan requires an active subcontractor or internal company."
+msgstr "Eine Ausleihe erfordert einen aktiven Subunternehmer oder ein internes Unternehmen."
+
+msgid "Expected return must be after checkout."
+msgstr "Die erwartete Rückgabe muss nach der Ausleihe liegen."
+
+msgid "Manufacturer check-out requires a manufacturer or supplier."
+msgstr "Der Hersteller-Check-out erfordert einen Hersteller oder Lieferanten."
+
+msgid "Secrets and authentication credentials cannot be stored in workflow drafts."
+msgstr "Geheimnisse und Authentifizierungsdaten dürfen nicht in Workflow-Entwürfen gespeichert werden."
+
+msgid "Draft form data is too large."
+msgstr "Die Formulardaten des Entwurfs sind zu groß."
+
+msgid "Signature image data must be uploaded as staged media, not stored in draft JSON."
+msgstr "Unterschriftsbilddaten müssen als zwischengespeichertes Medium hochgeladen und dürfen nicht im Entwurfs-JSON gespeichert werden."
+
+msgid "Draft media IDs must be unique."
+msgstr "Medien-IDs eines Entwurfs müssen eindeutig sein."
+
+msgid "An odometer reading is required for this vehicle category."
+msgstr "Für diese Fahrzeugkategorie ist ein Kilometerstand erforderlich."
+
+msgid "Odometer readings do not apply to this vehicle category."
+msgstr "Kilometerstände sind für diese Fahrzeugkategorie nicht anwendbar."
+
+msgid "An operating-hours reading is required for this vehicle category."
+msgstr "Für diese Fahrzeugkategorie ist ein Betriebsstundenstand erforderlich."
+
+msgid "Operating-hours readings do not apply to this vehicle category."
+msgstr "Betriebsstundenstände sind für diese Fahrzeugkategorie nicht anwendbar."
+
+msgid "The new-damage outcome requires at least one damage report."
+msgstr "Das Ergebnis „Neuer Schaden“ erfordert mindestens eine Schadensmeldung."
+
+msgid "The fit outcome cannot include new damage reports."
+msgstr "Das Ergebnis „Einsatzbereit“ darf keine neuen Schadensmeldungen enthalten."
+
+msgid "A maintenance outcome requires a reason in the workflow notes."
+msgstr "Das Ergebnis „Wartung“ erfordert einen Grund in den Workflow-Notizen."
+
+msgid "Only announced vehicles can be checked in."
+msgstr "Nur angekündigte Fahrzeuge können eingecheckt werden."
+
+msgid "Workflow timestamp cannot be in the future."
+msgstr "Der Workflow-Zeitpunkt darf nicht in der Zukunft liegen."
+
+msgid "This idempotency key was already used for another request."
+msgstr "Dieser Idempotenzschlüssel wurde bereits für eine andere Anfrage verwendet."
+
+msgid "Only available vehicles can be loaned."
+msgstr "Nur verfügbare Fahrzeuge können ausgeliehen werden."
+
 msgid "This vehicle already has an active loan."
 msgstr "Dieses Fahrzeug hat bereits eine aktive Ausleihe."
 
-#: workflows/services.py:169
+msgid "Loan checkout requires an uploaded signature."
+msgstr "Für die Ausleihe ist eine hochgeladene Unterschrift erforderlich."
+
 msgid "Loan return requires an active loan."
 msgstr "Die Fahrzeugrückgabe erfordert eine aktive Ausleihe."
 
-#: workflows/services.py:240
-msgid "Loaned vehicles cannot be checked out to manufacturers."
-msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller ausgecheckt werden."
+msgid "Return timestamp must not be earlier than checkout."
+msgstr "Der Rückgabezeitpunkt darf nicht vor der Ausleihe liegen."
 
-#: workflows/services.py:244
-msgid ""
-"This vehicle cannot be checked out to manufacturers from its current status."
-msgstr ""
-"Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller "
-"ausgecheckt werden."
+msgid "Return timestamp cannot be in the future."
+msgstr "Der Rückgabezeitpunkt darf nicht in der Zukunft liegen."
 
-#: workflows/services.py:403
+msgid "A return signature is required by policy."
+msgstr "Gemäß Richtlinie ist bei der Rückgabe eine Unterschrift erforderlich."
+
+msgid "Loaned vehicles cannot be returned to manufacturers."
+msgstr "Ausgeliehene Fahrzeuge können nicht an Hersteller zurückgegeben werden."
+
+msgid "Vehicles with an active loan cannot be checked out to manufacturers."
+msgstr "Fahrzeuge mit aktiver Ausleihe können nicht an Hersteller ausgecheckt werden."
+
+msgid "This vehicle cannot be returned to manufacturers from its current status."
+msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht an Hersteller zurückgegeben werden."
+
+msgid "Only available or damaged vehicles can be sent to maintenance."
+msgstr "Nur verfügbare oder beschädigte Fahrzeuge können in Wartung geschickt werden."
+
+msgid "A vehicle with an active loan cannot enter maintenance."
+msgstr "Ein Fahrzeug mit aktiver Ausleihe kann nicht in Wartung gehen."
+
+msgid "This vehicle already has active maintenance."
+msgstr "Dieses Fahrzeug hat bereits eine aktive Wartung."
+
+msgid "This vehicle has no active maintenance to complete."
+msgstr "Dieses Fahrzeug hat keine aktive Wartung, die abgeschlossen werden kann."
+
+msgid "An explicit condition outcome is required."
+msgstr "Ein ausdrückliches Zustandsergebnis ist erforderlich."
+
+msgid "Damaged status requires at least one damage report."
+msgstr "Der Status „Beschädigt“ erfordert mindestens eine Schadensmeldung."
+
 msgid "This workflow cannot move the vehicle to the requested status."
-msgstr ""
-"Dieser Workflow kann das Fahrzeug nicht in den angeforderten Status "
-"verschieben."
+msgstr "Dieser Workflow kann das Fahrzeug nicht in den angeforderten Status verschieben."
+
+msgid "This company is required for the workflow."
+msgstr "Dieses Unternehmen ist für den Workflow erforderlich."
+
+msgid "The selected company type is not valid for this workflow."
+msgstr "Der ausgewählte Unternehmenstyp ist für diesen Workflow nicht zulässig."
+
+msgid "Only an active reservation can be fulfilled."
+msgstr "Nur eine aktive Reservierung kann erfüllt werden."
+
+msgid "The reservation belongs to a different vehicle."
+msgstr "Die Reservierung gehört zu einem anderen Fahrzeug."
+
+msgid "This reservation is not yet within the early handover window."
+msgstr "Diese Reservierung liegt noch nicht im Zeitfenster für eine frühe Übergabe."
+
+msgid "This reservation window has ended."
+msgstr "Das Zeitfenster dieser Reservierung ist abgelaufen."
+
+msgid "Expected return must not be later than the reservation end."
+msgstr "Die erwartete Rückgabe darf nicht nach dem Reservierungsende liegen."
+
+msgid "The checkout driver does not match the reservation."
+msgstr "Der Fahrer bei der Ausgabe stimmt nicht mit der Reservierung überein."
+
+msgid "The checkout company does not match the reservation."
+msgstr "Das Unternehmen bei der Ausgabe stimmt nicht mit der Reservierung überein."
+
+msgid "The checkout borrower does not match the reservation snapshot."
+msgstr "Der Ausleiher bei der Ausgabe stimmt nicht mit dem Reservierungsabbild überein."
+
+msgid "The checkout phone does not match the reservation snapshot."
+msgstr "Die Telefonnummer bei der Ausgabe stimmt nicht mit dem Reservierungsabbild überein."
+
+#, python-format
+msgid "Checkout is blocked by a current or near-term reservation (%(id)s)."
+msgstr "Die Ausgabe wird durch eine aktuelle oder zeitnahe Reservierung (%(id)s) blockiert."
+
+msgid "The driver's company is not active for loans."
+msgstr "Das Unternehmen des Fahrers ist nicht für Ausleihen aktiv."
+
+msgid "Only active reservations can be edited."
+msgstr "Nur aktive Reservierungen können bearbeitet werden."
+
+msgid "Only active reservations can be cancelled."
+msgstr "Nur aktive Reservierungen können storniert werden."
+
+msgid "Only active reservations can be marked no-show."
+msgstr "Nur aktive Reservierungen können als nicht erschienen markiert werden."
+
+msgid "A reservation cannot be marked no-show before it starts."
+msgstr "Eine Reservierung kann nicht vor ihrem Beginn als nicht erschienen markiert werden."
+
+msgid "The workflow draft was updated by another request."
+msgstr "Der Workflow-Entwurf wurde durch eine andere Anfrage aktualisiert."
+
+msgid "Idempotency key is too long."
+msgstr "Der Idempotenzschlüssel ist zu lang."
+
+#~ msgid "PDF generation failed."
+#~ msgstr "Die PDF-Erzeugung ist fehlgeschlagen."
+
+#, python-format
+#~ msgid "Unknown or inactive vehicle category: %(category)s."
+#~ msgstr "Unbekannte oder inaktive Fahrzeugkategorie: %(category)s."
+
+#~ msgid "This vehicle cannot be checked in from its current status."
+#~ msgstr "Dieses Fahrzeug kann aus seinem aktuellen Status nicht eingecheckt werden."
+
+#~ msgid "New vehicles may only start as announced or available; damage is derived from initial reports."
+#~ msgstr "Neue Fahrzeuge dürfen nur als angekündigt oder verfügbar starten; Schäden werden aus den Erstmeldungen abgeleitet."

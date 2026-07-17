@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import {
   getPublicVehicleStatus,
@@ -36,12 +36,20 @@ export function vehicleStatusActions(status: string, vehicleId: string, activeLo
   const actions: StatusAction[] = [];
   if (activeLoan) {
     actions.push({ key: 'loanReturn', to: `/app/workflows/loan-return?loan=${activeLoan.id}`, primary: true });
-  } else if (status === 'available') {
-    actions.push({ key: 'loanCheckout', to: `/app/workflows/loan-checkout?vehicle=${vehicleId}`, primary: true });
-  } else if (status === 'announced') {
-    actions.push({ key: 'checkIn', to: `/app/workflows/check-in?vehicle=${vehicleId}`, primary: true });
-  } else if (!['loaned', 'manufacturer_checkout', 'archived'].includes(status)) {
-    actions.push({ key: 'manufacturerCheckout', to: `/app/workflows/manufacturer-checkout?vehicle=${vehicleId}`, primary: true });
+  } else {
+    if (status === 'announced') {
+      actions.push({ key: 'checkIn', to: `/app/workflows/check-in?vehicle=${vehicleId}`, primary: true });
+    }
+    if (status === 'available') {
+      actions.push({ key: 'loanCheckout', to: `/app/workflows/loan-checkout?vehicle=${vehicleId}`, primary: true });
+    }
+    if (status === 'available' || status === 'damaged') {
+      actions.push({
+        key: 'manufacturerCheckout',
+        to: `/app/workflows/manufacturer-return?vehicle=${vehicleId}`,
+        primary: status === 'damaged',
+      });
+    }
   }
   actions.push({ key: 'details', to: `/app/vehicles/${vehicleId}`, primary: false });
   return actions;
@@ -50,12 +58,14 @@ export function vehicleStatusActions(status: string, vehicleId: string, activeLo
 export function VehicleStatusPage() {
   const { qrCode } = useParams();
   const { t } = useTranslation();
+  const location = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<PublicVehicleStatus | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const canAct = user?.role === 'admin' || user?.role === 'operations';
 
@@ -117,6 +127,11 @@ export function VehicleStatusPage() {
     : '';
   const identifier = data?.license_plate || data?.serial_number || '';
 
+  useEffect(() => {
+    document.title = `${displayName || t('qr.status.eyebrow')} · ${t('app.name')}`;
+    if (data) headingRef.current?.focus();
+  }, [data, displayName, t]);
+
   return (
     <main className="login-page">
       <section className="login-card page-stack">
@@ -134,7 +149,7 @@ export function VehicleStatusPage() {
         {!isLoading && !error && data ? (
           <>
             <div className="card-title-row">
-              <h2>{displayName}</h2>
+              <h2 ref={headingRef} tabIndex={-1}>{displayName}</h2>
               <StatusBadge status={data.status} />
             </div>
 
@@ -177,7 +192,11 @@ export function VehicleStatusPage() {
             ) : (
               <div className="page-stack">
                 <p className="hint-text">{t('qr.status.signedOutHint')}</p>
-                <Link className="button-link" to="/login">
+                <Link
+                  className="button-link"
+                  to="/login"
+                  state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+                >
                   {t('qr.status.signIn')}
                 </Link>
               </div>

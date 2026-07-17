@@ -124,9 +124,12 @@ describe('DashboardPage', () => {
     // Recent loans table shows the latest loan
     expect(screen.getByText('FZ-00002 · Acme · TH100')).toBeInTheDocument();
 
-    // Reservation hand-over link is pre-filled with the reserving company
+    // Reservation hand-over carries the reservation identity and its prefill hints.
     const handover = screen.getByRole('link', { name: 'Übergeben' });
-    expect(handover).toHaveAttribute('href', '/app/workflows/loan-checkout?vehicle=veh-9&company=comp-1');
+    expect(handover).toHaveAttribute(
+      'href',
+      '/app/workflows/loan-checkout?vehicle=veh-9&reservation=res-1&company=comp-1',
+    );
   });
 
   it('shows a friendly empty state when there are no vehicles', async () => {
@@ -145,5 +148,25 @@ describe('DashboardPage', () => {
     renderDashboard();
 
     expect(await screen.findByText('Ihr Fuhrpark ist leer')).toBeInTheDocument();
+  });
+
+  it('does not show mutation actions to read-only users', async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/auth/me/')) return jsonResponse({ username: 'reader', role: 'readonly' });
+        if (url.includes('/dashboard/summary/')) return jsonResponse(summary);
+        return jsonResponse({});
+      }),
+    );
+
+    renderDashboard();
+
+    expect(await screen.findByRole('heading', { name: 'Fuhrpark-Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fahrzeug ausleihen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fahrzeug zurückgeben' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Übergeben' })).not.toBeInTheDocument();
   });
 });

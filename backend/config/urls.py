@@ -7,7 +7,8 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import CsrfView, LoginView, LogoutView, MeView, UserViewSet
 from audit.views import AuditLogViewSet
 from config.dashboard import DashboardSummaryView
-from config.views import health, readiness
+from config.tasks import OperatorTaskView
+from config.views import FirstRunReadinessView, health, readiness
 from damages.views import DamageReportViewSet
 from drivers.views import DriverViewSet
 from imports.views import ImportJobViewSet
@@ -19,6 +20,7 @@ from workflows.views import (
     LoanViewSet,
     ManufacturerCheckOutProtocolViewSet,
     ReservationViewSet,
+    WorkflowDraftViewSet,
 )
 
 
@@ -36,6 +38,12 @@ router.register(
     ManufacturerCheckOutProtocolViewSet,
     basename="manufacturer-checkout-protocol",
 )
+router.register(
+    "workflows/manufacturer-returns",
+    ManufacturerCheckOutProtocolViewSet,
+    basename="manufacturer-return-protocol",
+)
+router.register("workflow-drafts", WorkflowDraftViewSet, basename="workflow-draft")
 router.register("damage-reports", DamageReportViewSet, basename="damage-report")
 router.register("media", MediaFileViewSet, basename="media-file")
 router.register("documents", GeneratedDocumentViewSet, basename="document")
@@ -51,6 +59,8 @@ urlpatterns = [
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
+    path("api/v1/dashboard/tasks/", OperatorTaskView.as_view(), name="operator-tasks"),
+    path("api/v1/setup/readiness/", FirstRunReadinessView.as_view(), name="setup-readiness"),
     path(
         "api/v1/public/vehicles/qr/<str:qr_code>/",
         PublicVehicleStatusView.as_view(),

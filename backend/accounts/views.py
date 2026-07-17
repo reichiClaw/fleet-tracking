@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
+from django.db import transaction
+from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
-from rest_framework import status, viewsets
+from django.utils.translation import gettext as _
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -14,7 +17,9 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdminRole, UserPermission, is_admin
-from accounts.serializers import CurrentUserSerializer, LoginSerializer, UserSerializer
+from accounts.serializers import CurrentUserSerializer, LoginSerializer, PasswordUpdateSerializer, UserSerializer
+from audit.services import audit_event
+from config.request import request_metadata
 
 User = get_user_model()
 
@@ -30,6 +35,7 @@ class CsrfView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -67,15 +73,148 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [UserPermission]
     queryset = User.objects.order_by("username")
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
-        if is_admin(self.request.user):
-            return self.queryset
-        return self.queryset.filter(pk=self.request.user.pk)
+        if self.request.user.is_superuser:
+            queryset = self.queryset
+        elif is_admin(self.request.user):
+            queryset = self.queryset.filter(is_staff=False, is_superuser=False)
+        else:
+            queryset = self.queryset.filter(pk=self.request.user.pk)
+        params = getattr(self.request, "query_params", {})
+        search = params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search)
+                | Q(full_name__icontains=search)
+                | Q(email__icontains=search)
+            )
+        if params.get("role"):
+            queryset = queryset.filter(role=params["role"])
+        active = params.get("active")
+        if active is not None:
+            if active.lower() in {"1", "true", "yes"}:
+                queryset = queryset.filter(is_active=True)
+            elif active.lower() in {"0", "false", "no"}:
+                queryset = queryset.filter(is_active=False)
+        status_filter = params.get("status")
+        if status_filter == "must_change":
+            queryset = queryset.filter(must_change_password=True)
+        elif status_filter == "unused":
+            queryset = queryset.filter(is_active=True, last_login__isnull=True)
+        elif status_filter == "attention":
+            queryset = queryset.filter(
+                Q(is_active=False) | Q(last_login__isnull=True) | Q(must_change_password=True)
+            )
+        if getattr(self, "action", None) in {"update", "partial_update"}:
+            queryset = queryset.select_for_update()
+        return queryset
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        audit_event(
+            actor=self.request.user,
+            action="user.created",
+            entity_type="user",
+            entity_id=user.id,
+            after=_user_snapshot(user),
+            request_meta=request_metadata(self.request),
+        )
+
+    def perform_update(self, serializer):
+        before = _user_snapshot(serializer.instance)
+        user = serializer.save()
+        audit_event(
+            actor=self.request.user,
+            action="user.updated",
+            entity_type="user",
+            entity_id=user.id,
+            before=before,
+            after=_user_snapshot(user),
+            request_meta=request_metadata(self.request),
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminRole])
     def deactivate(self, request, pk=None):
         user = self.get_object()
+        if user.pk == request.user.pk:
+            raise serializers.ValidationError({"user": _("You cannot deactivate your own account.")})
+        before = _user_snapshot(user)
         user.is_active = False
         user.save(update_fields=["is_active"])
+        audit_event(
+            actor=request.user,
+            action="user.deactivated",
+            entity_type="user",
+            entity_id=user.id,
+            before=before,
+            after=_user_snapshot(user),
+            request_meta=request_metadata(request),
+        )
         return Response(self.get_serializer(user).data)
+
+    @action(detail=True, methods=["post"], url_path="set-password", permission_classes=[IsAuthenticated])
+    def set_password(self, request, pk=None):
+        target = self.get_object()
+        if target.pk != request.user.pk and not is_admin(request.user):
+            raise serializers.ValidationError({"detail": _("You may only change your own password.")})
+        if target.is_superuser and not request.user.is_superuser:
+            raise serializers.ValidationError({"detail": _("Application administrators cannot modify a superuser.")})
+        serializer = PasswordUpdateSerializer(data=request.data, context={"request": request, "target": target})
+        serializer.is_valid(raise_exception=True)
+        target.set_password(serializer.validated_data["new_password"])
+        target.must_change_password = target.pk != request.user.pk
+        target.save(update_fields=["password", "must_change_password"])
+        if target.pk == request.user.pk:
+            update_session_auth_hash(request, target)
+        audit_event(
+            actor=request.user,
+            action="user.password_changed",
+            entity_type="user",
+            entity_id=target.id,
+            after={"password_changed": True},
+            request_meta=request_metadata(request),
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="set-temporary-password", permission_classes=[IsAdminRole])
+    def set_temporary_password(self, request, pk=None):
+        target = self.get_object()
+        if target.pk == request.user.pk:
+            raise serializers.ValidationError(
+                {"user": _("Use the normal password action to change your own password.")}
+            )
+        if target.is_superuser and not request.user.is_superuser:
+            raise serializers.ValidationError({"detail": _("Application administrators cannot modify a superuser.")})
+        serializer = PasswordUpdateSerializer(data=request.data, context={"request": request, "target": target})
+        serializer.is_valid(raise_exception=True)
+        target.set_password(serializer.validated_data["new_password"])
+        target.must_change_password = True
+        target.save(update_fields=["password", "must_change_password"])
+        audit_event(
+            actor=request.user,
+            action="user.temporary_password_set",
+            entity_type="user",
+            entity_id=target.id,
+            after={"must_change_password": True},
+            request_meta=request_metadata(request),
+        )
+        return Response({"must_change_password": True}, status=status.HTTP_200_OK)
+
+
+def _user_snapshot(user) -> dict[str, object]:
+    return {
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "must_change_password": user.must_change_password,
+    }

@@ -1,8 +1,10 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
+import { getDashboardTasks } from '../api/fleet';
+import { ConnectivityBanner } from '../components/ConnectivityBanner';
 import { LanguageSelector } from '../components/LanguageSelector';
 
 type NavigationItem = {
@@ -13,31 +15,40 @@ type NavigationItem = {
 };
 
 const navigationItems: NavigationItem[] = [
-  { key: 'dashboard', to: '/app', translationKey: 'navigation.dashboard', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'dashboard', to: '/app', translationKey: 'navigation.home', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'tasks', to: '/app/tasks', translationKey: 'navigation.tasks', roles: ['admin', 'operations', 'readonly'] },
   { key: 'vehiclePool', to: '/app/vehicles', translationKey: 'navigation.vehiclePool', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'loanWorkflows', to: '/app/workflows/loans', translationKey: 'navigation.loanWorkflows', roles: ['admin', 'operations'] },
-  { key: 'qr', to: '/app/qr', translationKey: 'navigation.qrAccess', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'qr', to: '/app/qr?mode=scan', translationKey: 'navigation.scan', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'checkIn', to: '/app/workflows/check-in', translationKey: 'navigation.checkIn', roles: ['admin', 'operations'] },
+  { key: 'loanWorkflows', to: '/app/workflows/loan-checkout', translationKey: 'navigation.loanVehicle', roles: ['admin', 'operations'] },
+  { key: 'loanReturn', to: '/app/workflows/loan-return', translationKey: 'navigation.returnLoan', roles: ['admin', 'operations'] },
+  { key: 'manufacturerWorkflows', to: '/app/workflows/manufacturer-return', translationKey: 'navigation.returnManufacturer', roles: ['admin', 'operations'] },
+  { key: 'maintenance', to: '/app/tasks#condition_attention', translationKey: 'navigation.conditionTasks', roles: ['admin', 'operations'] },
+  { key: 'partners', to: '/app/partners', translationKey: 'navigation.partners', roles: ['operations', 'readonly'] },
   { key: 'history', to: '/app/history', translationKey: 'navigation.history', roles: ['admin', 'operations', 'readonly'] },
+  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['operations', 'readonly'] },
+  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
 ];
 
-// Grouped under a "Settings" submenu at the bottom of the navigation.
+// Admin-only information architecture grouped separately from operational tasks.
 const settingsNavItems: NavigationItem[] = [
+  { key: 'setup', to: '/app/setup', translationKey: 'navigation.setup', roles: ['admin'] },
   { key: 'users', to: '/app/users', translationKey: 'navigation.users', roles: ['admin'] },
-  { key: 'archive', to: '/app/archive', translationKey: 'navigation.archive', roles: ['admin', 'operations', 'readonly'] },
-  { key: 'reports', to: '/app/reports', translationKey: 'navigation.reports', roles: ['admin', 'operations', 'readonly'] },
-  {
-    key: 'manufacturerWorkflows',
-    to: '/app/workflows/manufacturer',
-    translationKey: 'navigation.manufacturerWorkflows',
-    roles: ['admin', 'operations'],
-  },
+  { key: 'categories', to: '/app/categories', translationKey: 'navigation.categories', roles: ['admin'] },
+  { key: 'directory', to: '/app/directory', translationKey: 'navigation.directory', roles: ['admin'] },
   { key: 'imports', to: '/app/imports', translationKey: 'navigation.imports', roles: ['admin'] },
+  { key: 'documents', to: '/app/documents', translationKey: 'navigation.documents', roles: ['admin'] },
+  { key: 'audit', to: '/app/audit', translationKey: 'navigation.audit', roles: ['admin'] },
+  { key: 'qr', to: '/app/qr/print', translationKey: 'navigation.qrLabels', roles: ['admin'] },
 ];
 
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
     dashboard: <path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z" />,
+    tasks: <path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8" />,
+    checkIn: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
+    loanReturn: <path d="M20 7H9l2-2M4 17h11l-2 2M20 7l-3 3M4 17l3-3" />,
+    maintenance: <path d="M14 7a4 4 0 0 1-5 5l-5 5 2 2 5-5a4 4 0 0 0 5-5l-2 2-2-2 2-2z" />,
     vehiclePool: (
       <>
         <path d="M3 13l2-5a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 8l2 5" />
@@ -137,6 +148,14 @@ export function AppLayout() {
   const { t } = useTranslation();
   const location = useLocation();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [taskCount, setTaskCount] = useState(0);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const mobileNavButtonRef = useRef<HTMLButtonElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
+  const mobileBottomNavRef = useRef<HTMLElement>(null);
+  const quickActionsButtonRef = useRef<HTMLButtonElement>(null);
+  const quickActionsMenuRef = useRef<HTMLDivElement>(null);
   const visibleItems = navigationItems.filter((item) => user && item.roles.includes(user.role));
   const visibleSettings = settingsNavItems.filter((item) => user && item.roles.includes(user.role));
   const roleLabel = user ? t(`roles.${user.role}`) : '';
@@ -146,7 +165,97 @@ export function AppLayout() {
 
   useEffect(() => {
     setIsQuickActionsOpen(false);
+    setIsMobileNavOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    mainContentRef.current?.setAttribute('inert', '');
+    mainContentRef.current?.setAttribute('aria-hidden', 'true');
+    mobileBottomNavRef.current?.setAttribute('inert', '');
+    mobileBottomNavRef.current?.setAttribute('aria-hidden', 'true');
+    mobileNavRef.current?.querySelector<HTMLElement>('a, button')?.focus();
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMobileNavOpen(false);
+        mobileNavButtonRef.current?.focus();
+      } else if (event.key === 'Tab') {
+        const focusable = Array.from(
+          mobileNavRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [],
+        );
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      mainContentRef.current?.removeAttribute('inert');
+      mainContentRef.current?.removeAttribute('aria-hidden');
+      mobileBottomNavRef.current?.removeAttribute('inert');
+      mobileBottomNavRef.current?.removeAttribute('aria-hidden');
+    };
+  }, [isMobileNavOpen]);
+
+  useEffect(() => {
+    let active = true;
+    let controller: AbortController | null = null;
+    const refresh = () => {
+      controller?.abort();
+      controller = new AbortController();
+      getDashboardTasks(1, controller.signal)
+        .then((tasks) => {
+          if (active) setTaskCount(Number(tasks.count) || 0);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 60_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isQuickActionsOpen) return;
+    quickActionsMenuRef.current?.querySelector<HTMLElement>('select, button')?.focus();
+    function close(event?: Event) {
+      if (event && (
+        quickActionsMenuRef.current?.contains(event.target as Node) ||
+        quickActionsButtonRef.current?.contains(event.target as Node)
+      )) return;
+      setIsQuickActionsOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsQuickActionsOpen(false);
+        quickActionsButtonRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('mousedown', close);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('mousedown', close);
+    };
+  }, [isQuickActionsOpen]);
 
   // Keep the Settings group expanded while one of its pages is active.
   useEffect(() => {
@@ -157,7 +266,20 @@ export function AppLayout() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">{t('layout.skipToContent')}</a>
+      <ConnectivityBanner />
       <header className="top-bar">
+        <button
+          ref={mobileNavButtonRef}
+          className="secondary-button mobile-nav-trigger"
+          type="button"
+          aria-expanded={isMobileNavOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMobileNavOpen((open) => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span className="visually-hidden">{t('layout.navigationMenu')}</span>
+        </button>
         <div>
           <p className="eyebrow">{t('app.subtitle')}</p>
           <h1>{t('app.name')}</h1>
@@ -171,23 +293,33 @@ export function AppLayout() {
           <div className="top-bar__actions">
             <div className="top-bar__actions-desktop">
               <LanguageSelector />
+              <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
               <button className="secondary-button" type="button" onClick={() => void logout()}>
                 {t('navigation.logout')}
               </button>
             </div>
             <button
+              ref={quickActionsButtonRef}
               className="secondary-button top-bar__menu-trigger"
               type="button"
-              aria-label={t('layout.quickActions')}
+              aria-label={t('layout.accountMenu')}
               aria-expanded={isQuickActionsOpen}
+              aria-controls="quick-actions-menu"
               onClick={() => setIsQuickActionsOpen((current) => !current)}
             >
               <svg className="top-bar__menu-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16M4 12h16M4 17h16" />
+                <circle cx="12" cy="8" r="3.25" />
+                <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
               </svg>
             </button>
-            <div className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}>
+            <div
+              ref={quickActionsMenuRef}
+              id="quick-actions-menu"
+              className={`top-bar__menu${isQuickActionsOpen ? ' is-open' : ''}`}
+              aria-hidden={!isQuickActionsOpen}
+            >
               <LanguageSelector />
+              <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
               <button className="secondary-button" type="button" onClick={() => void logout()}>
                 {t('navigation.logout')}
               </button>
@@ -197,12 +329,34 @@ export function AppLayout() {
       </header>
 
       <div className="shell-body">
-        <aside className="side-nav" aria-label={t('navigation.primaryLabel')}>
-          <nav>
+        {isMobileNavOpen ? (
+          <button
+            className="nav-backdrop"
+            type="button"
+            aria-label={t('common.close')}
+            onClick={() => {
+              setIsMobileNavOpen(false);
+              mobileNavButtonRef.current?.focus();
+            }}
+          />
+        ) : null}
+        <aside
+          ref={mobileNavRef}
+          className={`side-nav${isMobileNavOpen ? ' is-open' : ''}`}
+          aria-label={t('navigation.primaryLabel')}
+          aria-modal={isMobileNavOpen || undefined}
+          role={isMobileNavOpen ? 'dialog' : undefined}
+        >
+          <nav id="primary-navigation">
             {visibleItems.map((item) => (
               <NavLink key={item.key} to={item.to} end={item.to === '/app'}>
                 <NavIcon name={item.key} />
                 {t(item.translationKey)}
+                {item.key === 'tasks' && taskCount > 0 ? (
+                  <span className="nav-task-count" aria-label={t('layout.taskCount', { count: taskCount })}>
+                    {taskCount > 99 ? '99+' : taskCount}
+                  </span>
+                ) : null}
               </NavLink>
             ))}
             {visibleSettings.length ? (
@@ -214,7 +368,7 @@ export function AppLayout() {
                   onClick={() => setIsSettingsOpen((open) => !open)}
                 >
                   <NavIcon name="settings" />
-                  {t('navigation.settings')}
+                  {t('navigation.administration')}
                   <svg className="nav-group__caret" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
@@ -232,12 +386,42 @@ export function AppLayout() {
               </div>
             ) : null}
           </nav>
+          <div className="side-nav__account">
+            <p>{t('layout.signedInAs')} <strong>{user?.name}</strong></p>
+            <LanguageSelector />
+            <NavLink className="button-link secondary-button" to="/app/change-password">{t('navigation.changePassword')}</NavLink>
+            <button className="secondary-button" type="button" onClick={() => void logout()}>
+              {t('navigation.logout')}
+            </button>
+          </div>
         </aside>
 
-        <main className="content-panel">
+        <main ref={mainContentRef} id="main-content" className="content-panel" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
+      <nav ref={mobileBottomNavRef} className="mobile-bottom-nav" aria-label={t('navigation.mobileLabel')}>
+        <NavLink to="/app" end><NavIcon name="dashboard" /><span>{t('navigation.home')}</span></NavLink>
+        <NavLink className="mobile-bottom-nav__tasks" to="/app/tasks">
+          <NavIcon name="tasks" />
+          <span>{t('navigation.tasks')}</span>
+          {taskCount > 0 ? (
+            <span className="nav-task-count" aria-label={t('layout.taskCount', { count: taskCount })}>
+              {taskCount > 99 ? '99+' : taskCount}
+            </span>
+          ) : null}
+        </NavLink>
+        <NavLink className="mobile-bottom-nav__scan" to="/app/qr?mode=scan"><NavIcon name="qr" /><span>{t('navigation.scan')}</span></NavLink>
+        <NavLink to="/app/vehicles"><NavIcon name="vehiclePool" /><span>{t('navigation.fleet')}</span></NavLink>
+        <button
+          type="button"
+          aria-expanded={isMobileNavOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMobileNavOpen(true)}
+        >
+          <NavIcon name="settings" /><span>{t('navigation.more')}</span>
+        </button>
+      </nav>
     </div>
   );
 }

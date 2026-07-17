@@ -5,9 +5,10 @@ import { Link } from 'react-router-dom';
 import {
   displayVehicleName,
   listVehicleCategories,
-  listVehicles,
+  listVehiclePage,
   type Vehicle,
   type VehicleCategory,
+  type PageResult,
 } from '../api/fleet';
 import { getApiErrorMessage } from '../api/errors';
 import { EmptyState } from '../components/EmptyState';
@@ -15,30 +16,36 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
-
-// Vehicles that have left the active fleet (handed back to the manufacturer or
-// otherwise archived) live here instead of the vehicle pool.
-const ARCHIVED_STATUSES = new Set(['manufacturer_checkout', 'archived']);
+import { PaginationControls } from '../components/PaginationControls';
 
 export function ArchivePage() {
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState<PageResult<Vehicle> | null>(null);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [category, setCategory] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [tab, setTab] = useState<'manufacturer_checkout' | 'archived'>('manufacturer_checkout');
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
     async function load() {
       setIsLoading(true);
       setError(null);
       try {
-        const [nextVehicles, nextCategories] = await Promise.all([listVehicles(), listVehicleCategories()]);
+        const [nextVehicles, nextCategories] = await Promise.all([
+          listVehiclePage({ status: tab, category, search }, page, controller.signal),
+          listVehicleCategories(),
+        ]);
         if (isMounted) {
-          setVehicles(nextVehicles);
+          setVehicles(nextVehicles.results);
+          setVehiclePage(nextVehicles);
           setCategories(nextCategories);
         }
       } catch (loadError) {
@@ -54,8 +61,9 @@ export function ArchivePage() {
     load();
     return () => {
       isMounted = false;
+      controller.abort();
     };
-  }, [t]);
+  }, [category, page, reloadToken, search, t, tab]);
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -63,43 +71,30 @@ export function ArchivePage() {
     return map;
   }, [categories]);
 
-  const archivedVehicles = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return vehicles
-      .filter((vehicle) => ARCHIVED_STATUSES.has(vehicle.status))
-      .filter((vehicle) => {
-        if (category) {
-          const categoryId = typeof vehicle.category === 'string' ? vehicle.category : vehicle.category?.id;
-          if (categoryId !== category) {
-            return false;
-          }
-        }
-        if (!query) {
-          return true;
-        }
-        return [
-          vehicle.internal_number,
-          vehicle.manufacturer,
-          vehicle.model,
-          vehicle.license_plate,
-          vehicle.serial_number,
-          vehicle.current_location,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(query);
-      });
-  }, [vehicles, category, search]);
-
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
   }
 
   return (
     <section className="page-stack">
       <PageHeader eyebrow={t('archive.eyebrow')} title={t('archive.title')} description={t('archive.description')} />
+      <div className="tab-list" role="tablist" aria-label={t('archive.tabs.label')}>
+        {(['manufacturer_checkout', 'archived'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            className={tab === value ? 'is-active' : 'secondary-button'}
+            onClick={() => { setTab(value); setPage(1); }}
+          >
+            {t(`archive.tabs.${value}`)}
+          </button>
+        ))}
+      </div>
+      <p className="info-panel">{t(`archive.tabDescriptions.${tab}`)}</p>
 
       <form className="filter-panel" onSubmit={handleSearch}>
         <label>
@@ -108,7 +103,7 @@ export function ArchivePage() {
         </label>
         <label>
           <span>{t('vehicles.filters.category')}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
             <option value="">{t('vehicles.filters.allCategories')}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
@@ -121,10 +116,10 @@ export function ArchivePage() {
       </form>
 
       {isLoading ? <LoadingState variant="skeleton" rows={4} /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {!isLoading && error ? <ErrorState message={error} onRetry={() => setReloadToken((token) => token + 1)} /> : null}
 
-      <div className="vehicle-grid">
-        {archivedVehicles.map((vehicle) => {
+      {!isLoading && !error ? <div className="vehicle-grid">
+        {vehicles.map((vehicle) => {
           const categoryName =
             typeof vehicle.category === 'string'
               ? categoryNameById.get(vehicle.category)
@@ -158,10 +153,13 @@ export function ArchivePage() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
 
-      {!isLoading && !archivedVehicles.length ? (
-        <EmptyState title={t('archive.empty.title')} description={t('archive.empty.body')} />
+      {!isLoading && !error && !vehicles.length ? (
+        <EmptyState title={t(`archive.empty.${tab}.title`)} description={t(`archive.empty.${tab}.body`)} />
+      ) : null}
+      {!isLoading && !error && vehiclePage && vehiclePage.count > 0 ? (
+        <PaginationControls page={vehiclePage} onPageChange={setPage} />
       ) : null}
     </section>
   );

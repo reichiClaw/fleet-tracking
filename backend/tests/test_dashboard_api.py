@@ -26,13 +26,19 @@ class DashboardSummaryTests(TestCase):
         return client
 
     def make_vehicle(self, *, status_value, number):
-        return Vehicle.objects.create(
-            internal_number=number,
-            category=self.category,
-            manufacturer="Acme",
-            model="TH100",
-            status=status_value,
-        )
+        values = {
+            "internal_number": number,
+            "category": self.category,
+            "manufacturer": "Acme",
+            "model": "TH100",
+            "status": status_value,
+        }
+        if status_value == VehicleStatus.ARCHIVED:
+            values.update(
+                archived_by=self.user,
+                archive_reason="Legacy record removed from the active fleet",
+            )
+        return Vehicle.objects.create(**values)
 
     def test_requires_authentication(self):
         response = APIClient().get(SUMMARY_URL)

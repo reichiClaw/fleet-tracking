@@ -2,6 +2,8 @@ import {
   type ChangeEvent,
   type PointerEvent,
   forwardRef,
+  useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -9,8 +11,14 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { getApiErrorMessage } from '../api/errors';
-import { uploadMedia, type MediaFile, type MediaType } from '../api/fleet';
+import { discardMedia, mediaDownloadUrl, uploadMedia, type MediaFile, type MediaType } from '../api/fleet';
 import { ErrorState } from './ErrorState';
+
+const attachedMediaIds = new Set<string>();
+
+export function markMediaAttached(ids: string[]) {
+  ids.forEach((id) => attachedMediaIds.add(id));
+}
 
 type MediaUploadFieldProps = {
   mediaType: MediaType;
@@ -22,6 +30,13 @@ type MediaUploadFieldProps = {
   accept?: string;
   capture?: boolean;
   onUploaded: (media: MediaFile) => void;
+  onRemoved?: (media: MediaFile) => void;
+  submitted?: boolean;
+  validationError?: string;
+  validationErrorId?: string;
+  required?: boolean;
+  /** Keep staged files when a wizard step unmounts; the workflow draft owns cleanup. */
+  preserveOnUnmount?: boolean;
 };
 
 export function MediaUploadField({
@@ -34,11 +49,57 @@ export function MediaUploadField({
   accept,
   capture,
   onUploaded,
+  onRemoved,
+  submitted = false,
+  validationError,
+  validationErrorId: providedValidationErrorId,
+  required,
+  preserveOnUnmount = false,
 }: MediaUploadFieldProps) {
   const { t } = useTranslation();
+  const inputId = useId();
+  const validationErrorId = providedValidationErrorId ?? `${inputId}-error`;
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<MediaFile[]>([]);
+  const [lastFailedFile, setLastFailedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const uploadsRef = useRef<MediaFile[]>([]);
+  const submittedRef = useRef(submitted);
+
+  useEffect(() => {
+    uploadsRef.current = uploads;
+  }, [uploads]);
+
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
+
+  useEffect(() => () => {
+    if (!submittedRef.current && !preserveOnUnmount) {
+      uploadsRef.current
+        .filter((media) => !attachedMediaIds.has(media.id))
+        .forEach((media) => void discardMedia(media.id).catch(() => undefined));
+    }
+  }, [preserveOnUnmount]);
+
+  async function upload(file: File) {
+    setIsUploading(true);
+    setError(null);
+    try {
+      if (mediaType !== 'photo' && mediaType !== 'signature') {
+        throw new Error('Unsupported staged media type.');
+      }
+      const media = await uploadMedia(file, { media_type: mediaType });
+      setUploads((current) => [...current, media]);
+      setLastFailedFile(null);
+      onUploaded(media);
+    } catch (uploadError) {
+      setLastFailedFile(file);
+      setError(getApiErrorMessage(uploadError, t, t('media.uploadError')));
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   async function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -46,40 +107,63 @@ export function MediaUploadField({
       return;
     }
 
-    setIsUploading(true);
+    await upload(file);
+    event.target.value = '';
+  }
+
+  async function removeUpload(media: MediaFile) {
     setError(null);
     try {
-      const media = await uploadMedia(file, {
-        media_type: mediaType,
-        vehicle: vehicleId,
-        loan: loanId,
-        related_type: relatedType,
-        related_id: relatedId,
-      });
-      setUploadedName(media.original_filename || file.name);
-      onUploaded(media);
-    } catch (error) {
-      setError(getApiErrorMessage(error, t, t('media.uploadError')));
-    } finally {
-      setIsUploading(false);
-      event.target.value = '';
+      await discardMedia(media.id);
+      setUploads((current) => current.filter((item) => item.id !== media.id));
+      onRemoved?.(media);
+    } catch (removeError) {
+      setError(getApiErrorMessage(removeError, t, t('media.discardError')));
     }
   }
 
   return (
     <div className="media-field">
       <label>
-        <span>{label}</span>
+        <span>{label}{required ? <span className="required-marker" aria-hidden="true"> *</span> : null}</span>
         <input
+          id={inputId}
           accept={accept}
+          aria-label={label}
+          aria-describedby={validationError ? validationErrorId : undefined}
+          aria-invalid={Boolean(validationError)}
+          aria-required={required}
           capture={capture ? 'environment' : undefined}
           disabled={isUploading}
           type="file"
           onChange={handleChange}
         />
       </label>
-      {uploadedName ? <p className="hint-text">{t('media.uploaded', { name: uploadedName })}</p> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {isUploading ? <p className="upload-progress" role="status">{t('media.uploading')}</p> : null}
+      {uploads.length ? (
+        <ul className="media-preview-list">
+          {uploads.map((media) => (
+            <li key={media.id}>
+              {media.media_type !== 'signature' ? (
+                <img src={mediaDownloadUrl(media)} alt="" />
+              ) : null}
+              <span>{t('media.uploaded', { name: media.original_filename })}</span>
+              {!submitted ? (
+                <button type="button" className="secondary-button" onClick={() => void removeUpload(media)}>
+                  {t('media.remove')}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {validationError ? <small id={validationErrorId} className="field-error">{validationError}</small> : null}
+      {error ? (
+        <ErrorState
+          message={error}
+          onRetry={lastFailedFile ? () => void upload(lastFailedFile) : undefined}
+        />
+      ) : null}
     </div>
   );
 }
@@ -105,10 +189,27 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawing, setHasDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const validationErrorId = useId();
   // Cache the uploaded signature so retrying a failed submit does not create
   // duplicate signature files; reset whenever the drawing changes or is cleared.
   const committedRef = useRef<MediaFile | null>(null);
   const changedSinceCommitRef = useRef(false);
+  const signatureSubmittedRef = useRef(Boolean(props.submitted));
+
+  useEffect(() => {
+    signatureSubmittedRef.current = Boolean(props.submitted);
+  }, [props.submitted]);
+
+  useEffect(() => () => {
+    if (
+      !props.preserveOnUnmount
+      && !signatureSubmittedRef.current
+      && committedRef.current
+      && !attachedMediaIds.has(committedRef.current.id)
+    ) {
+      void discardMedia(committedRef.current.id).catch(() => undefined);
+    }
+  }, [props.preserveOnUnmount]);
 
   function pointerPosition(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -171,7 +272,11 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
       context.clearRect(0, 0, canvas.width, canvas.height);
     }
     setHasDrawing(false);
-    committedRef.current = null;
+    if (committedRef.current) {
+      void discardMedia(committedRef.current.id).catch(() => undefined);
+      props.onRemoved?.(committedRef.current);
+      committedRef.current = null;
+    }
     changedSinceCommitRef.current = false;
     setError(null);
     props.onDrawnChange?.(false);
@@ -189,18 +294,17 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
         if (committedRef.current && !changedSinceCommitRef.current) {
           return committedRef.current;
         }
+        const previous = committedRef.current;
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
         if (!blob) {
           return null;
         }
         const file = new File([blob], 'signature.png', { type: 'image/png' });
-        const media = await uploadMedia(file, {
-          media_type: 'signature',
-          vehicle: props.vehicleId,
-          loan: props.loanId,
-          related_type: props.relatedType,
-          related_id: props.relatedId,
-        });
+        const media = await uploadMedia(file, { media_type: 'signature' });
+        if (previous && !attachedMediaIds.has(previous.id)) {
+          void discardMedia(previous.id).catch(() => undefined);
+          props.onRemoved?.(previous);
+        }
         committedRef.current = media;
         changedSinceCommitRef.current = false;
         return media;
@@ -218,6 +322,10 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
         width="640"
         height="220"
         aria-label={props.label}
+        aria-describedby={props.validationError ? validationErrorId : undefined}
+        aria-invalid={Boolean(props.validationError)}
+        aria-required={props.required}
+        tabIndex={0}
         onPointerDown={beginDrawing}
         onPointerMove={draw}
         onPointerUp={endDrawing}
@@ -229,7 +337,14 @@ export const SignatureInput = forwardRef<SignatureInputHandle, SignatureInputPro
         </button>
       </div>
       <p className="hint-text">{t('media.signatureAutoSave')}</p>
-      <MediaUploadField {...props} mediaType="signature" accept="image/*" label={t('media.signatureFallback')} />
+      <MediaUploadField
+        {...props}
+        mediaType="signature"
+        accept="image/*"
+        label={t('media.signatureFallback')}
+        validationError={props.validationError}
+        validationErrorId={validationErrorId}
+      />
       {error ? <ErrorState message={error} /> : null}
     </div>
   );

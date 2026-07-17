@@ -1,23 +1,14 @@
-# Automatic-HTTPS overlay for Fleet Tracking.
-#
-# Adds a Caddy reverse proxy that obtains and renews Let's Encrypt certificates
-# for ${TLS_DOMAIN} and terminates TLS in front of the existing Nginx service.
-# Nginx stops publishing host ports so Caddy can own ports 80 and 443.
-#
-# Usage:
-#   1. Point ${TLS_DOMAIN}'s DNS A/AAAA record at this host.
-#   2. Set TLS_DOMAIN and TLS_EMAIL in .env.
-#   3. docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
-#      (or: make up-tls)
+# Automatic-HTTPS edge overlay. This file is mandatory in production.
+# Use `make prod-config`, `make prod-release`, then `make prod-up`.
 
 services:
   nginx:
-    # Caddy fronts the stack and owns the public ports.
     ports: !reset []
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.4-alpine
     restart: unless-stopped
+    init: true
     depends_on:
       nginx:
         condition: service_healthy
@@ -26,19 +17,41 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      TLS_DOMAIN: ${TLS_DOMAIN:?Set TLS_DOMAIN in .env for the TLS overlay}
-      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in .env for the TLS overlay}
+      TLS_DOMAIN: ${TLS_DOMAIN:?Set TLS_DOMAIN in the selected environment file}
+      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in the selected environment file}
+      TLS_HSTS: ${TLS_HSTS:-max-age=31536000}
     volumes:
       - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2019/config/"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 20s
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256m
+          pids: 128
     networks:
-      - internal
+      - edge
 
 volumes:
   caddy_data:

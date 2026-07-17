@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import hashlib
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -14,12 +15,12 @@ from django.utils.translation import gettext as _
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import serializers
 
 from damages.models import DamageReport, DamageWorkflowPhase
 from mediafiles.models import MediaFile, MediaType
-from mediafiles.services import create_media_file_from_bytes
+from mediafiles.services import cleanup_storage_file, create_media_file_from_bytes
 from vehicles.models import VehicleStatus
 from workflows.models import CheckInProtocol, Loan, ManufacturerCheckOutProtocol
 
@@ -60,6 +61,13 @@ _T = {
         "notes": "Notes",
         "damage_notes": "Damage notes",
         "signature_reference": "Signature reference",
+        "signature_evidence": "Signature evidence",
+        "photo_evidence": "Photo evidence",
+        "content_hash": "SHA-256",
+        "condition_outcome": "Condition outcome",
+        "fit": "Fit for service",
+        "new_damage": "New damage",
+        "maintenance_required": "Maintenance required",
         "no_damage": "No damage notes recorded.",
         "not_available": "Not available",
         "check_in": "Check-in",
@@ -110,6 +118,13 @@ _T = {
         "notes": "Notizen",
         "damage_notes": "Schadensnotizen",
         "signature_reference": "Unterschriftsreferenz",
+        "signature_evidence": "Unterschriftsnachweis",
+        "photo_evidence": "Fotodokumentation",
+        "content_hash": "SHA-256",
+        "condition_outcome": "Zustandsergebnis",
+        "fit": "Einsatzbereit",
+        "new_damage": "Neuer Schaden",
+        "maintenance_required": "Wartung erforderlich",
         "no_damage": "Keine Schadensnotizen erfasst.",
         "not_available": "Nicht verf\u00fcgbar",
         "check_in": "Einchecken / \u00dcbernahme",
@@ -133,7 +148,13 @@ _T = {
 }
 
 
-def generate_check_in_pdf(*, protocol: CheckInProtocol, actor, language: str | None = None) -> MediaFile:
+def generate_check_in_pdf(
+    *,
+    protocol: CheckInProtocol,
+    actor,
+    language: str | None = None,
+    request_meta: dict[str, str] | None = None,
+) -> MediaFile:
     return _generate_document(
         document_type=CHECK_IN_DOCUMENT,
         record=protocol,
@@ -141,19 +162,15 @@ def generate_check_in_pdf(*, protocol: CheckInProtocol, actor, language: str | N
         language=language,
         title_key="check_in_title",
         workflow_key="check_in",
-        performed_at=protocol.performed_at,
-        performed_by=protocol.performed_by,
-        vehicle=protocol.vehicle,
-        readings={"odometer": protocol.odometer_km, "operating_hours": protocol.operating_hours},
-        party_label="supplier",
-        party=protocol.supplier_company,
-        notes=protocol.condition_notes,
-        damages=protocol.damage_reports.all(),
+        snapshot_field="snapshot",
         link_fields=("pdf_media", "pdf_language"),
+        request_meta=request_meta,
     )
 
 
-def generate_loan_checkout_pdf(*, loan: Loan, actor, language: str | None = None) -> MediaFile:
+def generate_loan_checkout_pdf(
+    *, loan: Loan, actor, language: str | None = None, request_meta: dict[str, str] | None = None
+) -> MediaFile:
     return _generate_document(
         document_type=LOAN_CHECKOUT_DOCUMENT,
         record=loan,
@@ -161,18 +178,15 @@ def generate_loan_checkout_pdf(*, loan: Loan, actor, language: str | None = None
         language=language,
         title_key="loan_checkout_title",
         workflow_key="loan_checkout",
-        performed_at=loan.created_at,
-        performed_by=loan.created_by,
-        vehicle=loan.vehicle,
-        readings={"odometer": loan.checkout_odometer_km, "operating_hours": loan.checkout_operating_hours},
-        borrower=loan,
-        notes=loan.checkout_notes,
-        damages=loan.damage_reports.filter(workflow_phase=DamageWorkflowPhase.LOAN_CHECKOUT),
+        snapshot_field="checkout_snapshot",
         link_fields=("checkout_pdf_media", "checkout_pdf_language"),
+        request_meta=request_meta,
     )
 
 
-def generate_loan_return_pdf(*, loan: Loan, actor, language: str | None = None) -> MediaFile:
+def generate_loan_return_pdf(
+    *, loan: Loan, actor, language: str | None = None, request_meta: dict[str, str] | None = None
+) -> MediaFile:
     if loan.actual_return_at is None:
         raise serializers.ValidationError({"loan": _("Loan return PDF requires a returned loan.")})
     return _generate_document(
@@ -182,19 +196,18 @@ def generate_loan_return_pdf(*, loan: Loan, actor, language: str | None = None) 
         language=language,
         title_key="loan_return_title",
         workflow_key="loan_return",
-        performed_at=loan.actual_return_at,
-        performed_by=loan.returned_by,
-        vehicle=loan.vehicle,
-        readings={"odometer": loan.return_odometer_km, "operating_hours": loan.return_operating_hours},
-        borrower=loan,
-        notes=loan.return_notes,
-        damages=loan.damage_reports.filter(workflow_phase=DamageWorkflowPhase.LOAN_RETURN),
+        snapshot_field="return_snapshot",
         link_fields=("return_pdf_media", "return_pdf_language"),
+        request_meta=request_meta,
     )
 
 
 def generate_manufacturer_checkout_pdf(
-    *, protocol: ManufacturerCheckOutProtocol, actor, language: str | None = None
+    *,
+    protocol: ManufacturerCheckOutProtocol,
+    actor,
+    language: str | None = None,
+    request_meta: dict[str, str] | None = None,
 ) -> MediaFile:
     return _generate_document(
         document_type=MANUFACTURER_CHECKOUT_DOCUMENT,
@@ -203,15 +216,9 @@ def generate_manufacturer_checkout_pdf(
         language=language,
         title_key="manufacturer_checkout_title",
         workflow_key="manufacturer_checkout",
-        performed_at=protocol.performed_at,
-        performed_by=protocol.performed_by,
-        vehicle=protocol.vehicle,
-        readings={"odometer": protocol.odometer_km, "operating_hours": protocol.operating_hours},
-        party_label="recipient",
-        party=protocol.recipient_company,
-        notes=protocol.condition_notes,
-        damages=protocol.damage_reports.all(),
+        snapshot_field="snapshot",
         link_fields=("pdf_media", "pdf_language"),
+        request_meta=request_meta,
     )
 
 
@@ -224,18 +231,17 @@ def _generate_document(
     language: str | None,
     title_key: str,
     workflow_key: str,
-    performed_at,
-    performed_by,
-    vehicle,
-    readings: dict[str, Any],
-    notes: str,
-    damages,
+    snapshot_field: str,
     link_fields: tuple[str, str],
-    party_label: str | None = None,
-    party=None,
-    borrower: Loan | None = None,
+    request_meta: dict[str, str] | None,
 ) -> MediaFile:
+    record = type(record).objects.select_for_update().get(pk=record.pk)
     language_code = _language(language)
+    snapshot = getattr(record, snapshot_field)
+    if not snapshot:
+        snapshot = _legacy_snapshot(document_type=document_type, record=record)
+        setattr(record, snapshot_field, snapshot)
+        record.save(update_fields=[snapshot_field, "updated_at"])
     existing = _existing_document(document_type=document_type, record=record, language=language_code)
     if existing is not None:
         _link_record_if_empty(record=record, media=existing, language=language_code, link_fields=link_fields)
@@ -243,30 +249,23 @@ def _generate_document(
 
     labels = _T[language_code]
     protocol_number = _protocol_number(document_type, record)
-    # Signatures are only relevant for third-party handovers (loan checkout /
-    # return). Internal check-in / manufacturer-checkout protocols are signed off
-    # by the recorded user instead, so no signature section is rendered.
-    if document_type in {LOAN_CHECKOUT_DOCUMENT, LOAN_RETURN_DOCUMENT}:
-        signature = _signature_reference(document_type=document_type, record=record, labels=labels)
-    else:
-        signature = None
     pdf_bytes = _render_pdf(
         labels=labels,
         title=labels[title_key],
         protocol_number=protocol_number,
         language=language_code,
         workflow_type=labels[workflow_key],
-        performed_at=performed_at,
-        performed_by=performed_by,
-        vehicle=vehicle,
-        readings=readings,
-        party_label=party_label,
-        party=party,
-        borrower=borrower,
-        notes=notes,
-        damages=list(damages),
-        signature=signature,
+        snapshot=snapshot,
     )
+    max_pdf_size = int(settings.MAX_PDF_SIZE_MB) * 1024 * 1024
+    if not pdf_bytes.startswith(b"%PDF") or len(pdf_bytes) > max_pdf_size:
+        raise serializers.ValidationError(
+            {"document": _("Generated PDF failed validation or exceeds the configured size limit.")}
+        )
+    vehicle_id = snapshot.get("vehicle", {}).get("id")
+    from vehicles.models import Vehicle
+
+    vehicle = Vehicle.objects.get(pk=vehicle_id)
     media = create_media_file_from_bytes(
         content=pdf_bytes,
         actor=actor,
@@ -278,8 +277,15 @@ def _generate_document(
         related_type=document_type,
         related_id=record.id,
         language=language_code,
+        request_meta=request_meta,
     )
-    _link_record_if_empty(record=record, media=media, language=language_code, link_fields=link_fields)
+    try:
+        _link_record_if_empty(record=record, media=media, language=language_code, link_fields=link_fields)
+    except Exception:
+        # Database rollback cannot undo a write to filesystem/SFTP/S3 storage.
+        # Remove the object before letting the atomic block roll back its row.
+        cleanup_storage_file(media.storage_key)
+        raise
     return media
 
 
@@ -287,6 +293,7 @@ def _existing_document(*, document_type: str, record, language: str) -> MediaFil
     media = (
         MediaFile.objects.filter(
             media_type=MediaType.PDF,
+            is_generated=True,
             related_type=document_type,
             related_id=record.id,
             language=language,
@@ -294,7 +301,9 @@ def _existing_document(*, document_type: str, record, language: str) -> MediaFil
         .order_by("created_at")
         .first()
     )
-    if media is not None and default_storage.exists(media.storage_key):
+    if media is not None:
+        if not default_storage.exists(media.storage_key):
+            raise serializers.ValidationError({"document": _("The immutable PDF file is missing from storage.")})
         return media
     return None
 
@@ -315,56 +324,73 @@ def _render_pdf(
     protocol_number: str,
     language: str,
     workflow_type: str,
-    performed_at,
-    performed_by,
-    vehicle,
-    readings: dict[str, Any],
-    party_label: str | None,
-    party,
-    borrower: Loan | None,
-    notes: str,
-    damages: list[DamageReport],
-    signature: str | None,
+    snapshot: dict[str, Any],
 ) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(buffer, pagesize=A4, title=title)
     styles = getSampleStyleSheet()
     story = [Paragraph(_p(title), styles["Title"]), Spacer(1, 12)]
 
+    performed_by = snapshot.get("performed_by") or {}
     rows = [
         (labels["protocol_number"], protocol_number),
         (labels["language"], labels["language_name"]),
         (labels["workflow_type"], workflow_type),
-        (labels["date_time"], _format_datetime(performed_at)),
-        (labels["user"], _display_user(performed_by)),
+        (labels["date_time"], _format_datetime(snapshot.get("performed_at"))),
+        (labels["user"], performed_by.get("display_name") or performed_by.get("username", "")),
     ]
     story.extend(_section(labels["workflow_type"], rows, styles))
 
+    vehicle = snapshot.get("vehicle") or {}
     vehicle_rows = [
-        (labels["internal_number"], vehicle.internal_number),
-        (labels["manufacturer_model"], f"{vehicle.manufacturer} {vehicle.model}".strip()),
-        (labels["serial_number"], vehicle.serial_number),
-        (labels["license_plate"], vehicle.license_plate),
-        (labels["status"], _status_label(vehicle.status, labels)),
+        (labels["internal_number"], vehicle.get("internal_number", "")),
+        (
+            labels["manufacturer_model"],
+            f"{vehicle.get('manufacturer', '')} {vehicle.get('model', '')}".strip(),
+        ),
+        (labels["serial_number"], vehicle.get("serial_number", "")),
+        (labels["license_plate"], vehicle.get("license_plate", "")),
+        (labels["status"], _status_label(vehicle.get("status", ""), labels)),
     ]
     story.extend(_section(labels["vehicle"], vehicle_rows, styles))
 
+    readings = snapshot.get("readings") or {}
     reading_rows = [
-        (labels["odometer"], _value(readings.get("odometer"), labels)),
+        (labels["odometer"], _value(readings.get("odometer_km"), labels)),
         (labels["operating_hours"], _value(readings.get("operating_hours"), labels)),
     ]
     story.extend(_section(labels["readings"], reading_rows, styles))
 
-    if party_label and party is not None:
-        story.extend(_section(labels[party_label], [(labels[party_label], str(party))], styles))
+    party = snapshot.get("party")
+    if party:
+        party_label = "supplier" if snapshot.get("workflow_type") == "check_in" else "recipient"
+        story.extend(_section(labels[party_label], [(labels[party_label], party.get("name", ""))], styles))
+    borrower = snapshot.get("borrower")
     if borrower is not None:
-        story.extend(_section(labels["borrower"], _borrower_rows(borrower, labels), styles))
+        story.extend(_section(labels["borrower"], _borrower_snapshot_rows(borrower, labels), styles))
 
-    story.extend(_section(labels["notes"], [(labels["notes"], notes or labels["not_available"])], styles))
-    damage_rows = _damage_rows(damages, labels)
+    story.extend(
+        _section(labels["notes"], [(labels["notes"], snapshot.get("notes") or labels["not_available"])], styles)
+    )
+    if snapshot.get("condition_outcome"):
+        outcome = snapshot["condition_outcome"]
+        outcome_key = "maintenance_required" if outcome == "maintenance" else outcome
+        story.extend(
+            _section(
+                labels["condition_outcome"],
+                [(labels["condition_outcome"], labels.get(outcome_key, outcome))],
+                styles,
+            )
+        )
+    damage_rows = _damage_snapshot_rows(snapshot.get("damages") or [], labels)
     story.extend(_section(labels["damage_notes"], damage_rows, styles))
-    if signature is not None:
-        story.extend(_section(labels["signature_reference"], [(labels["signature_reference"], signature)], styles))
+    signatures = snapshot.get("signatures") or []
+    if signatures:
+        references = ", ".join(f"{item.get('original_filename', '')} ({item.get('id', '')})" for item in signatures)
+        story.extend(
+            _section(labels["signature_reference"], [(labels["signature_reference"], references)], styles)
+        )
+    story.extend(_evidence_sections(snapshot=snapshot, labels=labels, styles=styles))
 
     document.build(story)
     return buffer.getvalue()
@@ -392,57 +418,188 @@ def _section(title: str, rows: list[tuple[str, Any]], styles) -> list[Any]:
     return [Paragraph(_p(title), styles["Heading2"]), table, Spacer(1, 10)]
 
 
-def _borrower_rows(loan: Loan, labels: dict[str, str]) -> list[tuple[str, Any]]:
-    borrower = str(loan.driver) if loan.driver_id else loan.borrower_name
+def _borrower_snapshot_rows(borrower: dict[str, Any], labels: dict[str, str]) -> list[tuple[str, Any]]:
+    company = borrower.get("company") or {}
     return [
-        (labels["borrower"], borrower),
-        (labels["borrower_phone"], loan.borrower_phone),
-        (labels["company"], str(loan.company) if loan.company_id else labels["not_available"]),
-        (labels["expected_return"], _format_datetime(loan.expected_return_at)),
+        (labels["borrower"], borrower.get("name", "")),
+        (labels["borrower_phone"], borrower.get("phone", "")),
+        (labels["company"], company.get("name") or labels["not_available"]),
+        (labels["expected_return"], _format_datetime(borrower.get("expected_return_at"))),
         (
             labels["actual_return"],
-            _format_datetime(loan.actual_return_at) if loan.actual_return_at else labels["not_available"],
+            _format_datetime(borrower.get("actual_return_at"))
+            if borrower.get("actual_return_at")
+            else labels["not_available"],
         ),
     ]
 
 
-def _damage_rows(damages: list[DamageReport], labels: dict[str, str]) -> list[tuple[str, Any]]:
+def _damage_snapshot_rows(damages: list[dict[str, Any]], labels: dict[str, str]) -> list[tuple[str, Any]]:
     if not damages:
         return [(labels["damage_notes"], labels["no_damage"])]
     return [
         (
-            _format_datetime(damage.discovered_at),
-            f"{labels.get(damage.severity, labels['unknown'])}: {damage.description}",
+            _format_datetime(damage.get("discovered_at")),
+            f"{labels.get(damage.get('severity', 'unknown'), labels['unknown'])}: {damage.get('description', '')}",
         )
         for damage in damages
     ]
 
 
-def _signature_reference(*, document_type: str, record, labels: dict[str, str]) -> str:
-    media = (
-        MediaFile.objects.filter(
-            media_type=MediaType.SIGNATURE,
-            related_id=record.id,
+def _evidence_sections(*, snapshot: dict[str, Any], labels: dict[str, str], styles) -> list[Any]:
+    photo_refs: list[tuple[dict[str, Any], str]] = []
+    signature_refs: list[tuple[dict[str, Any], str]] = []
+    seen: set[str] = set()
+
+    def add(items, caption, *, signatures=False):
+        for item in items or []:
+            media_id = str(item.get("id") or "")
+            if not media_id or media_id in seen:
+                continue
+            seen.add(media_id)
+            if item.get("media_type") == MediaType.SIGNATURE or signatures:
+                signature_refs.append((item, caption))
+            elif item.get("media_type") == MediaType.PHOTO:
+                photo_refs.append((item, caption))
+
+    add(snapshot.get("media"), labels["photo_evidence"])
+    add(snapshot.get("signatures"), labels["signature_evidence"], signatures=True)
+    for damage in snapshot.get("damages") or []:
+        add(damage.get("media"), damage.get("description") or labels["damage_notes"])
+
+    flowables: list[Any] = []
+    if photo_refs:
+        cells = []
+        for item, caption in photo_refs:
+            image_bytes = _validated_evidence_image(item, signature=False)
+            image = Image(BytesIO(image_bytes), width=220, height=150, kind="proportional")
+            detail = Paragraph(
+                _p(
+                    f"{caption}\n{item.get('original_filename', '')}\n"
+                    f"{labels['content_hash']}: {item.get('content_sha256', '')}"
+                ),
+                styles["BodyText"],
+            )
+            cells.append([image, detail])
+        table = Table(cells, colWidths=[230, 250], repeatRows=0)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
         )
-        .filter(related_type__in=_signature_related_types(document_type))
-        .order_by("created_at")
-        .first()
-    )
-    if media is None:
-        return labels["not_available"]
-    return f"{media.original_filename} ({media.id})"
+        flowables.extend([Paragraph(_p(labels["photo_evidence"]), styles["Heading2"]), table, Spacer(1, 10)])
+    if signature_refs:
+        flowables.append(Paragraph(_p(labels["signature_evidence"]), styles["Heading2"]))
+        for item, caption in signature_refs:
+            image_bytes = _validated_evidence_image(item, signature=True)
+            flowables.extend(
+                [
+                    Image(BytesIO(image_bytes), width=300, height=100, kind="proportional"),
+                    Paragraph(
+                        _p(
+                            f"{caption}: {item.get('original_filename', '')}\n"
+                            f"{labels['content_hash']}: {item.get('content_sha256', '')}"
+                        ),
+                        styles["BodyText"],
+                    ),
+                    Spacer(1, 8),
+                ]
+            )
+    return flowables
 
 
-def _signature_related_types(document_type: str) -> list[str]:
+def _validated_evidence_image(reference: dict[str, Any], *, signature: bool) -> bytes:
+    """Read an authorized immutable original, verify its hash, and compress it."""
+
+    from PIL import Image as PillowImage
+
+    media = MediaFile.objects.filter(
+        pk=reference.get("id"),
+        media_type=MediaType.SIGNATURE if signature else MediaType.PHOTO,
+        attached_at__isnull=False,
+    ).first()
+    if media is None or not default_storage.exists(media.storage_key):
+        raise serializers.ValidationError({"document": _("Protocol evidence media is missing.")})
+    with default_storage.open(media.storage_key, "rb") as stored:
+        content = stored.read(int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024 + 1)
+    if len(content) > int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024:
+        raise serializers.ValidationError({"document": _("Protocol evidence image exceeds the size limit.")})
+    digest = hashlib.sha256(content).hexdigest()
+    if digest != media.content_sha256 or digest != reference.get("content_sha256"):
+        raise serializers.ValidationError({"document": _("Protocol evidence failed its integrity check.")})
+    try:
+        source = PillowImage.open(BytesIO(content))
+        source.verify()
+        source = PillowImage.open(BytesIO(content))
+        if source.width * source.height > int(settings.MAX_PDF_EVIDENCE_PIXELS):
+            raise serializers.ValidationError(
+                {"document": _("Protocol evidence image dimensions exceed the configured pixel limit.")}
+            )
+        source.thumbnail((1200, 900))
+        if source.mode not in {"RGB", "L"}:
+            background = PillowImage.new("RGB", source.size, "white")
+            if "A" in source.getbands():
+                background.paste(source, mask=source.getchannel("A"))
+            else:
+                background.paste(source.convert("RGB"))
+            source = background
+        elif source.mode == "L":
+            source = source.convert("RGB")
+        output = BytesIO()
+        source.save(output, format="JPEG", quality=72, optimize=True)
+        return output.getvalue()
+    except serializers.ValidationError:
+        raise
+    except Exception as exc:
+        raise serializers.ValidationError({"document": _("Protocol evidence is not a valid image.")}) from exc
+
+
+def _legacy_snapshot(*, document_type: str, record) -> dict[str, Any]:
+    """Persist a one-time baseline snapshot for records predating snapshots."""
+
+    from workflows.services import _check_in_snapshot, _loan_snapshot, _manufacturer_snapshot
+
     if document_type == CHECK_IN_DOCUMENT:
-        return ["check_in_protocol"]
-    if document_type == LOAN_CHECKOUT_DOCUMENT:
-        return ["loan_checkout"]
-    if document_type == LOAN_RETURN_DOCUMENT:
-        return ["loan_return"]
+        return _check_in_snapshot(
+            protocol=record,
+            vehicle=record.vehicle,
+            damages=list(record.damage_reports.all()),
+        )
+    if document_type in {LOAN_CHECKOUT_DOCUMENT, LOAN_RETURN_DOCUMENT}:
+        phase = (
+            DamageWorkflowPhase.LOAN_CHECKOUT
+            if document_type == LOAN_CHECKOUT_DOCUMENT
+            else DamageWorkflowPhase.LOAN_RETURN
+        )
+        related_type = "loan_checkout" if document_type == LOAN_CHECKOUT_DOCUMENT else "loan_return"
+        media = list(
+            MediaFile.objects.filter(related_type=related_type, related_id=record.id).order_by("created_at")
+        )
+        return _loan_snapshot(
+            loan=record,
+            vehicle=record.vehicle,
+            damages=list(record.damage_reports.filter(workflow_phase=phase)),
+            phase=phase,
+            media=media,
+        )
     if document_type == MANUFACTURER_CHECKOUT_DOCUMENT:
-        return ["manufacturer_checkout_protocol"]
-    return []
+        media = list(
+            MediaFile.objects.filter(
+                related_type="manufacturer_checkout_protocol",
+                related_id=record.id,
+            ).order_by("created_at")
+        )
+        return _manufacturer_snapshot(
+            protocol=record,
+            vehicle=record.vehicle,
+            damages=list(record.damage_reports.all()),
+            media=media,
+        )
+    raise serializers.ValidationError({"document": _("Unsupported workflow document type.")})
 
 
 def _protocol_number(document_type: str, record) -> str:
@@ -465,6 +622,13 @@ def _language(language: str | None) -> str:
 def _format_datetime(value) -> str:
     if value is None:
         return ""
+    if isinstance(value, str):
+        from django.utils.dateparse import parse_datetime
+
+        parsed = parse_datetime(value)
+        if parsed is None:
+            return value
+        value = parsed
     return timezone.localtime(value).strftime("%d.%m.%Y %H:%M")
 
 

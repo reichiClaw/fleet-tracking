@@ -2,11 +2,12 @@
 
 from django.contrib import admin
 
+from audit.admin_mixins import ImmutableAdminMixin
 from mediafiles.models import MediaFile
 
 
 @admin.register(MediaFile)
-class MediaFileAdmin(admin.ModelAdmin):
+class MediaFileAdmin(ImmutableAdminMixin, admin.ModelAdmin):
     list_display = (
         "original_filename",
         "media_type",

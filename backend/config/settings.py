@@ -46,6 +46,7 @@ if ENVIRONMENT == "production" and SECRET_KEY == "unsafe-development-secret-key-
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_CREDENTIALS = bool(CORS_ALLOWED_ORIGINS)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -146,6 +147,20 @@ WHITENOISE_AUTOREFRESH = DEBUG
 MEDIA_URL = env("MEDIA_URL", "/media/")
 MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
 MAX_UPLOAD_SIZE_MB = int(env("MAX_UPLOAD_SIZE_MB", "25"))
+MAX_STAGED_MEDIA_FILES = int(env("MAX_STAGED_MEDIA_FILES", "50"))
+MAX_STAGED_MEDIA_SIZE_MB = int(env("MAX_STAGED_MEDIA_SIZE_MB", "100"))
+STAGED_MEDIA_TTL_HOURS = int(env("STAGED_MEDIA_TTL_HOURS", "24"))
+WORKFLOW_DRAFT_TTL_HOURS = int(env("WORKFLOW_DRAFT_TTL_HOURS", "72"))
+MAX_WORKFLOW_DRAFT_SIZE_KB = int(env("MAX_WORKFLOW_DRAFT_SIZE_KB", "256"))
+RETURN_SIGNATURE_REQUIRED = env_bool("RETURN_SIGNATURE_REQUIRED", default=False)
+RESERVATION_EARLY_HANDOVER_HOURS = int(env("RESERVATION_EARLY_HANDOVER_HOURS", "2"))
+MAX_PDF_SIZE_MB = int(env("MAX_PDF_SIZE_MB", "15"))
+MAX_PDF_EVIDENCE_PIXELS = int(env("MAX_PDF_EVIDENCE_PIXELS", "20000000"))
+MAX_IMPORT_ROWS = int(env("MAX_IMPORT_ROWS", "5000"))
+MAX_IMPORT_COLUMNS = int(env("MAX_IMPORT_COLUMNS", "100"))
+MAX_IMPORT_UNCOMPRESSED_SIZE_MB = int(env("MAX_IMPORT_UNCOMPRESSED_SIZE_MB", "100"))
+MAX_IMPORT_ZIP_ENTRIES = int(env("MAX_IMPORT_ZIP_ENTRIES", "1000"))
+MAX_IMPORT_RESULT_SIZE_MB = int(env("MAX_IMPORT_RESULT_SIZE_MB", "5"))
 
 # Media storage backend (local filesystem, SFTP, or S3/MinIO) is selected with
 # the MEDIA_STORAGE_BACKEND environment variable. Static files always use
@@ -163,7 +178,9 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = env("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = env("CSRF_COOKIE_SAMESITE", "Lax")
+CSRF_FAILURE_VIEW = "config.csrf.csrf_failure"
 X_FRAME_OPTIONS = "DENY"
+TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", default=False)
 
 # HTTPS hardening. Defaults are conservative because TLS may terminate on an
 # upstream reverse proxy. Enable these once HTTPS reaches this stack so that
@@ -184,6 +201,7 @@ if DEBUG:
     _API_RENDERERS.append("rest_framework.renderers.BrowsableAPIRenderer")
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
@@ -202,6 +220,7 @@ REST_FRAMEWORK = {
     # Only the login view opts in (see accounts.views.LoginView).
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_RATE_LIMIT", "10/min"),
+        "media_upload": env("MEDIA_UPLOAD_RATE_LIMIT", "30/hour"),
     },
 }
 
@@ -239,3 +258,25 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "noreply@example.com")
+BACKUP_STATUS = env("BACKUP_STATUS", "")
+
+if ENVIRONMENT == "production":
+    placeholder_markers = ("change-me", "dev-only", "unsafe-development", "example-secret")
+    if DEBUG:
+        raise ImproperlyConfigured("DJANGO_DEBUG must be False in production.")
+    if len(SECRET_KEY) < 50 or any(marker in SECRET_KEY.lower() for marker in placeholder_markers):
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY must be a non-placeholder value of at least 50 characters in production."
+        )
+    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+        raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must contain explicit hosts in production.")
+    if not CSRF_TRUSTED_ORIGINS or any(not origin.startswith("https://") for origin in CSRF_TRUSTED_ORIGINS):
+        raise ImproperlyConfigured(
+            "DJANGO_CSRF_TRUSTED_ORIGINS must contain only explicit HTTPS origins in production."
+        )
+    if not SESSION_COOKIE_SECURE or not CSRF_COOKIE_SECURE:
+        raise ImproperlyConfigured("Secure session and CSRF cookies are required in production.")
+    if not PUBLIC_BASE_URL.startswith("https://"):
+        raise ImproperlyConfigured("PUBLIC_BASE_URL must use HTTPS in production.")
+    if SECURE_HSTS_SECONDS <= 0:
+        raise ImproperlyConfigured("SECURE_HSTS_SECONDS must be greater than zero in production.")

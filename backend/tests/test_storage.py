@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import tempfile
+from unittest.mock import patch
+
+import paramiko
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
@@ -9,6 +13,7 @@ from config.storage import (
     FILESYSTEM_BACKEND,
     S3_BACKEND,
     SFTP_BACKEND,
+    StrictSFTPStorage,
     WHITENOISE_STATIC_BACKEND,
     build_storages,
 )
@@ -69,6 +74,7 @@ class StorageBuilderTests(SimpleTestCase):
                 "SFTP_PORT": "2222",
                 "SFTP_KEY_PATH": "/keys/id_ed25519",
                 "SFTP_ROOT": "/srv/fleet-media/",
+                "SFTP_KNOWN_HOSTS": "/keys/known_hosts",
             }
         )
         options = storages["default"]["OPTIONS"]
@@ -79,6 +85,7 @@ class StorageBuilderTests(SimpleTestCase):
         self.assertEqual(options["params"]["username"], "fleet")
         self.assertEqual(options["params"]["port"], 2222)
         self.assertEqual(options["params"]["key_filename"], "/keys/id_ed25519")
+        self.assertEqual(options["known_host_file"], "/keys/known_hosts")
         self.assertNotIn("password", options["params"])
 
     def test_sftp_backend_uses_password_when_provided(self):
@@ -88,6 +95,7 @@ class StorageBuilderTests(SimpleTestCase):
                 "SFTP_HOST": "nas.local",
                 "SFTP_USER": "fleet",
                 "SFTP_PASSWORD": "secret",
+                "SFTP_KNOWN_HOSTS": "/keys/known_hosts",
             }
         )
         params = storages["default"]["OPTIONS"]["params"]
@@ -100,6 +108,31 @@ class StorageBuilderTests(SimpleTestCase):
             build_storages({"MEDIA_STORAGE_BACKEND": "sftp", "SFTP_USER": "fleet"})
         with self.assertRaises(ImproperlyConfigured):
             build_storages({"MEDIA_STORAGE_BACKEND": "sftp", "SFTP_HOST": "nas.local"})
+        with self.assertRaises(ImproperlyConfigured):
+            build_storages(
+                {
+                    "MEDIA_STORAGE_BACKEND": "sftp",
+                    "SFTP_HOST": "nas.local",
+                    "SFTP_USER": "fleet",
+                }
+            )
+
+    def test_sftp_backend_rejects_unknown_host_keys(self):
+        with tempfile.NamedTemporaryFile() as known_hosts:
+            storage = StrictSFTPStorage(
+                host="nas.local",
+                params={"username": "fleet"},
+                known_host_file=known_hosts.name,
+            )
+            with patch("config.storage.paramiko.SSHClient") as ssh_client_class:
+                ssh_client = ssh_client_class.return_value
+                ssh_client.get_transport.return_value = None
+
+                storage._connect()
+
+        policy = ssh_client.set_missing_host_key_policy.call_args.args[0]
+        self.assertIsInstance(policy, paramiko.RejectPolicy)
+        ssh_client.load_host_keys.assert_called_once_with(known_hosts.name)
 
     def test_unknown_backend_raises(self):
         with self.assertRaises(ImproperlyConfigured):

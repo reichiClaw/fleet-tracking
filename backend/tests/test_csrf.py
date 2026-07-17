@@ -32,7 +32,15 @@ class CsrfFlowTests(TestCase):
 
     def test_me_endpoint_reissues_csrf_cookie_for_authenticated_session(self):
         client = APIClient(enforce_csrf_checks=True)
-        client.post(LOGIN_URL, {"username": "ops", "password": "secret"}, format="json")
+        client.get(CSRF_URL)
+        token = client.cookies["csrftoken"].value
+        login = client.post(
+            LOGIN_URL,
+            {"username": "ops", "password": "secret"},
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(login.status_code, status.HTTP_200_OK)
         # Simulate a reload where only the session cookie remains.
         client.cookies.pop("csrftoken", None)
 
@@ -43,7 +51,15 @@ class CsrfFlowTests(TestCase):
 
     def test_authenticated_write_requires_csrf_token_and_succeeds_with_it(self):
         client = APIClient(enforce_csrf_checks=True)
-        client.post(LOGIN_URL, {"username": "ops", "password": "secret"}, format="json")
+        client.get(CSRF_URL)
+        token = client.cookies["csrftoken"].value
+        login = client.post(
+            LOGIN_URL,
+            {"username": "ops", "password": "secret"},
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(login.status_code, status.HTTP_200_OK)
         token = client.cookies["csrftoken"].value
 
         without_token = client.post(
@@ -58,3 +74,19 @@ class CsrfFlowTests(TestCase):
             HTTP_X_CSRFTOKEN=token,
         )
         self.assertEqual(with_token.status_code, status.HTTP_201_CREATED)
+
+    def test_login_requires_csrf_and_accepts_bootstrap_token(self):
+        client = APIClient(enforce_csrf_checks=True)
+        missing = client.post(LOGIN_URL, {"username": "ops", "password": "secret"}, format="json")
+        self.assertEqual(missing.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(missing.json()["error"]["code"], "csrf_failed")
+
+        client.get(CSRF_URL)
+        token = client.cookies["csrftoken"].value
+        valid = client.post(
+            LOGIN_URL,
+            {"username": "ops", "password": "secret"},
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(valid.status_code, status.HTTP_200_OK)

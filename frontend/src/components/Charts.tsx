@@ -28,6 +28,7 @@ export function DonutChart({
   let offset = 0;
 
   return (
+    <>
     <svg
       className="chart-donut"
       viewBox="0 0 180 180"
@@ -70,6 +71,13 @@ export function DonutChart({
         </text>
       ) : null}
     </svg>
+    <table className="visually-hidden">
+      <caption>{ariaLabel}</caption>
+      <tbody>
+        {segments.map((segment) => <tr key={segment.key}><th scope="row">{segment.label}</th><td>{segment.value}</td></tr>)}
+      </tbody>
+    </table>
+    </>
   );
 }
 
@@ -108,6 +116,7 @@ export function ActivityChart({
     : '';
 
   return (
+    <>
     <svg
       className="chart-activity"
       viewBox={`0 0 ${width} ${height}`}
@@ -128,5 +137,12 @@ export function ActivityChart({
         <circle key={index} cx={coord.x} cy={coord.y} r={points[index].value > 0 ? 3.5 : 0} fill={color} />
       ))}
     </svg>
+    <table className="visually-hidden">
+      <caption>{ariaLabel}</caption>
+      <tbody>
+        {points.map((point) => <tr key={point.label}><th scope="row">{point.label}</th><td>{point.value}</td></tr>)}
+      </tbody>
+    </table>
+    </>
   );
 }

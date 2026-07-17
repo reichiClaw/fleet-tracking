@@ -3,9 +3,13 @@ from __future__ import annotations
 import shutil
 import tempfile
 from datetime import timedelta
+from io import BytesIO
 
+from PIL import Image as PillowImage
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
@@ -13,13 +17,20 @@ from rest_framework.test import APIClient
 
 from audit.models import AuditLog
 from damages.models import DamageReport
+from drivers.models import Driver
 from mediafiles.models import MediaFile, MediaType
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
-JPEG_BYTES = b"\xff\xd8\xff" + b"\x00" * 32
+def _image_bytes(image_format):
+    buffer = BytesIO()
+    PillowImage.new("RGB", (16, 16), color="blue").save(buffer, image_format)
+    return buffer.getvalue()
+
+
+PNG_BYTES = _image_bytes("PNG")
+JPEG_BYTES = _image_bytes("JPEG")
 WORKFLOW_MEDIA_ROOT = tempfile.mkdtemp(prefix="fleet-workflow-media-tests-")
 
 
@@ -78,7 +89,8 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "vehicle": str(vehicle.id),
                 "odometer_km": 20,
                 "operating_hours": "2.5",
-                "target_status": VehicleStatus.AVAILABLE,
+                "supplier_company": str(self.manufacturer.id),
+                "condition_outcome": "fit",
             },
             format="json",
         )
@@ -103,6 +115,8 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "odometer_km": 20,
                 "operating_hours": "2.5",
                 "condition_notes": "Visible scratch",
+                "supplier_company": str(self.manufacturer.id),
+                "condition_outcome": "new_damage",
                 "damage_reports": [{"description": "Scratch on door", "severity": "minor"}],
                 "media_file_ids": [media_id],
             },
@@ -127,6 +141,49 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(CheckInProtocol.objects.get().pdf_media_id, pdf_doc.id)
         self.assertTrue(AuditLog.objects.filter(action="workflow.check_in.completed").exists())
 
+    def test_check_in_rejects_condition_status_inconsistent_with_damage_reports(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
+        client = self.api_client()
+
+        available_with_damage = client.post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(vehicle.id),
+                "target_status": VehicleStatus.AVAILABLE,
+                "damage_reports": [{"description": "Visible dent", "severity": "minor"}],
+            },
+            format="json",
+        )
+        damaged_without_report = client.post(
+            "/api/v1/workflows/check-ins/",
+            {"vehicle": str(vehicle.id), "target_status": VehicleStatus.DAMAGED},
+            format="json",
+        )
+
+        self.assertEqual(available_with_damage.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(damaged_without_report.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.ANNOUNCED)
+        self.assertEqual(CheckInProtocol.objects.count(), 0)
+        self.assertEqual(DamageReport.objects.count(), 0)
+
+    def test_check_in_rejects_future_workflow_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
+
+        response = self.api_client().post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(vehicle.id),
+                "performed_at": (timezone.now() + timedelta(minutes=5)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.ANNOUNCED)
+        self.assertEqual(CheckInProtocol.objects.count(), 0)
+
     def test_check_in_rejects_decreasing_odometer_atomically(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED, odometer=100)
 
@@ -141,10 +198,90 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.status, VehicleStatus.ANNOUNCED)
         self.assertEqual(CheckInProtocol.objects.count(), 0)
 
+    def test_check_in_idempotency_key_replays_without_duplicate_protocol(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
+        client = self.api_client()
+        payload = {
+            "vehicle": str(vehicle.id),
+            "supplier_company": str(self.manufacturer.id),
+            "condition_outcome": "fit",
+            "odometer_km": 100,
+            "operating_hours": "10.0",
+        }
+
+        first = client.post(
+            "/api/v1/workflows/check-ins/",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="checkin-123",
+        )
+        replay = client.post(
+            "/api/v1/workflows/check-ins/",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="checkin-123",
+        )
+        conflict = client.post(
+            "/api/v1/workflows/check-ins/",
+            {**payload, "condition_notes": "Different request"},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="checkin-123",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(replay.status_code, status.HTTP_200_OK)
+        self.assertEqual(conflict.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(first.data["id"], replay.data["id"])
+        self.assertEqual(CheckInProtocol.objects.count(), 1)
+
 
 class LoanWorkflowTests(WorkflowAPITestCase):
+    def test_database_allows_only_one_active_loan_per_vehicle(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+        Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="First",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            # ``Loan.save()`` validates constraints before reaching the
+            # database. Bulk creation intentionally bypasses model validation
+            # so this test verifies the partial unique index itself.
+            Loan.objects.bulk_create(
+                [
+                    Loan(
+                        vehicle=vehicle,
+                        borrower_name="Second",
+                        borrower_phone="456",
+                        expected_return_at=timezone.now() + timedelta(days=2),
+                        created_by=self.operations_user,
+                    )
+                ]
+            )
+
+    def test_damage_cannot_reference_a_loan_for_another_vehicle(self):
+        first = self.vehicle(status_value=VehicleStatus.LOANED)
+        second = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+        loan = Loan.objects.create(
+            vehicle=first,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+        with self.assertRaises(DjangoValidationError):
+            DamageReport.objects.create(
+                vehicle=second,
+                loan=loan,
+                workflow_phase="loan_checkout",
+                description="Wrong vehicle",
+                created_by=self.operations_user,
+            )
+
     def test_loan_checkout_creates_active_loan_and_marks_vehicle_loaned(self):
-        vehicle = self.vehicle(status_value=VehicleStatus.CHECKED_IN, odometer=100, hours="10.0")
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE, odometer=100, hours="10.0")
         client = self.api_client()
         media_id = self.upload_media(
             client, media_type=MediaType.SIGNATURE, filename="signature.png", content_type="image/png", content=PNG_BYTES
@@ -200,7 +337,7 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         vehicle.refresh_from_db()
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
 
-    def test_loan_checkout_succeeds_without_borrower_phone(self):
+    def test_loan_checkout_requires_borrower_phone_and_signature(self):
         vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
 
         response = self.api_client().post(
@@ -213,12 +350,56 @@ class LoanWorkflowTests(WorkflowAPITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        loan = Loan.objects.get()
-        self.assertEqual(loan.status, LoanStatus.ACTIVE)
-        self.assertEqual(loan.borrower_phone, "")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Loan.objects.count(), 0)
         vehicle.refresh_from_db()
-        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+
+    def test_loan_checkout_rejects_photo_instead_of_signature(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+        client = self.api_client()
+        photo_id = self.upload_media(
+            client,
+            media_type=MediaType.PHOTO,
+            filename="photo.png",
+            content_type="image/png",
+            content=PNG_BYTES,
+        )
+        response = client.post(
+            "/api/v1/loans/",
+            {
+                "vehicle": str(vehicle.id),
+                "borrower_name": "Borrower",
+                "borrower_phone": "123",
+                "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+                "media_file_ids": [photo_id],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Loan.objects.count(), 0)
+
+    def test_loan_checkout_rejects_inactive_driver(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+        driver = Driver.objects.create(
+            first_name="Inactive",
+            last_name="Driver",
+            phone="123",
+            company=self.company,
+            is_active=False,
+        )
+        response = self.api_client().post(
+            "/api/v1/loans/",
+            {
+                "vehicle": str(vehicle.id),
+                "company": str(self.company.id),
+                "driver": str(driver.id),
+                "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Loan.objects.count(), 0)
 
     def test_loan_return_closes_active_loan_and_marks_damaged_when_damage_reported(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED, odometer=120, hours="11.5")
@@ -240,6 +421,7 @@ class LoanWorkflowTests(WorkflowAPITestCase):
                 "return_operating_hours": "12.0",
                 "return_notes": "Returned with scratch",
                 "damage_reports": [{"description": "New scratch", "severity": "minor"}],
+                "condition_outcome": "new_damage",
             },
             format="json",
         )
@@ -251,6 +433,65 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.status, VehicleStatus.DAMAGED)
         self.assertEqual(vehicle.current_odometer_km, 130)
         self.assertTrue(AuditLog.objects.filter(action="workflow.loan_return.completed").exists())
+
+    def test_loan_return_rejects_available_status_when_damage_is_reported(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {
+                "target_status": VehicleStatus.AVAILABLE,
+                "damage_reports": [{"description": "New dent", "severity": "minor"}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+        self.assertEqual(DamageReport.objects.count(), 0)
+
+    def test_loan_return_preserves_damaged_status_for_existing_unresolved_damage(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+        DamageReport.objects.create(
+            vehicle=vehicle,
+            loan=loan,
+            workflow_phase="loan_checkout",
+            description="Damage recorded at checkout",
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {
+                "condition_outcome": "fit",
+                "return_odometer_km": 100,
+                "return_operating_hours": "10.0",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.RETURNED)
+        self.assertEqual(vehicle.status, VehicleStatus.DAMAGED)
 
     def test_loan_return_rejects_non_active_loan(self):
         vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE, odometer=120)
@@ -302,6 +543,46 @@ class LoanWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(loan.status, LoanStatus.ACTIVE)
         self.assertEqual(vehicle.status, VehicleStatus.LOANED)
 
+    def test_loan_return_rejects_timestamp_before_checkout(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {"actual_return_at": (loan.created_at - timedelta(seconds=1)).isoformat()},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        loan.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+
+    def test_loan_return_rejects_future_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.LOANED)
+        loan = Loan.objects.create(
+            vehicle=vehicle,
+            borrower_name="Borrower",
+            borrower_phone="123",
+            expected_return_at=timezone.now() + timedelta(days=1),
+            created_by=self.operations_user,
+        )
+
+        response = self.api_client().post(
+            f"/api/v1/loans/{loan.id}/return/",
+            {"actual_return_at": (timezone.now() + timedelta(minutes=5)).isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        loan.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(loan.status, LoanStatus.ACTIVE)
+        self.assertEqual(vehicle.status, VehicleStatus.LOANED)
+
 
 class GeneratedReportsTests(WorkflowAPITestCase):
     def _results(self, response):
@@ -315,7 +596,19 @@ class GeneratedReportsTests(WorkflowAPITestCase):
             {
                 "vehicle": str(vehicle.id),
                 "borrower_name": "Searchable Borrower",
+                "borrower_phone": "123",
                 "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+                "checkout_odometer_km": 100,
+                "checkout_operating_hours": "10.0",
+                "media_file_ids": [
+                    self.upload_media(
+                        client,
+                        media_type=MediaType.SIGNATURE,
+                        filename="search-signature.png",
+                        content_type="image/png",
+                        content=PNG_BYTES,
+                    )
+                ],
             },
             format="json",
         )
@@ -344,6 +637,7 @@ class ManufacturerCheckoutWorkflowTests(WorkflowAPITestCase):
                 "vehicle": str(vehicle.id),
                 "recipient_company": str(self.manufacturer.id),
                 "odometer_km": 205,
+                "operating_hours": "10.0",
                 "condition_notes": "Returned to supplier",
             },
             format="json",
@@ -355,6 +649,23 @@ class ManufacturerCheckoutWorkflowTests(WorkflowAPITestCase):
         self.assertEqual(vehicle.current_odometer_km, 205)
         self.assertEqual(ManufacturerCheckOutProtocol.objects.count(), 1)
         self.assertTrue(AuditLog.objects.filter(action="workflow.manufacturer_checkout.completed").exists())
+
+    def test_manufacturer_checkout_rejects_future_workflow_timestamp(self):
+        vehicle = self.vehicle(status_value=VehicleStatus.AVAILABLE)
+
+        response = self.api_client().post(
+            "/api/v1/workflows/manufacturer-checkouts/",
+            {
+                "vehicle": str(vehicle.id),
+                "performed_at": (timezone.now() + timedelta(minutes=5)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, VehicleStatus.AVAILABLE)
+        self.assertEqual(ManufacturerCheckOutProtocol.objects.count(), 0)
 
     def test_manufacturer_checkout_rejects_loaned_vehicle(self):
         vehicle = self.vehicle(status_value=VehicleStatus.LOANED)

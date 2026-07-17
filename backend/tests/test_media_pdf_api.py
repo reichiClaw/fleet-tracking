@@ -8,13 +8,16 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from damages.models import DamageReport, DamageWorkflowPhase
+from audit.models import AuditLog
 from mediafiles.models import MediaFile, MediaType
+from mediafiles.services import attach_media_files, cleanup_storage_file
 from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
@@ -23,6 +26,7 @@ from workflows.pdf import (
     LOAN_CHECKOUT_DOCUMENT,
     LOAN_RETURN_DOCUMENT,
     MANUFACTURER_CHECKOUT_DOCUMENT,
+    generate_check_in_pdf,
 )
 
 
@@ -42,6 +46,10 @@ class MediaUploadAPITests(TestCase):
     def setUp(self):
         user_model = get_user_model()
         self.operations_user = user_model.objects.create_user(username="ops", password="secret", role="operations")
+        self.other_operations_user = user_model.objects.create_user(
+            username="other-ops", password="secret", role="operations"
+        )
+        self.admin_user = user_model.objects.create_user(username="admin", password="secret", role="admin")
         self.readonly_user = user_model.objects.create_user(username="reader", password="secret", role="readonly")
         self.category = VehicleCategory.objects.create(name="Steiger")
         self.vehicle = Vehicle.objects.create(
@@ -63,19 +71,25 @@ class MediaUploadAPITests(TestCase):
             {
                 "file": SimpleUploadedFile("damage.png", PNG_BYTES, content_type="image/png"),
                 "media_type": MediaType.PHOTO,
-                "vehicle": str(self.vehicle.id),
-                "related_type": "vehicle",
-                "related_id": str(self.vehicle.id),
             },
             format="multipart",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         media = MediaFile.objects.get()
-        self.assertEqual(media.vehicle, self.vehicle)
+        self.assertIsNone(media.vehicle)
         self.assertEqual(media.media_type, MediaType.PHOTO)
+        self.assertEqual(len(media.content_sha256), 64)
         self.assertTrue(default_storage.exists(media.storage_key))
         self.assertEqual(response.data["download_url"], f"http://testserver/api/v1/media/{media.id}/download/")
+
+        attach_media_files(
+            media_files=[media.id],
+            actor=self.operations_user,
+            vehicle=self.vehicle,
+            related_type="vehicle",
+            related_id=self.vehicle.id,
+        )
 
         anonymous_response = APIClient().get(f"/api/v1/media/{media.id}/download/")
         download_response = self.client_for(self.readonly_user).get(f"/api/v1/media/{media.id}/download/")
@@ -84,6 +98,149 @@ class MediaUploadAPITests(TestCase):
         self.assertEqual(download_response.status_code, status.HTTP_200_OK)
         self.assertEqual(download_response["Content-Type"], "image/png")
         self.assertEqual(b"".join(download_response.streaming_content), PNG_BYTES)
+
+    def test_upload_rejects_direct_association_and_client_pdf(self):
+        direct = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("damage.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+                "vehicle": str(self.vehicle.id),
+            },
+            format="multipart",
+        )
+        pdf = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("fake.pdf", b"%PDF-1.4\n", content_type="application/pdf"),
+                "media_type": MediaType.PDF,
+            },
+            format="multipart",
+        )
+        self.assertEqual(direct.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(pdf.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_uploader_can_discard_staged_media(self):
+        client = self.client_for(self.operations_user)
+        staged = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("staged.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        discarded = client.post(f"/api/v1/media/{staged.data['id']}/discard/")
+        self.assertEqual(discarded.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(MediaFile.objects.filter(pk=staged.data["id"]).exists())
+
+    def test_uploader_cannot_discard_media_after_attachment(self):
+        client = self.client_for(self.operations_user)
+        upload = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("attached.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        attach_media_files(
+            media_files=[media.id],
+            actor=self.operations_user,
+            vehicle=self.vehicle,
+            related_type="vehicle",
+            related_id=self.vehicle.id,
+        )
+
+        discarded = client.post(f"/api/v1/media/{media.id}/discard/")
+
+        self.assertEqual(discarded.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(MediaFile.objects.filter(pk=media.id).exists())
+        self.assertTrue(default_storage.exists(media.storage_key))
+
+    def test_admin_cannot_discard_another_uploaders_staged_media(self):
+        upload = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("owned.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        media = MediaFile.objects.get(pk=upload.data["id"])
+
+        discarded = self.client_for(self.admin_user).post(f"/api/v1/media/{media.id}/discard/")
+
+        self.assertEqual(discarded.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(MediaFile.objects.filter(pk=media.id).exists())
+        self.assertTrue(default_storage.exists(media.storage_key))
+
+    @override_settings(STAGED_MEDIA_TTL_HOURS=1)
+    def test_new_upload_expires_stale_staged_media_and_storage(self):
+        client = self.client_for(self.operations_user)
+        first = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("stale.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        stale = MediaFile.objects.get(pk=first.data["id"])
+        MediaFile.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(hours=2))
+        self.assertTrue(default_storage.exists(stale.storage_key))
+
+        with self.captureOnCommitCallbacks(execute=True):
+            second = client.post(
+                "/api/v1/media/",
+                {
+                    "file": SimpleUploadedFile("fresh.png", PNG_BYTES, content_type="image/png"),
+                    "media_type": MediaType.PHOTO,
+                },
+                format="multipart",
+            )
+
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(MediaFile.objects.filter(pk=stale.pk).exists())
+        self.assertFalse(default_storage.exists(stale.storage_key))
+        self.assertTrue(AuditLog.objects.filter(action="media.expired", entity_id=stale.id).exists())
+
+    @override_settings(STAGED_MEDIA_TTL_HOURS=1)
+    def test_cleanup_command_expires_staged_media_without_another_upload(self):
+        upload = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("abandoned.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        stale = MediaFile.objects.get(pk=upload.data["id"])
+        MediaFile.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(hours=2))
+
+        with self.captureOnCommitCallbacks(execute=True):
+            call_command("cleanup_staged_media")
+
+        self.assertFalse(MediaFile.objects.filter(pk=stale.pk).exists())
+        self.assertFalse(default_storage.exists(stale.storage_key))
+        event = AuditLog.objects.get(action="media.expired", entity_id=stale.id)
+        self.assertIsNone(event.actor)
+
+    def test_media_hash_backfill_command_updates_legacy_metadata(self):
+        upload = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("legacy.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        MediaFile.objects.filter(pk=upload.data["id"]).update(content_sha256="")
+        call_command("backfill_media_hashes")
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        self.assertEqual(len(media.content_sha256), 64)
+        self.assertTrue(AuditLog.objects.filter(action="media.hash_backfilled", entity_id=media.id).exists())
 
     def test_upload_rejects_mismatched_content_and_oversized_files(self):
         mismatch_response = self.client_for(self.operations_user).post(
@@ -108,6 +265,132 @@ class MediaUploadAPITests(TestCase):
         self.assertEqual(mismatch_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(oversized_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(MediaFile.objects.count(), 0)
+
+    def test_operations_cannot_attach_another_uploaders_staged_media(self):
+        upload = self.client_for(self.other_operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("other.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        announced = Vehicle.objects.create(
+            internal_number="VH-MEDIA-ANNOUNCED",
+            category=self.category,
+            manufacturer="Acme",
+            model="TH200",
+            status=VehicleStatus.ANNOUNCED,
+        )
+        response = self.client_for(self.operations_user).post(
+            "/api/v1/workflows/check-ins/",
+            {"vehicle": str(announced.id), "media_file_ids": [upload.data["id"]]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        self.assertTrue(media.is_staged)
+
+    def test_workflow_damage_rejects_signature_media_atomically(self):
+        client = self.client_for(self.operations_user)
+        upload = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("signature.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.SIGNATURE,
+            },
+            format="multipart",
+        )
+        announced = Vehicle.objects.create(
+            internal_number="VH-MEDIA-DAMAGE-TYPE",
+            category=self.category,
+            manufacturer="Acme",
+            model="TH300",
+            status=VehicleStatus.ANNOUNCED,
+        )
+
+        response = client.post(
+            "/api/v1/workflows/check-ins/",
+            {
+                "vehicle": str(announced.id),
+                "damage_reports": [
+                    {
+                        "description": "Dent",
+                        "media_file_ids": [upload.data["id"]],
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        announced.refresh_from_db()
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        self.assertEqual(announced.status, VehicleStatus.ANNOUNCED)
+        self.assertTrue(media.is_staged)
+        self.assertFalse(CheckInProtocol.objects.filter(vehicle=announced).exists())
+        self.assertFalse(DamageReport.objects.filter(vehicle=announced).exists())
+
+    def test_admin_cannot_attach_another_uploaders_staged_media(self):
+        upload = self.client_for(self.operations_user).post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("other.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+
+        response = self.client_for(self.admin_user).post(
+            "/api/v1/vehicles/",
+            {
+                "category": str(self.category.id),
+                "manufacturer": "New Maker",
+                "model": "New Model",
+                "media_file_ids": [upload.data["id"]],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        self.assertTrue(media.is_staged)
+        self.assertEqual(Vehicle.objects.count(), 1)
+
+    def test_atomic_vehicle_creation_attaches_damage_but_remains_announced(self):
+        client = self.client_for(self.admin_user)
+        upload = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("initial.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+        response = client.post(
+            "/api/v1/vehicles/",
+            {
+                "category": str(self.category.id),
+                "manufacturer": "New Maker",
+                "model": "New Model",
+                "status": VehicleStatus.AVAILABLE,
+                "initial_damage_reports": [
+                    {
+                        "description": "Initial dent",
+                        "severity": "minor",
+                        "media_file_ids": [upload.data["id"]],
+                    }
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["status"], VehicleStatus.ANNOUNCED)
+        vehicle = Vehicle.objects.get(pk=response.data["id"])
+        damage = DamageReport.objects.get(vehicle=vehicle)
+        media = MediaFile.objects.get(pk=upload.data["id"])
+        self.assertEqual(media.damage_report, damage)
+        self.assertFalse(media.is_staged)
 
 
 @override_settings(MEDIA_ROOT=PDF_MEDIA_ROOT)
@@ -288,13 +571,17 @@ class PDFProtocolAPITests(TestCase):
             checkout_response = self.api_client().post(
                 f"/api/v1/loans/{loan.id}/generate-checkout-pdf/", {"language": "en"}, format="json"
             )
-            checkout_damages = [damage.description for damage in render_pdf.call_args.kwargs["damages"]]
+            checkout_damages = [
+                damage["description"] for damage in render_pdf.call_args.kwargs["snapshot"]["damages"]
+            ]
 
         with patch("workflows.pdf._render_pdf", return_value=b"%PDF-1.4\n") as render_pdf:
             return_response = self.api_client().post(
                 f"/api/v1/loans/{loan.id}/generate-return-pdf/", {"language": "en"}, format="json"
             )
-            return_damages = [damage.description for damage in render_pdf.call_args.kwargs["damages"]]
+            return_damages = [
+                damage["description"] for damage in render_pdf.call_args.kwargs["snapshot"]["damages"]
+            ]
 
         self.assertEqual(checkout_response.status_code, status.HTTP_200_OK)
         self.assertEqual(return_response.status_code, status.HTTP_200_OK)
@@ -312,3 +599,63 @@ class PDFProtocolAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF"))
+
+    def test_second_language_pdf_uses_immutable_snapshot_after_vehicle_change(self):
+        protocol = CheckInProtocol.objects.create(
+            vehicle=self.vehicle,
+            performed_by=self.operations_user,
+            snapshot={
+                "schema_version": 1,
+                "workflow_type": "check_in",
+                "record_id": "snapshot-record",
+                "performed_at": timezone.now().isoformat(),
+                "performed_by": {"display_name": "Original User"},
+                "vehicle": {
+                    "id": str(self.vehicle.id),
+                    "internal_number": self.vehicle.internal_number,
+                    "manufacturer": "Original Maker",
+                    "model": "Original Model",
+                    "serial_number": self.vehicle.serial_number,
+                    "license_plate": self.vehicle.license_plate,
+                    "status": VehicleStatus.AVAILABLE,
+                },
+                "readings": {},
+                "notes": "",
+                "damages": [],
+                "media": [],
+            },
+        )
+        self.vehicle.manufacturer = "Changed Maker"
+        self.vehicle.save(update_fields=["manufacturer", "updated_at"])
+
+        with patch("workflows.pdf._render_pdf", return_value=b"%PDF-1.4\n") as render_pdf:
+            response = self.api_client().post(
+                f"/api/v1/workflows/check-ins/{protocol.id}/generate-pdf/",
+                {"language": "en"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            render_pdf.call_args.kwargs["snapshot"]["vehicle"]["manufacturer"],
+            "Original Maker",
+        )
+        media = MediaFile.objects.get(pk=response.data["id"])
+        self.assertEqual(len(media.content_sha256), 64)
+
+    def test_failed_pdf_link_removes_storage_object_before_database_rollback(self):
+        protocol = CheckInProtocol.objects.create(
+            vehicle=self.vehicle,
+            performed_by=self.operations_user,
+        )
+
+        with (
+            patch("workflows.pdf._link_record_if_empty", side_effect=RuntimeError("link failed")),
+            patch("workflows.pdf.cleanup_storage_file", wraps=cleanup_storage_file) as cleanup,
+            self.assertRaises(RuntimeError),
+        ):
+            generate_check_in_pdf(protocol=protocol, actor=self.operations_user, language="en")
+
+        storage_key = cleanup.call_args.args[0]
+        self.assertFalse(default_storage.exists(storage_key))
+        self.assertFalse(MediaFile.objects.filter(storage_key=storage_key).exists())

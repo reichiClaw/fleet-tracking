@@ -12,8 +12,12 @@ Use UUID primary keys for all domain entities. Use `created_at` and
 | email | string | Optional but recommended |
 | full_name | string | Display name |
 | role | enum | `admin`, `operations`, `readonly` |
+| must_change_password | boolean | Temporary/reset password must be replaced |
 | is_active | boolean | Login allowed |
 | last_login | datetime | Managed by auth system |
+
+Django superusers are treated as application admins by permission and
+capability checks even when their stored `role` is different.
 
 ## VehicleCategory
 
@@ -22,6 +26,7 @@ Use UUID primary keys for all domain entities. Use `created_at` and
 | id | UUID | Primary key |
 | name | string | Example: Steiger, Golf Car |
 | description | text | Optional |
+| meter_mode | enum | `odometer`, `hours`, `both`, or `none`; default `both` |
 | is_active | boolean | Hide inactive categories in forms |
 
 ## Vehicle
@@ -30,6 +35,7 @@ Use UUID primary keys for all domain entities. Use `created_at` and
 |---|---|---|
 | id | UUID | Primary key |
 | internal_number | string | Unique fleet number |
+| external_key | string | Optional stable unique source-system key |
 | category_id | UUID | FK to VehicleCategory |
 | manufacturer | string | Required |
 | model | string | Required |
@@ -41,6 +47,13 @@ Use UUID primary keys for all domain entities. Use `created_at` and
 | current_location | string | Optional |
 | notes | text | Optional |
 | archived_at | datetime | Nullable |
+| archived_by_id | UUID | User performing audited archive |
+| archive_reason | text | Required for a new archive |
+| archive_previous_status | enum | Safe correction target retained on archive |
+
+Manual and imported records always begin as `announced`. Operational status is
+workflow-owned; only the explicit admin correction service can make a reasoned,
+safe correction.
 
 ## Company
 
@@ -93,10 +106,37 @@ Fixed employees or regular drivers.
 | return_operating_hours | decimal | Nullable |
 | checkout_notes | text | Optional |
 | return_notes | text | Optional |
+| return_condition_outcome | enum | `fit`, `new_damage`, or `maintenance` |
 | checkout_pdf_language | string | `de` or `en`, nullable until PDF is generated |
 | return_pdf_language | string | `de` or `en`, nullable until PDF is generated |
 | created_by_id | UUID | User who created loan |
 | returned_by_id | UUID | Nullable until returned |
+
+The related reservation is available through the reverse one-to-one
+`reservation` relation. Checkout/return snapshots and generated document links
+are write-once evidence.
+
+## Reservation
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| vehicle_id | UUID | Reserved vehicle |
+| start_at / end_at | datetime | Non-empty reservation interval |
+| driver_id | UUID | Optional fixed-driver party |
+| company_id | UUID | Optional company/contact party |
+| reserved_for | string | Stored display/contact name |
+| manual_phone | string | Stored party phone |
+| notes | text | Optional |
+| status | enum | `active`, `cancelled`, `fulfilled`, `no_show` |
+| snapshot | json | Immutable party snapshot |
+| fulfilled_at / fulfilled_by_id | datetime / UUID | Set only on checkout conversion |
+| loan_id | UUID | Unique linked loan for a fulfilled reservation |
+| created_by_id | UUID | Creator |
+
+Exactly one party mode is selected: driver, company/contact, or manual
+name/phone. Active overlapping intervals for one vehicle are serialized by a
+vehicle row lock.
 
 ## CheckInProtocol
 
@@ -106,7 +146,7 @@ Fixed employees or regular drivers.
 | vehicle_id | UUID | FK to Vehicle |
 | performed_by_id | UUID | FK to User |
 | performed_at | datetime | Required |
-| supplier_company_id | UUID | Optional FK to Company |
+| supplier_company_id | UUID | Required active supplier/manufacturer in API workflows |
 | odometer_km | integer | Nullable |
 | operating_hours | decimal | Nullable |
 | condition_notes | text | Optional |
@@ -121,7 +161,7 @@ Fixed employees or regular drivers.
 | vehicle_id | UUID | FK to Vehicle |
 | performed_by_id | UUID | FK to User |
 | performed_at | datetime | Required |
-| recipient_company_id | UUID | Optional FK to Company |
+| recipient_company_id | UUID | Required active manufacturer/supplier in API workflows |
 | odometer_km | integer | Nullable |
 | operating_hours | decimal | Nullable |
 | condition_notes | text | Optional |
@@ -141,7 +181,49 @@ Fixed employees or regular drivers.
 | severity | enum | `minor`, `major`, `critical`, `unknown` |
 | discovered_at | datetime | Required |
 | resolved_at | datetime | Nullable |
+| resolved_by_id | UUID | Nullable until resolved |
+| resolution_notes | text | Immutable resolution evidence |
 | created_by_id | UUID | FK to User |
+
+Resolving the final open damage restores `available` only if no active loan,
+maintenance interval, or manufacturer-return state prevents it.
+
+## MaintenanceRecord
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| vehicle_id | UUID | Protected FK |
+| reason / start_notes | text | Immutable start evidence |
+| started_at / started_by_id | datetime / UUID | Immutable |
+| start_odometer_km / start_operating_hours | number | Optional applicable readings |
+| start_snapshot | json | Immutable snapshot including media hashes |
+| status | enum | `active`, `completed` |
+| completion_notes | text | Completion evidence |
+| completed_at / completed_by_id | datetime / UUID | Required when completed |
+| completion_odometer_km / completion_operating_hours | number | Optional applicable readings |
+| completion_snapshot | json | Immutable completion snapshot |
+
+A conditional unique constraint permits only one active maintenance record per
+vehicle.
+
+## WorkflowDraft
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| owner_id | UUID | Draft owner |
+| workflow_type | enum | Check-in, checkout, return, manufacturer return, reservation, maintenance |
+| scope_key | string | Client-stable wizard/object scope |
+| object_id | UUID | Optional related domain object |
+| form_data | json | Size-limited, non-secret form state |
+| staged_media_ids | json array | Owner's staged photo/signature IDs |
+| step | integer | Current wizard step |
+| version | integer | Optimistic-lock version |
+| expires_at | datetime | Cleanup deadline |
+
+`owner + workflow_type + scope_key` is unique. Drafts do not own or mutate
+vehicle status. Signature bitmap/data URI content is prohibited in JSON.
 
 ## MediaFile
 
@@ -158,6 +240,10 @@ Fixed employees or regular drivers.
 | storage_key | string | Server-generated file path/key |
 | content_type | string | MIME type |
 | size_bytes | integer | Required |
+| content_sha256 | string | Required immutable content digest |
+| language | string | `de`/`en` only for generated PDFs |
+| is_generated | boolean | Server-generated document marker |
+| attached_at | datetime | Nullable while staged |
 | uploaded_by_id | UUID | FK to User |
 | created_at | datetime | Required |
 
@@ -174,6 +260,10 @@ Fixed employees or regular drivers.
 | result | json | Row-level messages |
 | created_by_id | UUID | FK to User |
 | committed_at | datetime | Nullable |
+
+Vehicle import results persist header/presence information, explicit-clear
+semantics, old/new field diffs, exclusions, duplicate candidates, supplier
+proposals, validation fingerprints, and committed generated IDs.
 
 ## Translation resources
 

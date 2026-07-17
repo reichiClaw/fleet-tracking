@@ -2,8 +2,10 @@
 
 from rest_framework import serializers
 from rest_framework.reverse import reverse
+from django.utils.translation import gettext_lazy as _
 
-from mediafiles.models import MediaFile
+from config.request import request_metadata
+from mediafiles.models import MediaFile, MediaType
 from mediafiles.services import create_media_file_from_upload
 
 
@@ -26,7 +28,10 @@ class MediaFileSerializer(serializers.ModelSerializer):
             "original_filename",
             "content_type",
             "size_bytes",
+            "content_sha256",
             "language",
+            "is_generated",
+            "attached_at",
             "uploaded_by",
             "download_url",
             "created_at",
@@ -35,9 +40,18 @@ class MediaFileSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "original_filename",
+            "vehicle",
+            "loan",
+            "damage_report",
+            "related_type",
+            "related_id",
+            "media_type",
             "content_type",
             "size_bytes",
+            "content_sha256",
             "language",
+            "is_generated",
+            "attached_at",
             "uploaded_by",
             "download_url",
             "created_at",
@@ -66,10 +80,29 @@ class GeneratedDocumentSerializer(MediaFileSerializer):
 
 class MediaFileUploadSerializer(MediaFileSerializer):
     file = serializers.FileField(write_only=True)
+    media_type = serializers.ChoiceField(choices=[MediaType.PHOTO, MediaType.SIGNATURE])
 
     class Meta(MediaFileSerializer.Meta):
         fields = MediaFileSerializer.Meta.fields + ["file"]
         read_only_fields = MediaFileSerializer.Meta.read_only_fields
+
+    def validate(self, attrs):
+        supplied_relations = {
+            "vehicle",
+            "loan",
+            "damage_report",
+            "related_type",
+            "related_id",
+            "language",
+        }.intersection(self.initial_data)
+        if supplied_relations:
+            raise serializers.ValidationError(
+                {
+                    field: _("Uploads must be staged and attached through a workflow.")
+                    for field in supplied_relations
+                }
+            )
+        return attrs
 
     def create(self, validated_data):
         uploaded_file = validated_data.pop("file")
@@ -78,10 +111,5 @@ class MediaFileUploadSerializer(MediaFileSerializer):
             uploaded_file=uploaded_file,
             actor=request.user,
             media_type=validated_data.pop("media_type"),
-            vehicle=validated_data.pop("vehicle", None),
-            loan=validated_data.pop("loan", None),
-            damage_report=validated_data.pop("damage_report", None),
-            related_type=validated_data.pop("related_type", ""),
-            related_id=validated_data.pop("related_id", None),
-            language=validated_data.pop("language", ""),
+            request_meta=request_metadata(request),
         )

@@ -17,7 +17,7 @@ manufacturer check-out, Excel imports, and role-based administration.
 - Languages: German and English user interface, validation text, and PDF
   protocols
 - Runtime: Docker Compose on an Ubuntu VM hosted by Proxmox
-- Reverse proxy: Nginx, with optional automatic HTTPS via Caddy
+- Reverse proxy: Nginx behind mandatory production HTTPS via Caddy
 
 ## Repository structure
 
@@ -29,10 +29,12 @@ manufacturer check-out, Excel imports, and role-based administration.
 ├── docs/                      # Product, architecture, API, deployment docs
 ├── frontend/                  # React + TypeScript + Vite frontend
 ├── scripts/                   # Setup, backup, and restore scripts
-├── .env.example               # Environment template
-├── Makefile                   # Helper targets (up, up-tls, backup, restore, ...)
-├── docker-compose.yml         # Production/local service topology
-└── docker-compose.tls.yml     # Optional automatic-HTTPS (Caddy) overlay
+├── .env.example               # Development environment template
+├── .env.production.example    # Fail-closed production template
+├── Makefile                   # Development and production helper targets
+├── docker-compose.yml         # Loopback-only development topology
+├── docker-compose.prod.yml    # Production security overrides
+└── docker-compose.tls.yml     # Mandatory production HTTPS edge
 ```
 
 ## Current state
@@ -55,9 +57,10 @@ tooling.
 ## Deployment
 
 The application runs as a Docker Compose stack (`db`, `backend`, `frontend`,
-`nginx`). The bundled Nginx service listens on `NGINX_HTTP_PORT`, proxies
-`/api/` and `/admin/` to the backend, and serves the frontend. The backend
-container runs database migrations and `collectstatic` on startup.
+`nginx`). Development HTTP is bound to loopback. Production adds the
+fail-closed production and TLS overlays so Caddy is the only public edge.
+Database migrations and `collectstatic` run as an explicit release job before
+the application containers start.
 
 `docs/deployment.md` is the full reference (VM/Proxmox setup, firewall,
 production hardening, backups). The essentials:
@@ -68,19 +71,19 @@ production hardening, backups). The essentials:
   (`curl -fsSL https://get.docker.com | sudo sh`).
 - For HTTPS: a domain pointing at the host and ports 80/443 reachable.
 
-### Quick start (HTTP)
+### Local/development start
 
 ```bash
 git clone <repo-url> fleet-tracking && cd fleet-tracking
 cp .env.example .env
-# Edit .env: set ENVIRONMENT=production, a strong DJANGO_SECRET_KEY,
-# DJANGO_ALLOWED_HOSTS, and a strong POSTGRES_PASSWORD/DATABASE_URL.
-make up                      # build and start the stack
+# Keep this environment development-only.
+make up                      # build, release, and start on 127.0.0.1:8080
 make logs                    # follow logs until healthy
 docker compose exec backend python manage.py createsuperuser  # first admin
 ```
 
-The app is then served on `http://<host>:${NGINX_HTTP_PORT}` (default `80`).
+The app is then served on `http://127.0.0.1:${NGINX_HTTP_PORT}` (default
+`8080`). Do not expose this development listener to a network.
 Sign in with the superuser, or create additional users in the in-app Users
 screen (admin) or Django admin at `/admin/`.
 
@@ -100,24 +103,31 @@ It creates demo users `demo-operations` and `demo-readonly` (default password
 `demo-pass-1234`, override with `--password`). It is idempotent and must not be
 run in production.
 
-### HTTPS (recommended for production)
+### Production deployment (HTTPS required)
 
-Set `TLS_DOMAIN`/`TLS_EMAIL` in `.env`, enable secure cookies
-(`SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`), then:
+Create an owner-only production environment, fill every required secret and
+public URL, validate it, then deploy:
 
 ```bash
-make up-tls                  # adds a Caddy edge proxy (auto Let's Encrypt TLS)
+make prod-init-env
+chmod 600 .env.production
+$EDITOR .env.production
+make prod-config
+make prod-deploy
 ```
 
-Caddy obtains and renews certificates automatically and redirects HTTP to
-HTTPS. See the HTTPS checklist in `docs/deployment.md`.
+Caddy obtains and renews certificates automatically, redirects HTTP to HTTPS,
+and applies edge security headers. Production deployment refuses missing or
+placeholder secrets, insecure cookies, non-HTTPS origins, and an unencrypted
+backup configuration. See the production checklist in `docs/deployment.md`.
 
 ### Media storage
 
 Uploaded media is stored via `MEDIA_STORAGE_BACKEND`:
 
 - `local` (default): the `media_data` Docker volume.
-- `sftp`: a remote SFTP/NAS server (set the `SFTP_*` variables).
+- `sftp`: a remote SFTP/NAS server (set the `SFTP_*` variables and pin its SSH
+  host key; unknown keys are rejected).
 - `s3`: S3-compatible storage / MinIO (set the `AWS_*` variables).
 
 See "Media storage backend" in `docs/deployment.md`.
@@ -125,18 +135,22 @@ See "Media storage backend" in `docs/deployment.md`.
 ### Backup and restore
 
 ```bash
-make backup
-make restore DB=backups/fleet_tracking_YYYYMMDD_HHMMSS.dump MEDIA=backups/media_YYYYMMDD_HHMMSS.tar.gz
+make backup-prod
+make backup-status
+make restore-prod BUNDLE=/var/backups/fleet-tracking/<bundle>.tar.gz.age CONFIRM=YES
 ```
 
 ### Helper targets
 
 ```bash
-make compose-config   # validate the Compose configuration
-make up / make down   # start / stop the HTTP stack
-make up-tls / down-tls# start / stop the HTTPS (Caddy) stack
-make logs             # follow logs
-make backup / restore # database + media backup and restore
+make compose-config      # validate development Compose
+make up / make down      # start / stop loopback-only development
+make prod-config         # validate fail-closed production configuration
+make prod-deploy         # build, migrate, and start mandatory-TLS production
+make prod-logs           # follow production logs
+make backup-prod         # encrypted database/media/Caddy-state backup
+make monitor-prod        # HTTPS, certificate, backup-age, and disk checks
+make cleanup-media-prod  # remove expired unattached uploads
 ```
 
 ### Local development
