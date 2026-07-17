@@ -1,29 +1,30 @@
-import type { ReactElement } from 'react';
+import { lazy, Suspense, type ReactElement } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth, type UserRole } from '../auth/AuthContext';
 import { LoadingState } from '../components/LoadingState';
 import { AppLayout } from '../layouts/AppLayout';
-import { AddVehiclePage } from '../pages/AddVehiclePage';
-import { AccessDeniedPage } from '../pages/AccessDeniedPage';
-import { AdminImportPage } from '../pages/AdminImportPage';
-import { ArchivePage } from '../pages/ArchivePage';
-import { DashboardPage } from '../pages/DashboardPage';
-import { LoanCheckoutPage } from '../pages/LoanCheckoutPage';
-import { LoginPage } from '../pages/LoginPage';
-import { PartnersPage } from '../pages/PartnersPage';
-import { NotFoundPage } from '../pages/NotFoundPage';
-import { QRAccessPage } from '../pages/QRAccessPage';
-import { ReportsPage } from '../pages/ReportsPage';
-import { UserManagementPage } from '../pages/UserManagementPage';
-import { VehicleDetailPage } from '../pages/VehicleDetailPage';
-import { VehicleHistoryPage } from '../pages/VehicleHistoryPage';
-import { VehicleStatusPage } from '../pages/VehicleStatusPage';
-import { VehiclePoolPage } from '../pages/VehiclePoolPage';
-import { WorkflowMenuPage } from '../pages/WorkflowMenuPage';
-import { WorkflowPage } from '../pages/WorkflowPage';
-import { CategoryManagementPage } from '../pages/CategoryManagementPage';
-import { QRPrintPage } from '../pages/QRPrintPage';
+
+const AddVehiclePage = lazy(() => import('../pages/AddVehiclePage').then((module) => ({ default: module.AddVehiclePage })));
+const AccessDeniedPage = lazy(() => import('../pages/AccessDeniedPage').then((module) => ({ default: module.AccessDeniedPage })));
+const AdminImportPage = lazy(() => import('../pages/AdminImportPage').then((module) => ({ default: module.AdminImportPage })));
+const ArchivePage = lazy(() => import('../pages/ArchivePage').then((module) => ({ default: module.ArchivePage })));
+const CategoryManagementPage = lazy(() => import('../pages/CategoryManagementPage').then((module) => ({ default: module.CategoryManagementPage })));
+const DashboardPage = lazy(() => import('../pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
+const LoanCheckoutPage = lazy(() => import('../pages/LoanCheckoutPage').then((module) => ({ default: module.LoanCheckoutPage })));
+const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
+const PartnersPage = lazy(() => import('../pages/PartnersPage').then((module) => ({ default: module.PartnersPage })));
+const QRAccessPage = lazy(() => import('../pages/QRAccessPage').then((module) => ({ default: module.QRAccessPage })));
+const QRPrintPage = lazy(() => import('../pages/QRPrintPage').then((module) => ({ default: module.QRPrintPage })));
+const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })));
+const UserManagementPage = lazy(() => import('../pages/UserManagementPage').then((module) => ({ default: module.UserManagementPage })));
+const VehicleDetailPage = lazy(() => import('../pages/VehicleDetailPage').then((module) => ({ default: module.VehicleDetailPage })));
+const VehicleHistoryPage = lazy(() => import('../pages/VehicleHistoryPage').then((module) => ({ default: module.VehicleHistoryPage })));
+const VehiclePoolPage = lazy(() => import('../pages/VehiclePoolPage').then((module) => ({ default: module.VehiclePoolPage })));
+const VehicleStatusPage = lazy(() => import('../pages/VehicleStatusPage').then((module) => ({ default: module.VehicleStatusPage })));
+const WorkflowMenuPage = lazy(() => import('../pages/WorkflowMenuPage').then((module) => ({ default: module.WorkflowMenuPage })));
+const WorkflowPage = lazy(() => import('../pages/WorkflowPage').then((module) => ({ default: module.WorkflowPage })));
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -56,7 +57,8 @@ const adminRoles: UserRole[] = ['admin'];
 
 export function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<LoadingState />}>
+      <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/login" element={<LoginPage />} />
       {/* Public, no-login-required vehicle status page reached by scanning the QR code. */}
@@ -93,6 +95,7 @@ export function AppRoutes() {
         <Route path="categories" element={<RequireRole roles={adminRoles}><CategoryManagementPage /></RequireRole>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
