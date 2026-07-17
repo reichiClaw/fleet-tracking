@@ -142,7 +142,8 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = PasswordUpdateSerializer(data=request.data, context={"request": request, "target": target})
         serializer.is_valid(raise_exception=True)
         target.set_password(serializer.validated_data["new_password"])
-        target.save(update_fields=["password"])
+        target.must_change_password = target.pk != request.user.pk
+        target.save(update_fields=["password", "must_change_password"])
         if target.pk == request.user.pk:
             update_session_auth_hash(request, target)
         audit_event(
@@ -155,6 +156,30 @@ class UserViewSet(viewsets.ModelViewSet):
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["post"], url_path="set-temporary-password", permission_classes=[IsAdminRole])
+    def set_temporary_password(self, request, pk=None):
+        target = self.get_object()
+        if target.pk == request.user.pk:
+            raise serializers.ValidationError(
+                {"user": _("Use the normal password action to change your own password.")}
+            )
+        if target.is_superuser and not request.user.is_superuser:
+            raise serializers.ValidationError({"detail": _("Application administrators cannot modify a superuser.")})
+        serializer = PasswordUpdateSerializer(data=request.data, context={"request": request, "target": target})
+        serializer.is_valid(raise_exception=True)
+        target.set_password(serializer.validated_data["new_password"])
+        target.must_change_password = True
+        target.save(update_fields=["password", "must_change_password"])
+        audit_event(
+            actor=request.user,
+            action="user.temporary_password_set",
+            entity_type="user",
+            entity_id=target.id,
+            after={"must_change_password": True},
+            request_meta=request_metadata(request),
+        )
+        return Response({"must_change_password": True}, status=status.HTTP_200_OK)
+
 
 def _user_snapshot(user) -> dict[str, object]:
     return {
@@ -165,4 +190,5 @@ def _user_snapshot(user) -> dict[str, object]:
         "is_active": user.is_active,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
+        "must_change_password": user.must_change_password,
     }

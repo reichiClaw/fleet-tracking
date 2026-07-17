@@ -357,7 +357,7 @@ class MediaUploadAPITests(TestCase):
         self.assertTrue(media.is_staged)
         self.assertEqual(Vehicle.objects.count(), 1)
 
-    def test_atomic_vehicle_creation_attaches_initial_damage_photo_and_derives_status(self):
+    def test_atomic_vehicle_creation_attaches_damage_but_remains_announced(self):
         client = self.client_for(self.admin_user)
         upload = client.post(
             "/api/v1/media/",
@@ -385,7 +385,7 @@ class MediaUploadAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(response.data["status"], VehicleStatus.DAMAGED)
+        self.assertEqual(response.data["status"], VehicleStatus.ANNOUNCED)
         vehicle = Vehicle.objects.get(pk=response.data["id"])
         damage = DamageReport.objects.get(vehicle=vehicle)
         media = MediaFile.objects.get(pk=upload.data["id"])

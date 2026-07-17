@@ -12,6 +12,7 @@ from config.request import request_metadata
 from damages.models import DamageReport, DamageWorkflowPhase
 from damages.serializers import DamageReportSerializer, DamageResolutionSerializer
 from vehicles.models import Vehicle, VehicleStatus
+from workflows.models import Loan, LoanStatus, MaintenanceRecord, MaintenanceStatus
 
 
 class DamageReportViewSet(viewsets.ModelViewSet):
@@ -93,6 +94,14 @@ class DamageReportViewSet(viewsets.ModelViewSet):
                     and not DamageReport.objects.filter(
                         vehicle=vehicle,
                         resolved_at__isnull=True,
+                    ).exists()
+                    and not Loan.objects.select_for_update().filter(
+                        vehicle=vehicle,
+                        status=LoanStatus.ACTIVE,
+                    ).exists()
+                    and not MaintenanceRecord.objects.select_for_update().filter(
+                        vehicle=vehicle,
+                        status=MaintenanceStatus.ACTIVE,
                     ).exists()
                 ):
                     before_status = vehicle.status

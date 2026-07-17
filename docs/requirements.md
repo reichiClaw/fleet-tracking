@@ -42,7 +42,8 @@ Admins can:
 - Manage fixed drivers/employees.
 - Manage subcontractor/company master data.
 - View all protocols, media, and audit logs.
-- Archive vehicles.
+- Archive manufacturer-returned vehicles with a reason and perform audited safe
+  corrections.
 
 ### Operations user
 
@@ -82,16 +83,22 @@ Recommended status values:
 ## Allowed transitions
 
 - `announced` -> `checked_in`
-- `checked_in` -> `available`
+- `checked_in` -> `available` / `damaged` / `maintenance` according to the
+  explicit condition outcome
 - `available` -> `loaned`
-- `loaned` -> `available`
+- `loaned` -> `available` / `damaged` / `maintenance` on return
 - `available` -> `maintenance`
-- `maintenance` -> `available`
+- `maintenance` -> `available` / `damaged` on completion
 - `available` -> `damaged`
 - `damaged` -> `maintenance`
 - `damaged` -> `available`
-- `available` -> `manufacturer_checkout`
+- `available` or `damaged` -> `manufacturer_checkout`
 - `manufacturer_checkout` -> `archived`
+
+These are domain transitions, not generic edit permissions. API clients cannot
+set `status` through vehicle create/update. Manual and imported records always
+start as `announced`; workflows own operational transitions. A reasoned admin
+correction is a separate, constrained, audited action.
 
 ## Core workflows
 
@@ -110,12 +117,18 @@ Captured data:
 - Optional signature.
 - User who performed the check-in.
 
+The supplier is required and must be an active supplier or manufacturer.
+Category meter mode (`odometer`, `hours`, `both`, `none`) determines exactly
+which readings are required; inapplicable readings are rejected.
+
 Result:
 
 - Check-in protocol is stored.
 - PDF protocol can be generated.
 - Vehicle enters the pool and becomes available unless marked damaged or in
   maintenance.
+- Master-data creation plus check-in can be completed as one atomic,
+  idempotent operation, or an announced record can be created first.
 
 ### Vehicle loan checkout
 
@@ -132,18 +145,22 @@ Captured data:
 - Photos.
 - Borrower signature.
 - User who performed the loan.
+- Optional active reservation to fulfill.
 
 Result:
 
 - Loan record is created.
 - Vehicle becomes unavailable with status `loaned`.
 - Vehicle pool shows borrower and expected return.
+- A selected reservation is validated and atomically linked/fulfilled. Another
+  current or near-term reservation blocks checkout.
 
 ### Vehicle loan return
 
 Captured data:
 
 - Active loan.
+- Explicit condition outcome: `fit`, `new_damage`, or `maintenance`.
 - Actual return date/time.
 - Return odometer reading.
 - Return operating hours.
@@ -157,6 +174,7 @@ Result:
 - Active loan is closed.
 - Vehicle returns to `available`, `damaged`, or `maintenance`.
 - Usage difference can be calculated from readings.
+- Open pre-existing damage prevents an unsafe return to `available`.
 
 ### Manufacturer/supplier check-out
 
@@ -172,11 +190,38 @@ Captured data:
 - Optional signature.
 - User who performed the check-out.
 
+The recipient is required and must be an active manufacturer or supplier.
+
 Result:
 
 - Manufacturer check-out protocol is stored.
 - Vehicle status becomes `manufacturer_checkout`.
 - Vehicle is hidden from the active pool by default.
+
+Eligibility is intentionally limited to `available` or `damaged` vehicles with
+no active loan. Vehicles in maintenance must complete that workflow first.
+
+### Reservation handover
+
+Reservations support a fixed driver, company/contact, or manual name/phone.
+Party identity is snapshotted. Active reservations can be edited, cancelled, or
+marked no-show after start. Loan checkout with `reservation_id` locks both
+records and atomically links the resulting loan and marks the reservation
+fulfilled.
+
+### Maintenance recovery
+
+Sending a vehicle to maintenance records a required reason, optional readings
+and photos, immutable start snapshot, actor, and timestamp. Completion records
+completion evidence and restores `available` only when no open damage remains;
+otherwise the vehicle becomes `damaged`.
+
+### Resumable workflows
+
+Check-in, loan checkout/return, manufacturer return, reservation, and
+maintenance wizards may autosave owner-scoped drafts with optimistic versions,
+step, expiry, non-secret JSON, and staged media IDs. Drafts never mutate domain
+status. Signature bitmaps are uploaded as media and never stored in draft JSON.
 
 ## User stories and acceptance criteria
 
@@ -188,7 +233,8 @@ in the vehicle pool.
 Acceptance criteria:
 
 - The user can select an existing announced/imported vehicle or create one.
-- Odometer and operating hours can be captured where applicable.
+- New/manual/imported master data cannot bypass check-in into `available`.
+- Supplier, condition outcome, and category-applicable readings are required.
 - Damage notes and photos can be attached.
 - Completing the workflow updates the vehicle status.
 - The vehicle history shows the check-in record.
@@ -205,6 +251,8 @@ Acceptance criteria:
 - Expected return time is captured.
 - Photos and a signature can be stored.
 - Completing the workflow marks the vehicle unavailable.
+- Current/near-term reservations block conflicting checkout; selecting the
+  matching reservation fulfills and links it atomically.
 
 ### Return a loaned vehicle
 
@@ -214,10 +262,12 @@ and condition are updated.
 Acceptance criteria:
 
 - Only vehicles with an active loan can be returned.
+- A condition outcome is explicit; there is no default to `available`.
 - Return readings cannot be lower than loan checkout readings unless an admin
   correction is used.
 - New damage can be documented with photos.
 - Completing the workflow closes the loan.
+- Existing unresolved damage is considered when deriving final status.
 
 ### Check out a vehicle to manufacturer
 
@@ -227,7 +277,9 @@ supplier so that it is removed from the active pool.
 Acceptance criteria:
 
 - Loaned vehicles cannot be checked out to manufacturers.
-- Readings, damage notes, and photos are captured.
+- Only available or damaged vehicles without an active loan are eligible.
+- An active manufacturer/supplier recipient and applicable readings are
+  required; damage notes and photos can be captured.
 - The final protocol is stored.
 - The vehicle no longer appears as available.
 
@@ -242,6 +294,9 @@ Acceptance criteria:
 - Invalid rows show row-level errors.
 - Valid rows create or update vehicles according to import rules.
 - Import results are auditable.
+- Missing columns differ from explicit blank clears; rows expose old/new diffs,
+  can be excluded, and use a stable `external_key` where provided.
+- Supplier matches/proposals are shown but no supplier is silently created.
 
 ## MVP scope
 

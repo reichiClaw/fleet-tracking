@@ -173,6 +173,16 @@ class MediaFile(TimeStampedUUIDModel):
                     vehicle_id=self.vehicle_id,
                 ).exists()
             )
+        if self.related_type in {"maintenance_start", "maintenance_complete"}:
+            from workflows.models import MaintenanceRecord
+
+            return bool(
+                self.vehicle_id
+                and MaintenanceRecord.objects.filter(
+                    pk=self.related_id,
+                    vehicle_id=self.vehicle_id,
+                ).exists()
+            )
         if self.related_type == "vehicle_import":
             from imports.models import ImportJob
 

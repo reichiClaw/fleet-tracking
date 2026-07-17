@@ -217,6 +217,16 @@ def expire_staged_media(*, actor=None, cutoff=None) -> int:
         created_at__lt=cutoff,
         media_type__in=[MediaType.PHOTO, MediaType.SIGNATURE],
     )
+    # Draft-held media remains staged by design, but must survive until the
+    # owning draft is discarded or expires.
+    try:
+        from workflows.drafts import active_draft_media_ids
+
+        held_ids = active_draft_media_ids()
+        if held_ids:
+            queryset = queryset.exclude(pk__in=held_ids)
+    except ImportError:  # pragma: no cover - only during partial migrations
+        pass
     if actor is not None:
         queryset = queryset.filter(uploaded_by=actor)
 
@@ -365,6 +375,14 @@ def _validate_attachment_target(*, vehicle, loan, damage_report, related_type: s
 
         expected_id = (
             ManufacturerCheckOutProtocol.objects.filter(pk=related_id, vehicle=vehicle)
+            .values_list("pk", flat=True)
+            .first()
+        )
+    elif related_type in {"maintenance_start", "maintenance_complete"}:
+        from workflows.models import MaintenanceRecord
+
+        expected_id = (
+            MaintenanceRecord.objects.filter(pk=related_id, vehicle=vehicle)
             .values_list("pk", flat=True)
             .first()
         )

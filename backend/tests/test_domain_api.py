@@ -278,9 +278,11 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         self.vehicle.refresh_from_db()
         self.assertEqual(self.vehicle.status, VehicleStatus.ANNOUNCED)
 
-    def test_allowed_vehicle_status_transition_is_accepted(self):
-        response = self.client_for(self.admin_user).patch(
-            f"/api/v1/vehicles/{self.vehicle.id}/", {"status": VehicleStatus.CHECKED_IN}, format="json"
+    def test_safe_admin_status_correction_requires_dedicated_action(self):
+        response = self.client_for(self.admin_user).post(
+            f"/api/v1/vehicles/{self.vehicle.id}/admin-correct/",
+            {"status": VehicleStatus.CHECKED_IN, "reason": "Correct legacy migration state"},
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -346,11 +348,13 @@ class VehicleStatusValidationTests(DomainAPITestCase):
             status=VehicleStatus.AVAILABLE,
         )
 
-        response = self.client_for(self.admin_user).patch(
-            f"/api/v1/vehicles/{vehicle.id}/", {"status": VehicleStatus.MAINTENANCE}, format="json"
+        response = self.client_for(self.admin_user).post(
+            f"/api/v1/vehicles/{vehicle.id}/send-to-maintenance/",
+            {"reason": "Scheduled service"},
+            format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         vehicle.refresh_from_db()
         self.assertEqual(vehicle.status, VehicleStatus.MAINTENANCE)
 
@@ -394,7 +398,16 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             set(response.data.keys()),
-            {"loans", "reservations", "check_ins", "manufacturer_checkouts", "damages", "media"},
+            {
+                "loans",
+                "reservations",
+                "check_ins",
+                "manufacturer_checkouts",
+                "damages",
+                "maintenance",
+                "timeline",
+                "media",
+            },
         )
         self.assertEqual(len(response.data["loans"]), 1)
 
@@ -441,7 +454,7 @@ class VehicleStatusValidationTests(DomainAPITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_admin_can_create_vehicle_directly_in_available_pool(self):
+    def test_admin_vehicle_creation_ignores_unsafe_available_status(self):
         response = self.client_for(self.admin_user).post(
             "/api/v1/vehicles/",
             {
@@ -455,7 +468,7 @@ class VehicleStatusValidationTests(DomainAPITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(response.data["status"], VehicleStatus.AVAILABLE)
+        self.assertEqual(response.data["status"], VehicleStatus.ANNOUNCED)
         self.assertTrue(response.data["internal_number"].startswith("FZ-"))
 
     def test_operations_cannot_create_vehicle(self):
@@ -507,7 +520,11 @@ class VehicleStatusValidationTests(DomainAPITestCase):
             {"status": VehicleStatus.ARCHIVED},
             format="json",
         )
-        response = self.client_for(self.admin_user).post(f"/api/v1/vehicles/{vehicle.id}/archive/")
+        response = self.client_for(self.admin_user).post(
+            f"/api/v1/vehicles/{vehicle.id}/archive/",
+            {"reason": "Returned permanently to manufacturer"},
+            format="json",
+        )
         self.assertEqual(direct.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         vehicle.refresh_from_db()

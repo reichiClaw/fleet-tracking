@@ -69,16 +69,31 @@ class VehicleStatus(models.TextChoices):
 
 ALLOWED_STATUS_TRANSITIONS = {
     VehicleStatus.ANNOUNCED: {VehicleStatus.CHECKED_IN},
-    VehicleStatus.CHECKED_IN: {VehicleStatus.AVAILABLE},
+    VehicleStatus.CHECKED_IN: {
+        VehicleStatus.AVAILABLE,
+        VehicleStatus.DAMAGED,
+        VehicleStatus.MAINTENANCE,
+    },
     VehicleStatus.AVAILABLE: {
         VehicleStatus.LOANED,
         VehicleStatus.MAINTENANCE,
         VehicleStatus.DAMAGED,
         VehicleStatus.MANUFACTURER_CHECKOUT,
     },
-    VehicleStatus.LOANED: {VehicleStatus.AVAILABLE},
-    VehicleStatus.MAINTENANCE: {VehicleStatus.AVAILABLE},
-    VehicleStatus.DAMAGED: {VehicleStatus.MAINTENANCE, VehicleStatus.AVAILABLE},
+    VehicleStatus.LOANED: {
+        VehicleStatus.AVAILABLE,
+        VehicleStatus.DAMAGED,
+        VehicleStatus.MAINTENANCE,
+    },
+    VehicleStatus.MAINTENANCE: {
+        VehicleStatus.AVAILABLE,
+        VehicleStatus.DAMAGED,
+    },
+    VehicleStatus.DAMAGED: {
+        VehicleStatus.MAINTENANCE,
+        VehicleStatus.AVAILABLE,
+        VehicleStatus.MANUFACTURER_CHECKOUT,
+    },
     VehicleStatus.MANUFACTURER_CHECKOUT: {VehicleStatus.ARCHIVED},
     VehicleStatus.RESERVED: {VehicleStatus.AVAILABLE, VehicleStatus.LOANED},
     VehicleStatus.ARCHIVED: set(),
@@ -92,8 +107,15 @@ def is_valid_status_transition(old_status: str, new_status: str) -> bool:
 
 
 class VehicleCategory(TimeStampedUUIDModel):
+    class MeterMode(models.TextChoices):
+        ODOMETER = "odometer", _("Odometer")
+        HOURS = "hours", _("Operating hours")
+        BOTH = "both", _("Odometer and operating hours")
+        NONE = "none", _("No meter")
+
     name = models.CharField(max_length=120, unique=True)
     description = models.TextField(blank=True)
+    meter_mode = models.CharField(max_length=20, choices=MeterMode.choices, default=MeterMode.BOTH)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -127,7 +149,17 @@ class Vehicle(TimeStampedUUIDModel):
     # Optional scheduled date by which the vehicle must be removed from the pool
     # and sent back to the manufacturer/supplier.
     manufacturer_return_due = models.DateField(null=True, blank=True)
+    external_key = models.CharField(max_length=160, null=True, blank=True, unique=True)
     archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="archived_vehicles",
+    )
+    archive_reason = models.TextField(blank=True)
+    archive_previous_status = models.CharField(max_length=40, choices=VehicleStatus.choices, blank=True)
 
     class Meta:
         ordering = ["internal_number"]
@@ -135,6 +167,7 @@ class Vehicle(TimeStampedUUIDModel):
             models.Index(fields=["status", "-updated_at"], name="vehicle_status_updated_idx"),
             models.Index(fields=["category", "status"], name="vehicle_category_status_idx"),
             models.Index(fields=["archived_at"], name="vehicle_archived_idx"),
+            models.Index(fields=["external_key"], name="vehicle_external_key_idx"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -161,7 +194,12 @@ class Vehicle(TimeStampedUUIDModel):
                 "status", "current_odometer_km", "current_operating_hours"
             ).first()
             if previous:
-                if not is_valid_status_transition(previous.status, self.status):
+                allow_archive_correction = bool(
+                    getattr(self, "_allow_archive_correction", False)
+                    and previous.status == VehicleStatus.ARCHIVED
+                    and self.status == previous.archive_previous_status
+                )
+                if not allow_archive_correction and not is_valid_status_transition(previous.status, self.status):
                     errors.setdefault("status", []).append(
                         _("Invalid vehicle status transition from %(old)s to %(new)s.")
                         % {"old": previous.status, "new": self.status}
@@ -170,16 +208,36 @@ class Vehicle(TimeStampedUUIDModel):
                     previous.current_odometer_km is not None
                     and self.current_odometer_km is not None
                     and self.current_odometer_km < previous.current_odometer_km
+                    and not getattr(self, "_allow_meter_correction", False)
                 ):
                     errors.setdefault("current_odometer_km", []).append(_("Odometer value must not decrease."))
                 if (
                     previous.current_operating_hours is not None
                     and self.current_operating_hours is not None
                     and self.current_operating_hours < previous.current_operating_hours
+                    and not getattr(self, "_allow_meter_correction", False)
                 ):
                     errors.setdefault("current_operating_hours", []).append(_("Operating hours must not decrease."))
         if self.status == VehicleStatus.ARCHIVED and self.archived_at is None:
             self.archived_at = timezone.now()
+        if self.status == VehicleStatus.ARCHIVED:
+            if not self.archive_reason.strip():
+                errors.setdefault("archive_reason", []).append(_("An archive reason is required."))
+            legacy_archive = bool(
+                self.pk
+                and self.archived_by_id is None
+                and type(self).objects.filter(
+                    pk=self.pk,
+                    status=VehicleStatus.ARCHIVED,
+                    archived_by__isnull=True,
+                ).exists()
+            )
+            if self.archived_by_id is None and not legacy_archive:
+                errors.setdefault("archived_by", []).append(_("The archiving user is required."))
+        if self.status != VehicleStatus.ARCHIVED and self.archived_at is not None and not getattr(
+            self, "_allow_archive_correction", False
+        ):
+            errors.setdefault("status", []).append(_("Archived vehicles require the audited unarchive action."))
         if errors:
             raise ValidationError(errors)
 

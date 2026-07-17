@@ -3,7 +3,9 @@ from __future__ import annotations
 import shutil
 import tempfile
 from datetime import timedelta
+from io import BytesIO
 
+from PIL import Image as PillowImage
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -21,8 +23,14 @@ from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory, VehicleStatus
 from workflows.models import CheckInProtocol, Loan, LoanStatus, ManufacturerCheckOutProtocol
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
-JPEG_BYTES = b"\xff\xd8\xff" + b"\x00" * 32
+def _image_bytes(image_format):
+    buffer = BytesIO()
+    PillowImage.new("RGB", (16, 16), color="blue").save(buffer, image_format)
+    return buffer.getvalue()
+
+
+PNG_BYTES = _image_bytes("PNG")
+JPEG_BYTES = _image_bytes("JPEG")
 WORKFLOW_MEDIA_ROOT = tempfile.mkdtemp(prefix="fleet-workflow-media-tests-")
 
 
@@ -81,7 +89,8 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "vehicle": str(vehicle.id),
                 "odometer_km": 20,
                 "operating_hours": "2.5",
-                "target_status": VehicleStatus.AVAILABLE,
+                "supplier_company": str(self.manufacturer.id),
+                "condition_outcome": "fit",
             },
             format="json",
         )
@@ -106,6 +115,8 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
                 "odometer_km": 20,
                 "operating_hours": "2.5",
                 "condition_notes": "Visible scratch",
+                "supplier_company": str(self.manufacturer.id),
+                "condition_outcome": "new_damage",
                 "damage_reports": [{"description": "Scratch on door", "severity": "minor"}],
                 "media_file_ids": [media_id],
             },
@@ -190,7 +201,13 @@ class CheckInWorkflowTests(WorkflowAPITestCase):
     def test_check_in_idempotency_key_replays_without_duplicate_protocol(self):
         vehicle = self.vehicle(status_value=VehicleStatus.ANNOUNCED)
         client = self.api_client()
-        payload = {"vehicle": str(vehicle.id), "target_status": VehicleStatus.AVAILABLE}
+        payload = {
+            "vehicle": str(vehicle.id),
+            "supplier_company": str(self.manufacturer.id),
+            "condition_outcome": "fit",
+            "odometer_km": 100,
+            "operating_hours": "10.0",
+        }
 
         first = client.post(
             "/api/v1/workflows/check-ins/",
@@ -404,6 +421,7 @@ class LoanWorkflowTests(WorkflowAPITestCase):
                 "return_operating_hours": "12.0",
                 "return_notes": "Returned with scratch",
                 "damage_reports": [{"description": "New scratch", "severity": "minor"}],
+                "condition_outcome": "new_damage",
             },
             format="json",
         )
@@ -461,7 +479,11 @@ class LoanWorkflowTests(WorkflowAPITestCase):
 
         response = self.api_client().post(
             f"/api/v1/loans/{loan.id}/return/",
-            {},
+            {
+                "condition_outcome": "fit",
+                "return_odometer_km": 100,
+                "return_operating_hours": "10.0",
+            },
             format="json",
         )
 
@@ -576,6 +598,8 @@ class GeneratedReportsTests(WorkflowAPITestCase):
                 "borrower_name": "Searchable Borrower",
                 "borrower_phone": "123",
                 "expected_return_at": (timezone.now() + timedelta(days=1)).isoformat(),
+                "checkout_odometer_km": 100,
+                "checkout_operating_hours": "10.0",
                 "media_file_ids": [
                     self.upload_media(
                         client,
@@ -613,6 +637,7 @@ class ManufacturerCheckoutWorkflowTests(WorkflowAPITestCase):
                 "vehicle": str(vehicle.id),
                 "recipient_company": str(self.manufacturer.id),
                 "odometer_km": 205,
+                "operating_hours": "10.0",
                 "condition_notes": "Returned to supplier",
             },
             format="json",

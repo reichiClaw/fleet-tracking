@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import hashlib
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -14,7 +15,7 @@ from django.utils.translation import gettext as _
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import serializers
 
 from damages.models import DamageReport, DamageWorkflowPhase
@@ -60,6 +61,13 @@ _T = {
         "notes": "Notes",
         "damage_notes": "Damage notes",
         "signature_reference": "Signature reference",
+        "signature_evidence": "Signature evidence",
+        "photo_evidence": "Photo evidence",
+        "content_hash": "SHA-256",
+        "condition_outcome": "Condition outcome",
+        "fit": "Fit for service",
+        "new_damage": "New damage",
+        "maintenance_required": "Maintenance required",
         "no_damage": "No damage notes recorded.",
         "not_available": "Not available",
         "check_in": "Check-in",
@@ -110,6 +118,13 @@ _T = {
         "notes": "Notizen",
         "damage_notes": "Schadensnotizen",
         "signature_reference": "Unterschriftsreferenz",
+        "signature_evidence": "Unterschriftsnachweis",
+        "photo_evidence": "Fotodokumentation",
+        "content_hash": "SHA-256",
+        "condition_outcome": "Zustandsergebnis",
+        "fit": "Einsatzbereit",
+        "new_damage": "Neuer Schaden",
+        "maintenance_required": "Wartung erforderlich",
         "no_damage": "Keine Schadensnotizen erfasst.",
         "not_available": "Nicht verf\u00fcgbar",
         "check_in": "Einchecken / \u00dcbernahme",
@@ -242,6 +257,11 @@ def _generate_document(
         workflow_type=labels[workflow_key],
         snapshot=snapshot,
     )
+    max_pdf_size = int(settings.MAX_PDF_SIZE_MB) * 1024 * 1024
+    if not pdf_bytes.startswith(b"%PDF") or len(pdf_bytes) > max_pdf_size:
+        raise serializers.ValidationError(
+            {"document": _("Generated PDF failed validation or exceeds the configured size limit.")}
+        )
     vehicle_id = snapshot.get("vehicle", {}).get("id")
     from vehicles.models import Vehicle
 
@@ -352,6 +372,16 @@ def _render_pdf(
     story.extend(
         _section(labels["notes"], [(labels["notes"], snapshot.get("notes") or labels["not_available"])], styles)
     )
+    if snapshot.get("condition_outcome"):
+        outcome = snapshot["condition_outcome"]
+        outcome_key = "maintenance_required" if outcome == "maintenance" else outcome
+        story.extend(
+            _section(
+                labels["condition_outcome"],
+                [(labels["condition_outcome"], labels.get(outcome_key, outcome))],
+                styles,
+            )
+        )
     damage_rows = _damage_snapshot_rows(snapshot.get("damages") or [], labels)
     story.extend(_section(labels["damage_notes"], damage_rows, styles))
     signatures = snapshot.get("signatures") or []
@@ -360,6 +390,7 @@ def _render_pdf(
         story.extend(
             _section(labels["signature_reference"], [(labels["signature_reference"], references)], styles)
         )
+    story.extend(_evidence_sections(snapshot=snapshot, labels=labels, styles=styles))
 
     document.build(story)
     return buffer.getvalue()
@@ -413,6 +444,118 @@ def _damage_snapshot_rows(damages: list[dict[str, Any]], labels: dict[str, str])
         )
         for damage in damages
     ]
+
+
+def _evidence_sections(*, snapshot: dict[str, Any], labels: dict[str, str], styles) -> list[Any]:
+    photo_refs: list[tuple[dict[str, Any], str]] = []
+    signature_refs: list[tuple[dict[str, Any], str]] = []
+    seen: set[str] = set()
+
+    def add(items, caption, *, signatures=False):
+        for item in items or []:
+            media_id = str(item.get("id") or "")
+            if not media_id or media_id in seen:
+                continue
+            seen.add(media_id)
+            if item.get("media_type") == MediaType.SIGNATURE or signatures:
+                signature_refs.append((item, caption))
+            elif item.get("media_type") == MediaType.PHOTO:
+                photo_refs.append((item, caption))
+
+    add(snapshot.get("media"), labels["photo_evidence"])
+    add(snapshot.get("signatures"), labels["signature_evidence"], signatures=True)
+    for damage in snapshot.get("damages") or []:
+        add(damage.get("media"), damage.get("description") or labels["damage_notes"])
+
+    flowables: list[Any] = []
+    if photo_refs:
+        cells = []
+        for item, caption in photo_refs:
+            image_bytes = _validated_evidence_image(item, signature=False)
+            image = Image(BytesIO(image_bytes), width=220, height=150, kind="proportional")
+            detail = Paragraph(
+                _p(
+                    f"{caption}\n{item.get('original_filename', '')}\n"
+                    f"{labels['content_hash']}: {item.get('content_sha256', '')}"
+                ),
+                styles["BodyText"],
+            )
+            cells.append([image, detail])
+        table = Table(cells, colWidths=[230, 250], repeatRows=0)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        flowables.extend([Paragraph(_p(labels["photo_evidence"]), styles["Heading2"]), table, Spacer(1, 10)])
+    if signature_refs:
+        flowables.append(Paragraph(_p(labels["signature_evidence"]), styles["Heading2"]))
+        for item, caption in signature_refs:
+            image_bytes = _validated_evidence_image(item, signature=True)
+            flowables.extend(
+                [
+                    Image(BytesIO(image_bytes), width=300, height=100, kind="proportional"),
+                    Paragraph(
+                        _p(
+                            f"{caption}: {item.get('original_filename', '')}\n"
+                            f"{labels['content_hash']}: {item.get('content_sha256', '')}"
+                        ),
+                        styles["BodyText"],
+                    ),
+                    Spacer(1, 8),
+                ]
+            )
+    return flowables
+
+
+def _validated_evidence_image(reference: dict[str, Any], *, signature: bool) -> bytes:
+    """Read an authorized immutable original, verify its hash, and compress it."""
+
+    from PIL import Image as PillowImage
+
+    media = MediaFile.objects.filter(
+        pk=reference.get("id"),
+        media_type=MediaType.SIGNATURE if signature else MediaType.PHOTO,
+        attached_at__isnull=False,
+    ).first()
+    if media is None or not default_storage.exists(media.storage_key):
+        raise serializers.ValidationError({"document": _("Protocol evidence media is missing.")})
+    with default_storage.open(media.storage_key, "rb") as stored:
+        content = stored.read(int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024 + 1)
+    if len(content) > int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024:
+        raise serializers.ValidationError({"document": _("Protocol evidence image exceeds the size limit.")})
+    digest = hashlib.sha256(content).hexdigest()
+    if digest != media.content_sha256 or digest != reference.get("content_sha256"):
+        raise serializers.ValidationError({"document": _("Protocol evidence failed its integrity check.")})
+    try:
+        source = PillowImage.open(BytesIO(content))
+        source.verify()
+        source = PillowImage.open(BytesIO(content))
+        if source.width * source.height > int(settings.MAX_PDF_EVIDENCE_PIXELS):
+            raise serializers.ValidationError(
+                {"document": _("Protocol evidence image dimensions exceed the configured pixel limit.")}
+            )
+        source.thumbnail((1200, 900))
+        if source.mode not in {"RGB", "L"}:
+            background = PillowImage.new("RGB", source.size, "white")
+            if "A" in source.getbands():
+                background.paste(source, mask=source.getchannel("A"))
+            else:
+                background.paste(source.convert("RGB"))
+            source = background
+        elif source.mode == "L":
+            source = source.convert("RGB")
+        output = BytesIO()
+        source.save(output, format="JPEG", quality=72, optimize=True)
+        return output.getvalue()
+    except serializers.ValidationError:
+        raise
+    except Exception as exc:
+        raise serializers.ValidationError({"document": _("Protocol evidence is not a valid image.")}) from exc
 
 
 def _legacy_snapshot(*, document_type: str, record) -> dict[str, Any]:

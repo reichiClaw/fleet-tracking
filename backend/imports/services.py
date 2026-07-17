@@ -23,10 +23,12 @@ from audit.services import audit_event
 from imports.models import ImportJob
 from mediafiles.models import MediaType
 from mediafiles.services import attach_media_files, cleanup_storage_file, create_media_file_from_upload
+from parties.models import Company
 from vehicles.models import Vehicle, VehicleCategory
 
 
 EXPECTED_COLUMNS = [
+    "external_key",
     "internal_number",
     "category",
     "manufacturer",
@@ -55,6 +57,7 @@ FALLBACK_CATEGORY_NAME = "Sonstiges"
 # row errors during validation instead of failing the model's full_clean() at
 # commit time.
 _MAX_FIELD_LENGTHS = {
+    "external_key": 160,
     "internal_number": 80,
     "manufacturer": 120,
     "model": 120,
@@ -70,6 +73,13 @@ _MAX_FIELD_LENGTHS = {
 # the exact internal column keys. Keys are the canonical columns; values are the
 # normalized header variants that map onto them.
 COLUMN_ALIASES: dict[str, set[str]] = {
+    "external_key": {
+        "external_key",
+        "external_id",
+        "source_id",
+        "quell_id",
+        "externe_id",
+    },
     "internal_number": {
         "internal_number",
         "interne_nummer",
@@ -299,11 +309,31 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
             "license_plate",
             "current_odometer_km",
             "current_operating_hours",
+            "external_key",
+            "category_id",
+            "manufacturer",
+            "model",
+            "current_location",
+            "notes",
+        )
+    }
+    vehicle_by_external = {
+        vehicle.external_key: vehicle
+        for vehicle in Vehicle.objects.exclude(external_key__isnull=True)
+        .exclude(external_key="")
+        .select_related("category")
+    }
+    supplier_by_name = {
+        _normalize_lookup(company.name): company
+        for company in Company.objects.filter(
+            is_active=True,
+            company_type__in=[Company.CompanyType.SUPPLIER, Company.CompanyType.MANUFACTURER],
         )
     }
 
     parsed_rows: list[dict[str, Any]] = []
     seen_internal_numbers: dict[str, int] = {}
+    seen_external_keys: dict[str, int] = {}
     seen_serial_numbers: dict[str, int] = {}
     seen_license_plates: dict[str, int] = {}
     row_count = 0
@@ -335,7 +365,40 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
 
         row_count += 1
         normalized_values, errors = _normalize_row(values, category_by_name)
-        action = "update" if normalized_values.get("internal_number") in vehicle_by_internal else "create"
+        external_key = normalized_values.get("external_key")
+        external_vehicle = vehicle_by_external.get(external_key) if external_key else None
+        internal_vehicle = vehicle_by_internal.get(normalized_values.get("internal_number"))
+        if external_vehicle and internal_vehicle and external_vehicle.pk != internal_vehicle.pk:
+            errors.append(
+                _field_error(
+                    "external_key",
+                    "identity_conflict",
+                    _("External key and internal number refer to different vehicles."),
+                )
+            )
+        existing_vehicle = external_vehicle or internal_vehicle
+        action = "update" if existing_vehicle else "create"
+        supplier_name = normalized_values.get("supplier", "")
+        supplier = supplier_by_name.get(_normalize_lookup(supplier_name)) if supplier_name else None
+        supplier_proposal = None
+        if supplier_name:
+            supplier_proposal = (
+                {
+                    "status": "matched",
+                    "company_id": str(supplier.id),
+                    "name": supplier.name,
+                    "company_type": supplier.company_type,
+                }
+                if supplier
+                else {
+                    "status": "create_proposal",
+                    "name": supplier_name,
+                    "allowed_types": [
+                        Company.CompanyType.SUPPLIER,
+                        Company.CompanyType.MANUFACTURER,
+                    ],
+                }
+            )
 
         errors.extend(
             _validate_row_uniqueness(
@@ -345,6 +408,8 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
                 seen_internal_numbers,
                 seen_serial_numbers,
                 seen_license_plates,
+                current_vehicle=existing_vehicle,
+                seen_external_keys=seen_external_keys,
             )
         )
         parsed_rows.append(
@@ -352,6 +417,11 @@ def validate_vehicle_workbook(uploaded_file, mapping: dict[str, Any] | None = No
                 "row_number": row_number,
                 "action": action,
                 "values": _serializable_values(normalized_values),
+                "present_fields": sorted(header_map),
+                "diff": _row_diff(existing_vehicle, normalized_values, set(header_map)),
+                "duplicate_candidates": _duplicate_candidates(normalized_values, existing_vehicle),
+                "supplier_proposal": supplier_proposal,
+                "excluded": False,
                 "errors": errors,
             }
         )
@@ -409,6 +479,54 @@ def revalidate_vehicle_import_job(
 
 
 @transaction.atomic
+def set_import_row_exclusions(
+    *,
+    job: ImportJob,
+    row_numbers: list[int],
+    actor,
+    request_meta: dict[str, str],
+) -> ImportJob:
+    job = ImportJob.objects.select_for_update().get(pk=job.pk)
+    if job.status == ImportJob.Status.COMMITTED:
+        raise ValueError(_("Committed imports cannot be changed."))
+    excluded = set(row_numbers)
+    result = dict(job.result)
+    rows = [dict(row) for row in result.get("rows", [])]
+    known = {int(row["row_number"]) for row in rows}
+    if not excluded.issubset(known):
+        raise ValueError(_("One or more excluded row numbers do not exist in this import."))
+    for row in rows:
+        row["excluded"] = int(row["row_number"]) in excluded
+    result["rows"] = rows
+    active_rows = [row for row in rows if not row.get("excluded")]
+    error_count = sum(len(row.get("errors", [])) for row in active_rows) + len(result.get("errors", []))
+    result["summary"] = {
+        **result.get("summary", {}),
+        "error_count": error_count,
+        "excluded_count": len(excluded),
+        "create_count": sum(
+            1 for row in active_rows if row.get("action") == "create" and not row.get("errors")
+        ),
+        "update_count": sum(
+            1 for row in active_rows if row.get("action") == "update" and not row.get("errors")
+        ),
+    }
+    job.result = result
+    job.error_count = error_count
+    job.status = ImportJob.Status.FAILED if error_count else ImportJob.Status.VALIDATED
+    job.save(update_fields=["result", "error_count", "status", "updated_at"])
+    audit_event(
+        actor=actor,
+        action="import.rows_excluded",
+        entity_type="import_job",
+        entity_id=job.id,
+        after={"excluded_rows": sorted(excluded), "status": job.status},
+        request_meta=request_meta,
+    )
+    return job
+
+
+@transaction.atomic
 def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, str]) -> ImportJob:
     """Create/update vehicles for a previously validated ImportJob."""
     job = ImportJob.objects.select_for_update().get(pk=job.pk)
@@ -424,7 +542,7 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
     committed_rows: list[dict[str, Any]] = []
 
     fallback_category: VehicleCategory | None = None
-    rows = list(job.result.get("rows", []))
+    rows = [row for row in job.result.get("rows", []) if not row.get("excluded")]
     target_numbers = {
         row.get("values", {}).get("internal_number")
         for row in rows
@@ -433,6 +551,15 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
     locked_vehicles = {
         vehicle.internal_number: vehicle
         for vehicle in Vehicle.objects.select_for_update().filter(internal_number__in=target_numbers)
+    }
+    target_external_keys = {
+        row.get("values", {}).get("external_key")
+        for row in rows
+        if row.get("values", {}).get("external_key")
+    }
+    locked_by_external = {
+        vehicle.external_key: vehicle
+        for vehicle in Vehicle.objects.select_for_update().filter(external_key__in=target_external_keys)
     }
     unique_values = {
         field: {
@@ -453,8 +580,47 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
 
     for row in rows:
         values = row["values"]
+        present_fields = set(row.get("present_fields", EXPECTED_COLUMNS))
+        internal_number = values.get("internal_number", "")
+        external_key = values.get("external_key")
+        vehicle = (locked_by_external.get(external_key) if external_key else None) or locked_vehicles.get(
+            internal_number
+        )
+        if row.get("action") == "create" and internal_number and vehicle is not None:
+            raise ValueError(
+                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
+            )
+        if row.get("action") == "update" and vehicle is None:
+            raise ValueError(
+                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
+            )
+        if vehicle is not None and row.get("action") == "update":
+            tracked_fields = {
+                "external_key",
+                "internal_number",
+                "category",
+                "manufacturer",
+                "model",
+                "serial_number",
+                "license_plate",
+                "current_location",
+                "notes",
+            }
+            stale = any(
+                item.get("field") in tracked_fields
+                and str(_vehicle_import_value(vehicle, item["field"]) or "")
+                != str(item.get("old") or "")
+                for item in row.get("diff", [])
+            )
+            if stale:
+                raise ValueError(
+                    _("Row %(row)s changed after validation; validate the import again.")
+                    % {"row": row["row_number"]}
+                )
         category_id = values.get("category_id")
-        if category_id:
+        if vehicle is not None and "category" not in present_fields:
+            category = vehicle.category
+        elif category_id:
             category = VehicleCategory.objects.filter(pk=category_id, is_active=True).first()
             if category is None:
                 raise ValueError(
@@ -488,19 +654,10 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
                         request_meta=request_meta,
                     )
             category = fallback_category
-        internal_number = values.get("internal_number", "")
-        vehicle = locked_vehicles.get(internal_number)
-        if row.get("action") == "create" and internal_number and vehicle is not None:
-            raise ValueError(
-                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
-            )
-        if row.get("action") == "update" and vehicle is None:
-            raise ValueError(
-                _("Row %(row)s changed after validation; validate the import again.") % {"row": row["row_number"]}
-            )
         before = _vehicle_snapshot(vehicle) if vehicle else {}
 
-        import_owned_values = {
+        candidate_values = {
+            "external_key": external_key or None,
             "category": category,
             "manufacturer": values["manufacturer"],
             "model": values["model"],
@@ -509,6 +666,14 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
             "current_location": values.get("current_location", ""),
             "notes": values.get("notes", ""),
         }
+        if vehicle:
+            import_owned_values = {
+                field: value
+                for field, value in candidate_values.items()
+                if (field if field != "category" else "category") in present_fields
+            }
+        else:
+            import_owned_values = candidate_values
         create_values = {
             **import_owned_values,
             "current_odometer_km": values.get("current_odometer_km"),
@@ -537,7 +702,15 @@ def commit_vehicle_import_job(*, job: ImportJob, actor, request_meta: dict[str, 
                 % {"row": row["row_number"], "error": _humanize_save_error(exc)}
             ) from exc
 
-        committed_rows.append({"row_number": row["row_number"], "action": action, "vehicle_id": str(vehicle.id)})
+        committed_rows.append(
+            {
+                "row_number": row["row_number"],
+                "action": action,
+                "vehicle_id": str(vehicle.id),
+                "internal_number": vehicle.internal_number,
+                "external_key": vehicle.external_key,
+            }
+        )
         _create_audit_log(
             actor=actor,
             action=f"import.vehicle.{action}d",
@@ -703,6 +876,7 @@ def _normalize_row(
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
     errors: list[dict[str, str]] = []
     normalized: dict[str, Any] = {
+        "external_key": _clean_text(values["external_key"]),
         "internal_number": _clean_text(values["internal_number"]),
         "category": _clean_text(values["category"]),
         "manufacturer": _clean_text(values["manufacturer"]),
@@ -755,6 +929,8 @@ def _validate_row_uniqueness(
     seen_internal_numbers: dict[str, int],
     seen_serial_numbers: dict[str, int],
     seen_license_plates: dict[str, int],
+    current_vehicle: Vehicle | None = None,
+    seen_external_keys: dict[str, int] | None = None,
 ) -> list[dict[str, str]]:
     errors: list[dict[str, str]] = []
     internal_number = values.get("internal_number", "")
@@ -771,7 +947,18 @@ def _validate_row_uniqueness(
         else:
             seen_internal_numbers[internal_number] = row_number
 
-    vehicle = vehicle_by_internal.get(internal_number)
+    vehicle = current_vehicle or vehicle_by_internal.get(internal_number)
+    errors.extend(
+        _validate_unique_optional_value(
+            field="external_key",
+            value=values.get("external_key", ""),
+            current_vehicle=vehicle,
+            seen_values=seen_external_keys if seen_external_keys is not None else {},
+            row_number=row_number,
+            conflict_message=_("External key already belongs to another vehicle."),
+            duplicate_message=_("Duplicate external_key in import file. First seen on row %(row)s."),
+        )
+    )
     errors.extend(
         _validate_unique_optional_value(
             field="serial_number",
@@ -884,6 +1071,91 @@ def _serializable_values(values: dict[str, Any]) -> dict[str, Any]:
     return {key: (str(value) if isinstance(value, Decimal) else value) for key, value in values.items()}
 
 
+def _row_diff(vehicle: Vehicle | None, values: dict[str, Any], present_fields: set[str]) -> list[dict[str, Any]]:
+    if vehicle is None:
+        new_values = dict(values)
+        new_values["category"] = values.get("category_id") or FALLBACK_CATEGORY_NAME
+        return [
+            {
+                "field": field,
+                "old": None,
+                "new": new_values.get(field),
+                "changed": new_values.get(field) not in {"", None},
+                "explicit_clear": False,
+            }
+            for field in EXPECTED_COLUMNS
+            if field in present_fields
+        ]
+    old_values = {
+        "external_key": vehicle.external_key,
+        "internal_number": vehicle.internal_number,
+        "category": str(vehicle.category_id),
+        "manufacturer": vehicle.manufacturer,
+        "model": vehicle.model,
+        "serial_number": vehicle.serial_number,
+        "license_plate": vehicle.license_plate,
+        "current_odometer_km": vehicle.current_odometer_km,
+        "current_operating_hours": (
+            str(vehicle.current_operating_hours) if vehicle.current_operating_hours is not None else None
+        ),
+        "current_location": vehicle.current_location,
+        "notes": vehicle.notes,
+    }
+    new_values = dict(values)
+    new_values["category"] = values.get("category_id") or FALLBACK_CATEGORY_NAME
+    return [
+        {
+            "field": field,
+            "old": old_values.get(field),
+            "new": new_values.get(field),
+            "changed": str(old_values.get(field) or "") != str(new_values.get(field) or ""),
+            "explicit_clear": new_values.get(field) in {"", None} and old_values.get(field) not in {"", None},
+        }
+        for field in EXPECTED_COLUMNS
+        if field in present_fields
+    ]
+
+
+def _duplicate_candidates(values: dict[str, Any], current_vehicle: Vehicle | None) -> list[dict[str, Any]]:
+    query = models.Q()
+    reasons = {}
+    for field in ("external_key", "internal_number", "serial_number", "license_plate"):
+        value = values.get(field)
+        if value:
+            query |= models.Q(**{field: value})
+            reasons[field] = value
+    if values.get("manufacturer") and values.get("model"):
+        query |= models.Q(
+            manufacturer__iexact=values["manufacturer"],
+            model__iexact=values["model"],
+        )
+    if not query:
+        return []
+    queryset = Vehicle.objects.filter(query)
+    if current_vehicle:
+        queryset = queryset.exclude(pk=current_vehicle.pk)
+    candidates = []
+    for vehicle in queryset[:10]:
+        matched = [
+            field
+            for field, value in reasons.items()
+            if str(getattr(vehicle, field) or "").casefold() == str(value).casefold()
+        ]
+        if (
+            vehicle.manufacturer.casefold() == values.get("manufacturer", "").casefold()
+            and vehicle.model.casefold() == values.get("model", "").casefold()
+        ):
+            matched.append("manufacturer_model")
+        candidates.append(
+            {
+                "vehicle_id": str(vehicle.id),
+                "internal_number": vehicle.internal_number,
+                "matched_fields": matched,
+            }
+        )
+    return candidates
+
+
 def _humanize_save_error(exc: Exception) -> str:
     """Turn a model/database save error into a readable, field-aware message."""
     if isinstance(exc, DjangoValidationError):
@@ -909,6 +1181,7 @@ def _vehicle_snapshot(vehicle: Vehicle | None) -> dict[str, Any]:
         return {}
     return {
         "id": str(vehicle.id),
+        "external_key": vehicle.external_key,
         "internal_number": vehicle.internal_number,
         "category": str(vehicle.category_id),
         "manufacturer": vehicle.manufacturer,
@@ -923,6 +1196,12 @@ def _vehicle_snapshot(vehicle: Vehicle | None) -> dict[str, Any]:
         "current_location": vehicle.current_location,
         "notes": vehicle.notes,
     }
+
+
+def _vehicle_import_value(vehicle: Vehicle, field: str):
+    if field == "category":
+        return str(vehicle.category_id)
+    return getattr(vehicle, field)
 
 
 def _create_audit_log(

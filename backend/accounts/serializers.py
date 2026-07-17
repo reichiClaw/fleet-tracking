@@ -24,11 +24,12 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "is_staff",
             "is_superuser",
+            "must_change_password",
             "last_login",
             "date_joined",
             "password",
         ]
-        read_only_fields = ["id", "is_staff", "is_superuser", "last_login", "date_joined"]
+        read_only_fields = ["id", "is_staff", "is_superuser", "must_change_password", "last_login", "date_joined"]
 
     def validate(self, attrs):
         forbidden = {"is_staff", "is_superuser"}.intersection(self.initial_data)
@@ -64,6 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         if password:
             user.set_password(password)
+            user.must_change_password = True
         else:
             user.set_unusable_password()
         user.save()
@@ -78,10 +80,34 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CurrentUserSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
+    effective_role = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "full_name", "display_name", "role", "is_active"]
+        fields = [
+            "id",
+            "username",
+            "email",
+            "full_name",
+            "display_name",
+            "role",
+            "effective_role",
+            "capabilities",
+            "must_change_password",
+            "is_active",
+        ]
+
+    def get_effective_role(self, obj):
+        return User.Role.ADMIN if obj.is_admin_role else obj.role
+
+    def get_capabilities(self, obj):
+        return {
+            "is_app_admin": obj.is_admin_role,
+            "can_operate_workflows": obj.is_operations_role,
+            "can_manage_users": obj.is_admin_role,
+            "can_view_audit_log": obj.is_admin_role,
+        }
 
 
 class LoginSerializer(serializers.Serializer):
