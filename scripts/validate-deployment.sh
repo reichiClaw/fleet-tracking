@@ -131,6 +131,17 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as source:
     config = json.load(source)
 services = config["services"]
+
+
+def command_text(service):
+    command = service.get("command")
+    if not command:
+        return ""
+    if isinstance(command, str):
+        return command
+    return " ".join(command)
+
+
 if services["nginx"].get("ports"):
     raise SystemExit("production Nginx must not publish host ports")
 published = {
@@ -142,9 +153,9 @@ if not {("80", 80), ("443", 443)}.issubset(published):
 for name, service in services.items():
     if "env_file" in service:
         raise SystemExit(f"{name} contains env_file after merge")
-    if name != "release" and "manage.py migrate" in " ".join(service.get("command", [])):
+    if name != "release" and "manage.py migrate" in command_text(service):
         raise SystemExit(f"{name} unexpectedly runs migrations")
-if "manage.py migrate" not in " ".join(services["release"]["command"]):
+if "manage.py migrate" not in command_text(services["release"]):
     raise SystemExit("release service does not run migrations")
 if services["db"]["networks"].keys() != {"db"}:
     raise SystemExit("database must attach only to the db network")
