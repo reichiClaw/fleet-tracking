@@ -9,6 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -91,7 +92,10 @@ def create_media_file_from_upload(
     if media_type in {MediaType.PHOTO, MediaType.SIGNATURE}:
         # Serialize staged quota checks per uploader. Without a stable row lock,
         # concurrent uploads could all observe the same pre-upload count.
-        type(actor).objects.select_for_update().only("pk").get(pk=actor.pk)
+        # ``request.user`` is a SimpleLazyObject for real session-authenticated
+        # requests. Lock the configured user model instead of deriving a model
+        # from the proxy object's runtime type.
+        get_user_model().objects.select_for_update().only("pk").get(pk=actor.pk)
         _enforce_staged_quota(actor=actor, incoming_size=size_bytes)
     content_sha256 = _upload_sha256(uploaded_file)
     try:

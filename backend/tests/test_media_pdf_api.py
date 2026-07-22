@@ -99,6 +99,22 @@ class MediaUploadAPITests(TestCase):
         self.assertEqual(download_response["Content-Type"], "image/png")
         self.assertEqual(b"".join(download_response.streaming_content), PNG_BYTES)
 
+    def test_session_authenticated_user_can_upload_photo(self):
+        client = APIClient()
+        self.assertTrue(client.login(username="ops", password="secret"))
+
+        response = client.post(
+            "/api/v1/media/",
+            {
+                "file": SimpleUploadedFile("session-photo.png", PNG_BYTES, content_type="image/png"),
+                "media_type": MediaType.PHOTO,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(MediaFile.objects.get(pk=response.data["id"]).uploaded_by, self.operations_user)
+
     def test_upload_rejects_direct_association_and_client_pdf(self):
         direct = self.client_for(self.operations_user).post(
             "/api/v1/media/",
