@@ -44,7 +44,10 @@ type FieldErrors = Record<string, string>;
 
 function localInput(value?: string) {
   const date = value ? new Date(value) : new Date();
-  if (!value) date.setDate(date.getDate() + 1);
+  if (!value) {
+    date.setDate(date.getDate() + 1);
+    date.setHours(8, 0, 0, 0);
+  }
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().slice(0, 16);
 }
