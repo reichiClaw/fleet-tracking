@@ -1330,23 +1330,35 @@ tbody tr:hover td {
   gap: 1rem;
 }
 
-/* Denser label tiling for bulk printing on label sheets/printers. */
-.qr-label-grid--compact {
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.6rem;
+.qr-label-grid--roll {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
-.qr-label-grid--compact .qr-label {
+.qr-label-grid--roll .qr-label {
+  width: var(--qr-label-width, 62mm);
+  min-height: var(--qr-label-height, 29mm);
+  max-width: 100%;
+  gap: 0.25rem;
+  padding: 0.4rem;
+}
+
+.qr-label-grid--sheet {
+  grid-template-columns: repeat(auto-fill, minmax(45mm, 1fr));
+}
+
+.qr-custom-size {
+  display: flex;
   gap: 0.5rem;
-  padding: 0.6rem;
 }
 
-.qr-label-grid--compact .qr-card {
-  padding: 0.5rem;
+.qr-custom-size input {
+  width: 7rem;
 }
 
-.qr-label-grid--compact .qr-card img {
-  width: min(100%, 8rem);
+.qr-printer-hint {
+  margin-top: 0.75rem;
 }
 
 .qr-label {
@@ -1382,6 +1394,59 @@ tbody tr:hover td {
   font-size: 0.75rem;
 }
 
+.qr-card__plain-value {
+  color: var(--text) !important;
+  font-size: 0.9rem !important;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.qr-card__encoded-value {
+  font-size: 0.65rem !important;
+  line-height: 1.15;
+}
+
+.qr-label__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.2rem 0.5rem;
+  text-align: center;
+}
+
+.qr-label__identity h3,
+.qr-label__identity span {
+  margin: 0;
+}
+
+.qr-label-grid--roll .qr-card {
+  gap: 0.15rem;
+  border: 0;
+  padding: 0;
+  background: #ffffff;
+}
+
+.qr-label-grid--roll .qr-card img {
+  width: min(55%, calc(var(--qr-label-height, 29mm) * 0.52));
+}
+
+.qr-label-grid--roll .qr-label__identity h3 {
+  font-size: 0.8rem;
+}
+
+.qr-label-grid--roll .qr-label__identity span {
+  font-size: 0.65rem;
+}
+
+.qr-label-grid--roll .qr-card__plain-value {
+  font-size: 0.72rem !important;
+}
+
+.qr-label-grid--roll .qr-card__encoded-value {
+  font-size: 0.42rem !important;
+}
+
 @media (min-width: 720px) {
   .qr-card-grid {
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
@@ -1411,16 +1476,38 @@ tbody tr:hover td {
     display: block;
   }
 
-  /* Tile labels densely across the page so a print run yields many labels. */
-  .qr-label-grid {
+  .qr-label-grid--sheet {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(45mm, 1fr));
     gap: 5mm;
   }
 
-  .qr-label-grid--compact {
-    grid-template-columns: repeat(auto-fill, minmax(32mm, 1fr));
-    gap: 3mm;
+  .qr-label-grid--roll {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+
+  .qr-label-grid--roll .qr-label {
+    box-sizing: border-box;
+    width: var(--qr-label-width, 62mm);
+    height: var(--qr-label-height, 29mm);
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .qr-label-grid--roll .qr-label:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .qr-print-page--roll,
+  .qr-print-page--roll .print-scope {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .content-panel,

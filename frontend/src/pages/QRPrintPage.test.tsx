@@ -65,7 +65,51 @@ describe('QRPrintPage', () => {
 
     expect(screen.getByText('2 selected')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: /FZ-0000[12]/ })).toHaveLength(2);
+    expect(screen.getByText('VH-ONE')).toBeInTheDocument();
+    expect(screen.getByText('VH-TWO')).toBeInTheDocument();
+    expect(screen.getByText('https://fleet.example/v/VH-ONE')).toBeInTheDocument();
+    expect(document.querySelector('style[media="print"]')?.textContent).toContain('62mm 29mm');
     fireEvent.click(screen.getByRole('button', { name: 'Print selected' }));
     await waitFor(() => expect(print).toHaveBeenCalledOnce());
+  });
+
+  it('supports common label-printer presets and custom millimetre dimensions', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/vehicle-categories/')) return jsonResponse([]);
+      if (url.includes('/vehicles/qr-bulk/')) {
+        return jsonResponse({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{
+            id: 'vehicle-1',
+            qr_code: 'VH-ONE',
+            internal_number: 'FZ-00001',
+            license_plate: 'M-A 1',
+            status: 'available',
+            label: 'FZ-00001 · Acme · Lift',
+            public_url: 'https://fleet.example/v/VH-ONE',
+          }],
+        });
+      }
+      return jsonResponse([]);
+    }));
+
+    render(
+      <MemoryRouter>
+        <QRPrintPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'QR bulk management' });
+    const sizeSelect = screen.getByLabelText('Printer label size');
+    fireEvent.change(sizeSelect, { target: { value: '100x50' } });
+    expect(document.querySelector('style[media="print"]')?.textContent).toContain('100mm 50mm');
+
+    fireEvent.change(sizeSelect, { target: { value: 'custom' } });
+    fireEvent.change(screen.getByLabelText('Width (mm)'), { target: { value: '70' } });
+    fireEvent.change(screen.getByLabelText('Height (mm)'), { target: { value: '35' } });
+    expect(document.querySelector('style[media="print"]')?.textContent).toContain('70mm 35mm');
   });
 });

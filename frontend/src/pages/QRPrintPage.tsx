@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type CSSProperties, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -20,6 +20,27 @@ import { QRCodeCard } from '../components/QRCodeCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { publicVehiclePath } from './QRAccessPage';
 
+type LabelPreset =
+  | '62x29'
+  | '54x25'
+  | '50x30'
+  | '40x30'
+  | '100x50'
+  | 'custom'
+  | 'a4-sheet'
+  | 'letter-sheet';
+
+const LABEL_PRESETS: Record<Exclude<LabelPreset, 'custom' | 'a4-sheet' | 'letter-sheet'>, {
+  width: number;
+  height: number;
+}> = {
+  '62x29': { width: 62, height: 29 },
+  '54x25': { width: 54, height: 25 },
+  '50x30': { width: 50, height: 30 },
+  '40x30': { width: 40, height: 30 },
+  '100x50': { width: 100, height: 50 },
+};
+
 export function QRPrintPage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
@@ -34,8 +55,9 @@ export function QRPrintPage() {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [labelFormat, setLabelFormat] = useState<'standard' | 'compact'>('standard');
-  const [paperSize, setPaperSize] = useState<'a4' | 'letter'>('a4');
+  const [labelPreset, setLabelPreset] = useState<LabelPreset>('62x29');
+  const [customWidth, setCustomWidth] = useState(62);
+  const [customHeight, setCustomHeight] = useState(29);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,9 +142,30 @@ export function QRPrintPage() {
 
   const selectedRows = [...selected.values()];
   const currentPageSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
+  const isSheet = labelPreset === 'a4-sheet' || labelPreset === 'letter-sheet';
+  const labelDimensions = useMemo(() => {
+    if (labelPreset === 'custom') {
+      return {
+        width: Math.min(200, Math.max(20, customWidth || 20)),
+        height: Math.min(150, Math.max(20, customHeight || 20)),
+      };
+    }
+    if (isSheet) return null;
+    return LABEL_PRESETS[labelPreset];
+  }, [customHeight, customWidth, isSheet, labelPreset]);
+  const printPageRule = isSheet
+    ? `@page { size: ${labelPreset === 'letter-sheet' ? 'letter' : 'A4'}; margin: 8mm; }`
+    : `@page { size: ${labelDimensions?.width ?? 62}mm ${labelDimensions?.height ?? 29}mm; margin: 0; }`;
+  const printStyle = labelDimensions
+    ? ({
+        '--qr-label-width': `${labelDimensions.width}mm`,
+        '--qr-label-height': `${labelDimensions.height}mm`,
+      } as CSSProperties)
+    : undefined;
 
   return (
-    <section className={`page-stack qr-print-page qr-paper--${paperSize}`}>
+    <section className={`page-stack qr-print-page${isSheet ? ' qr-print-page--sheet' : ' qr-print-page--roll'}`}>
+      <style media="print">{printPageRule}</style>
       <div className="print-hidden">
         <PageHeader
           eyebrow={t('qr.bulk.eyebrow')}
@@ -150,17 +193,33 @@ export function QRPrintPage() {
             <span>{t('qr.bulk.selectPage')}</span>
           </label>
           <strong>{t('qr.bulk.selectedCount', { count: selected.size })}</strong>
-          <label><span>{t('qr.bulk.labelFormat')}</span><select value={labelFormat} onChange={(event) => setLabelFormat(event.target.value as 'standard' | 'compact')}>
-            <option value="standard">{t('qr.bulk.formats.standard')}</option>
-            <option value="compact">{t('qr.bulk.formats.compact')}</option>
+          <label><span>{t('qr.bulk.labelSize')}</span><select value={labelPreset} onChange={(event) => setLabelPreset(event.target.value as LabelPreset)}>
+            <option value="62x29">{t('qr.bulk.sizes.62x29')}</option>
+            <option value="54x25">{t('qr.bulk.sizes.54x25')}</option>
+            <option value="50x30">{t('qr.bulk.sizes.50x30')}</option>
+            <option value="40x30">{t('qr.bulk.sizes.40x30')}</option>
+            <option value="100x50">{t('qr.bulk.sizes.100x50')}</option>
+            <option value="custom">{t('qr.bulk.sizes.custom')}</option>
+            <option value="a4-sheet">{t('qr.bulk.sizes.a4')}</option>
+            <option value="letter-sheet">{t('qr.bulk.sizes.letter')}</option>
           </select></label>
-          <label><span>{t('qr.bulk.paperSize')}</span><select value={paperSize} onChange={(event) => setPaperSize(event.target.value as 'a4' | 'letter')}>
-            <option value="a4">A4</option><option value="letter">Letter</option>
-          </select></label>
+          {labelPreset === 'custom' ? (
+            <div className="qr-custom-size">
+              <label>
+                <span>{t('qr.bulk.customWidth')}</span>
+                <input type="number" min="20" max="200" value={customWidth} onChange={(event) => setCustomWidth(Number(event.target.value))} />
+              </label>
+              <label>
+                <span>{t('qr.bulk.customHeight')}</span>
+                <input type="number" min="20" max="150" value={customHeight} onChange={(event) => setCustomHeight(Number(event.target.value))} />
+              </label>
+            </div>
+          ) : null}
           <button type="button" disabled={!selected.size} onClick={() => window.print()}>{t('qr.bulk.printSelected')}</button>
           <button type="button" className="secondary-button" disabled={!selected.size} onClick={exportSelected}>{t('qr.bulk.exportSelected')}</button>
           <button type="button" className="secondary-button" disabled={!selected.size} onClick={() => setSelected(new Map())}>{t('qr.bulk.clearSelection')}</button>
         </section>
+        <p className="info-panel qr-printer-hint">{t('qr.bulk.printerHint')}</p>
       </div>
 
       {loading ? <LoadingState variant="skeleton" rows={4} /> : null}
@@ -188,11 +247,24 @@ export function QRPrintPage() {
       {!loading && !error && !rows.length ? <EmptyState title={t('vehicles.empty.title')} description={t('qr.bulk.empty')} /> : null}
 
       {selectedRows.length ? (
-        <div className={`qr-label-grid print-scope${labelFormat === 'compact' ? ' qr-label-grid--compact' : ''}`} aria-label={t('qr.bulk.preview')}>
+        <div
+          className={`qr-label-grid print-scope${isSheet ? ' qr-label-grid--sheet' : ' qr-label-grid--roll'}`}
+          style={printStyle}
+          aria-label={t('qr.bulk.preview')}
+        >
           {selectedRows.map((row) => (
             <article className="qr-label" key={row.id}>
-              <div className="card-title-row"><h3>{row.label}</h3><StatusBadge status={row.status} /></div>
-              <QRCodeCard title={t('qr.shortcuts.cardTitle')} description={row.license_plate || t('qr.shortcuts.description')} value={row.public_url} />
+              <div className="qr-label__identity">
+                <h3>{row.internal_number}</h3>
+                <span>{row.license_plate || row.label}</span>
+                {isSheet ? <StatusBadge status={row.status} /> : null}
+              </div>
+              <QRCodeCard
+                title={row.label}
+                value={row.public_url}
+                humanReadableValue={row.qr_code}
+                showHeader={false}
+              />
             </article>
           ))}
         </div>

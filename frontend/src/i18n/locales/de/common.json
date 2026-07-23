@@ -1270,8 +1270,20 @@
       "includeInactive": "Fahrzeuge beim Hersteller und im Archiv einschließen",
       "selectPage": "Diese Seite auswählen",
       "selectedCount": "{{count}} ausgewählt",
-      "labelFormat": "Etikettenformat",
-      "paperSize": "Seitengröße",
+      "labelSize": "Etikettengröße des Druckers",
+      "customWidth": "Breite (mm)",
+      "customHeight": "Höhe (mm)",
+      "printerHint": "Etikettendrucker: Wählen Sie die exakte Rollengröße und drucken Sie mit 100 % Skalierung, ohne Ränder sowie ohne Kopf- und Fußzeilen. Jedes ausgewählte Fahrzeug wird auf einem eigenen Etikett gedruckt.",
+      "sizes": {
+        "62x29": "62 × 29 mm — Brother/Dymo",
+        "54x25": "54 × 25 mm — Dymo",
+        "50x30": "50 × 30 mm — Zebra/Universal",
+        "40x30": "40 × 30 mm — kompakt",
+        "100x50": "100 × 50 mm — groß",
+        "custom": "Benutzerdefinierte Etikettengröße",
+        "a4": "A4-Etikettenbogen",
+        "letter": "Letter-Etikettenbogen"
+      },
       "formats": {
         "standard": "Standard",
         "compact": "Kompakt"

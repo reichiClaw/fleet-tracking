@@ -1270,8 +1270,20 @@
       "includeInactive": "Include at-manufacturer and archived vehicles",
       "selectPage": "Select this page",
       "selectedCount": "{{count}} selected",
-      "labelFormat": "Label format",
-      "paperSize": "Page size",
+      "labelSize": "Printer label size",
+      "customWidth": "Width (mm)",
+      "customHeight": "Height (mm)",
+      "printerHint": "Label printer: choose the exact roll size, then print at 100% scale with margins and browser headers/footers disabled. Each selected vehicle prints on its own label.",
+      "sizes": {
+        "62x29": "62 × 29 mm — Brother/Dymo",
+        "54x25": "54 × 25 mm — Dymo",
+        "50x30": "50 × 30 mm — Zebra/universal",
+        "40x30": "40 × 30 mm — compact",
+        "100x50": "100 × 50 mm — large",
+        "custom": "Custom label size",
+        "a4": "A4 label sheet",
+        "letter": "Letter label sheet"
+      },
       "formats": {
         "standard": "Standard",
         "compact": "Compact"
