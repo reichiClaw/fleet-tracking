@@ -169,6 +169,23 @@ cd frontend && npm install && npm run dev
 See `frontend/README.md` for frontend configuration (`DEV_BACKEND_URL`,
 `VITE_API_BASE_URL`).
 
+### Browser usability smoke
+
+With Django and Vite already running on the same origin, run the dependency-free
+Chrome/CDP smoke:
+
+```bash
+node scripts/usability-smoke.mjs
+```
+
+It checks ordered operator, workflow, reliability, admin, responsive, keyboard,
+localization, and role-specific journeys and prints timing/control observations
+as JSON. The default URL is `http://127.0.0.1:5173`; override it and the demo
+credentials with `USABILITY_APP_URL`, `USABILITY_USERNAME`,
+`USABILITY_PASSWORD`, `USABILITY_OPERATIONS_USERNAME`, and
+`USABILITY_READONLY_USERNAME`. Use a disposable seeded database because opening
+workflow pages exercises draft autosave.
+
 ## MVP definition
 
 The MVP is complete when:

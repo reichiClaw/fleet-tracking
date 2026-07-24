@@ -368,6 +368,11 @@ export function DashboardPage() {
                     <span className="status-badge status-badge--damaged">
                       {t('dashboard.overdue.due', { date: shortDateFormatter.format(new Date(loan.expected_return_at)) })}
                     </span>
+                    {canRunWorkflows ? (
+                      <Link className="button-link secondary-button" to={`/app/workflows/loan-return?loan=${loan.id}`}>
+                        {t('tasks.groups.overdue_returns.action')}
+                      </Link>
+                    ) : null}
                   </li>
                 ))}
               </ul>

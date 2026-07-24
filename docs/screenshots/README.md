@@ -1,8 +1,7 @@
 # App Screenshots
 
-These screenshots were captured on 17 July 2026 from the actual app in the
-final UX/QA commit (based on backend `874d6f8`, operator `8be577a`, and admin
-`3d51feb`) with:
+These screenshots were refreshed on 24 July 2026 from the actual app during the
+usability pass based on `54085cb`, with:
 
 - Django's local server and the Vite same-origin development proxy;
 - a fresh temporary SQLite database populated by `python manage.py

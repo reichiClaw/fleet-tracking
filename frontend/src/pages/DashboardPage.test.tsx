@@ -130,6 +130,12 @@ describe('DashboardPage', () => {
       'href',
       '/app/workflows/loan-checkout?vehicle=veh-9&reservation=res-1&company=comp-1',
     );
+
+    // Overdue attention is directly actionable instead of being a status-only row.
+    expect(
+      screen.getAllByRole('link', { name: 'Fahrzeug zurückgeben' })
+        .find((link) => link.getAttribute('href')?.includes('loan=ovd-1')),
+    ).toHaveAttribute('href', '/app/workflows/loan-return?loan=ovd-1');
   });
 
   it('shows a friendly empty state when there are no vehicles', async () => {
