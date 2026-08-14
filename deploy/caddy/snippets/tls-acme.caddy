@@ -1,0 +1,3 @@
+# Public ACME (Let's Encrypt, then ZeroSSL). The site address must be a
+# publicly resolvable hostname and ports 80/443 must reach this container.
+tls {$TLS_EMAIL}

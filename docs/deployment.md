@@ -87,7 +87,10 @@ metacharacters.
 
 At minimum, set:
 
-- `TLS_DOMAIN` and `TLS_EMAIL`; public DNS must resolve to the VM.
+- `TLS_DOMAIN` as a hostname only (`fleet.example.com`, never `https://...`).
+- `TLS_EMAIL` as a real mailbox for ACME notices.
+- `TLS_MODE=acme` (default) when public DNS points at the VM; `internal` for
+  LAN/Proxmox names; `file` when you mount your own PEM certificate.
 - `DJANGO_ALLOWED_HOSTS` containing exactly the served host names.
 - `DJANGO_CSRF_TRUSTED_ORIGINS=https://<TLS_DOMAIN>`.
 - `PUBLIC_BASE_URL=https://<TLS_DOMAIN>`.
@@ -146,9 +149,41 @@ the schema remains backward compatible; otherwise use the pre-update restore.
 
 ## TLS, proxy trust, and edge controls
 
-Caddy obtains and renews the certificate and redirects HTTP to HTTPS. Production
-requires ports 80 and 443 from the internet for normal HTTP-01 issuance and user
-traffic. Verify DNS and firewall policy before `prod-up`.
+Caddy terminates TLS and redirects HTTP to HTTPS. Choose the certificate source
+with `TLS_MODE` before `prod-up`:
+
+| `TLS_MODE` | Certificate | When to use |
+|---|---|---|
+| `acme` (default) | Let's Encrypt, then ZeroSSL | Public DNS name; ports 80/443 reachable from the internet |
+| `internal` | Caddy local CA | LAN/Proxmox hostnames (`.lan`, `.local`, `.internal`) or no public DNS |
+| `file` | PEM files from `TLS_CERT_FILE_HOST` and `TLS_KEY_FILE_HOST` | You already have a certificate from another CA |
+
+`TLS_DOMAIN` must be the hostname only. A value such as
+`https://fleet.example.com` is rejected and is a common cause of Caddy serving
+the wrong name or falling back to an untrusted certificate.
+
+For `acme`, verify DNS and firewall policy before `prod-up`. After startup run
+`make prod-tls-status`. If the issuer is `Caddy Local Authority`, HTTP-01 failed
+and browsers will show a certificate error until DNS and ports 80/443 are fixed.
+
+For `internal`, browsers and `curl` do not trust the certificate until the local
+root CA is installed:
+
+```bash
+make prod-ca
+# writes ./caddy-local-root.crt
+sudo trust anchor caddy-local-root.crt   # Fedora/RHEL
+# Debian/Ubuntu: copy to /usr/local/share/ca-certificates/ and run update-ca-certificates
+```
+
+Import the same file into each operator browser or device. This is expected for
+an isolated Proxmox VM; it is not a substitute for a public certificate on the
+internet.
+
+`make monitor-prod` uses that local CA automatically when `TLS_MODE=internal`.
+Caddy's admin API is disabled; the container healthcheck uses a loopback HTTP
+endpoint so wget never follows a redirect onto HTTPS and cannot fail with a
+certificate error.
 
 The forwarding-header trust boundary is explicit:
 
@@ -349,7 +384,9 @@ evidence. Never run a restore drill against production.
 
 `make monitor-prod` checks:
 
-- External HTTPS readiness and certificate validation.
+- External HTTPS readiness and certificate validation. `TLS_MODE=internal`
+  verifies against the Caddy local CA exported from the running container.
+- Public ACME deployments that present Caddy's internal CA fail the check.
 - Certificate remaining lifetime (`CERT_MIN_VALID_DAYS`, default 14).
 - Latest backup age, checksum, and offsite result.
 - Disk usage for `/` and the backup path (`DISK_PATHS`,

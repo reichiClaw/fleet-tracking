@@ -53,6 +53,24 @@ if 'SECURE_SSL_REDIRECT: "True"' not in production_compose:
 caddyfile = Path("deploy/caddy/Caddyfile").read_text()
 if "camera=(self)" not in caddyfile:
     raise SystemExit("production Permissions-Policy must allow the same-origin QR scanner")
+if "admin off" not in caddyfile:
+    raise SystemExit("production Caddy must disable the admin API")
+if "skip_install_trust" not in caddyfile:
+    raise SystemExit("production Caddy must not install its CA into the container trust store")
+if "127.0.0.1:2020" not in caddyfile:
+    raise SystemExit("production Caddy must expose a loopback HTTP health endpoint")
+if "snippets/tls-{$TLS_MODE}.caddy" not in caddyfile:
+    raise SystemExit("production Caddy must select TLS mode through a snippet import")
+for snippet in ("tls-acme.caddy", "tls-internal.caddy", "tls-file.caddy"):
+    if not Path("deploy/caddy/snippets", snippet).is_file():
+        raise SystemExit(f"missing Caddy TLS snippet: {snippet}")
+tls_compose = Path("docker-compose.tls.yml").read_text()
+if "2019" in tls_compose:
+    raise SystemExit("Caddy healthcheck must not use the admin API")
+if "127.0.0.1:2020/healthz" not in tls_compose:
+    raise SystemExit("Caddy healthcheck must use the loopback HTTP endpoint")
+if "TLS_MODE" not in tls_compose:
+    raise SystemExit("production Caddy must receive TLS_MODE")
 
 settings = Path("backend/config/settings.py").read_text()
 configured = set(
@@ -75,6 +93,7 @@ DJANGO_CSRF_TRUSTED_ORIGINS=https://fleet.example.test
 PUBLIC_BASE_URL=https://fleet.example.test
 TLS_DOMAIN=fleet.example.test
 TLS_EMAIL=admin@example.test
+TLS_MODE=acme
 AGE_RECIPIENT=age1ci-validation-recipient
 BACKUP_DIR=/tmp/fleet-backups
 DEFAULT_FROM_EMAIL=fleet@example.test
@@ -108,6 +127,76 @@ EOF
 chmod 600 "$work_dir/insecure-sftp.env"
 if ENV_FILE="$work_dir/insecure-sftp.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
   echo "Production environment validation accepted SFTP without pinned host keys." >&2
+  exit 1
+fi
+
+cp "$work_dir/production.env" "$work_dir/url-domain.env"
+python3 - "$work_dir/url-domain.env" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+lines = []
+for line in path.read_text().splitlines():
+    if line.startswith("TLS_DOMAIN="):
+        line = "TLS_DOMAIN=https://fleet.example.test"
+    lines.append(line)
+path.write_text("\n".join(lines) + "\n")
+PY
+chmod 600 "$work_dir/url-domain.env"
+if ENV_FILE="$work_dir/url-domain.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted a URL as TLS_DOMAIN." >&2
+  exit 1
+fi
+
+cp "$work_dir/production.env" "$work_dir/lan-acme.env"
+python3 - "$work_dir/lan-acme.env" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+replacements = {
+    "TLS_DOMAIN": "fleet.lan",
+    "DJANGO_ALLOWED_HOSTS": "fleet.lan",
+    "DJANGO_CSRF_TRUSTED_ORIGINS": "https://fleet.lan",
+    "PUBLIC_BASE_URL": "https://fleet.lan",
+    "TLS_MODE": "acme",
+}
+lines = []
+for line in path.read_text().splitlines():
+    key = line.split("=", 1)[0]
+    if key in replacements:
+        line = f"{key}={replacements[key]}"
+    lines.append(line)
+path.write_text("\n".join(lines) + "\n")
+PY
+chmod 600 "$work_dir/lan-acme.env"
+if ENV_FILE="$work_dir/lan-acme.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted ACME for a LAN hostname." >&2
+  exit 1
+fi
+
+cp "$work_dir/lan-acme.env" "$work_dir/lan-internal.env"
+printf '\nTLS_MODE=internal\n' >>"$work_dir/lan-internal.env"
+chmod 600 "$work_dir/lan-internal.env"
+ENV_FILE="$work_dir/lan-internal.env" ./scripts/check-production-env.sh >/dev/null
+
+cp "$work_dir/production.env" "$work_dir/bad-email.env"
+python3 - "$work_dir/bad-email.env" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+lines = []
+for line in path.read_text().splitlines():
+    if line.startswith("TLS_EMAIL="):
+        line = "TLS_EMAIL=fleet.example.test"
+    lines.append(line)
+path.write_text("\n".join(lines) + "\n")
+PY
+chmod 600 "$work_dir/bad-email.env"
+if ENV_FILE="$work_dir/bad-email.env" ./scripts/check-production-env.sh >/dev/null 2>&1; then
+  echo "Production environment validation accepted a domain as TLS_EMAIL." >&2
   exit 1
 fi
 
@@ -169,13 +258,23 @@ if config["networks"]["egress"].get("internal"):
     raise SystemExit("backend egress network must permit outbound connectivity")
 PY
 
-docker run --rm \
-  --env TLS_DOMAIN=fleet.example.test \
-  --env TLS_EMAIL=admin@example.test \
-  --env TLS_HSTS=max-age=31536000 \
-  --volume "$ROOT_DIR/deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
-  caddy:2.11.4-alpine \
-  caddy validate --config /etc/caddy/Caddyfile >/dev/null
+openssl req -x509 -newkey rsa:2048 \
+  -keyout "$work_dir/tls-key.pem" \
+  -out "$work_dir/tls-cert.pem" \
+  -days 1 -nodes -subj "/CN=fleet.example.test" >/dev/null 2>&1
+
+for tls_mode in acme internal file; do
+  docker run --rm \
+    --env TLS_DOMAIN=fleet.example.test \
+    --env TLS_EMAIL=admin@example.test \
+    --env TLS_HSTS=max-age=31536000 \
+    --env TLS_MODE="$tls_mode" \
+    --volume "$ROOT_DIR/deploy/caddy:/etc/caddy:ro" \
+    --volume "$work_dir/tls-cert.pem:/certs/fullchain.pem:ro" \
+    --volume "$work_dir/tls-key.pem:/certs/privkey.pem:ro" \
+    caddy:2.11.4-alpine \
+    caddy validate --config /etc/caddy/Caddyfile >/dev/null
+done
 
 docker run --rm \
   --add-host backend:127.0.0.1 \
