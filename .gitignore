@@ -38,3 +38,6 @@ logs/
 backups/
 *.dump
 *.tar.gz
+
+# Exported Caddy local CA (TLS_MODE=internal)
+caddy-local-root.crt

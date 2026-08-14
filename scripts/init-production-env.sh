@@ -48,3 +48,4 @@ PY
 chmod 600 "$TARGET"
 echo "Created $TARGET with generated database and Django secrets."
 echo "Fill the remaining blank domain, TLS, email, and backup recipient values."
+echo "TLS_DOMAIN must be a hostname only (fleet.example.com), not a URL."

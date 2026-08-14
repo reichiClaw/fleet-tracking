@@ -1,0 +1,4 @@
+# Caddy local CA for LAN/Proxmox hosts that cannot complete public ACME.
+# Browsers show a certificate warning until the root CA is trusted.
+# Export it with `make prod-ca`.
+tls internal

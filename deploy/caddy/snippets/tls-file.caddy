@@ -1,0 +1,2 @@
+# Operator-supplied certificate and key, mounted at /certs by Compose.
+tls /certs/fullchain.pem /certs/privkey.pem

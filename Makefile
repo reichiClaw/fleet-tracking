@@ -1,7 +1,8 @@
 .PHONY: help compose-config validate dev-build dev-release up down logs \
 	prod-init-env prod-check prod-config prod-build prod-release prod-up \
 	prod-deploy prod-down prod-logs backup backup-prod backup-status \
-	restore restore-prod rollback-prod monitor-prod cleanup-media-prod python-lock
+	restore restore-prod rollback-prod monitor-prod prod-ca prod-tls-status \
+	cleanup-media-prod python-lock
 
 DEV_ENV_ARG = $(if $(wildcard .env),--env-file .env,)
 DEV_COMPOSE = docker compose $(DEV_ENV_ARG) -f docker-compose.yml
@@ -22,6 +23,8 @@ help:
 	@echo "  make restore-prod BUNDLE=... CONFIRM=YES"
 	@echo "  make rollback-prod STATE=... CONFIRM=YES"
 	@echo "  make monitor-prod        Check HTTPS, certificate, backup, and disks"
+	@echo "  make prod-tls-status     Show the live certificate and Caddy ACME logs"
+	@echo "  make prod-ca             Export the Caddy local CA (TLS_MODE=internal)"
 	@echo "  make cleanup-media-prod  Delete expired unattached media uploads"
 	@echo "  make validate            Run deployment static validation"
 
@@ -100,6 +103,12 @@ rollback-prod: prod-check
 
 monitor-prod: prod-check
 	ENV_FILE="$(PROD_ENV)" DEPLOYMENT_MODE=production ./scripts/monitor-deployment.sh
+
+prod-tls-status: prod-check
+	ENV_FILE="$(PROD_ENV)" DEPLOYMENT_MODE=production ./scripts/tls-status.sh
+
+prod-ca: prod-check
+	ENV_FILE="$(PROD_ENV)" DEPLOYMENT_MODE=production ./scripts/export-caddy-ca.sh
 
 cleanup-media-prod: prod-check
 	$(PROD_COMPOSE) run --rm --no-deps backend python manage.py cleanup_staged_media

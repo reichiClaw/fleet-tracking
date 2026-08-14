@@ -109,13 +109,53 @@ PY
 then
   fail "DATABASE_URL must exactly match POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB on db:5432"
 fi
+TLS_MODE="${TLS_MODE:-acme}"
+case "$TLS_MODE" in
+  acme|internal|file) ;;
+  *) fail "TLS_MODE must be acme, internal, or file" ;;
+esac
+
+if [[ "$TLS_DOMAIN" == *://* ]]; then
+  fail "TLS_DOMAIN must be a hostname, not a URL (use example.com, not https://example.com)"
+fi
+if [[ "$TLS_DOMAIN" == */* || "$TLS_DOMAIN" == *:* || "$TLS_DOMAIN" == *" "* ]]; then
+  fail "TLS_DOMAIN must be a hostname without a scheme, path, port, or spaces"
+fi
+if [[ "$TLS_DOMAIN" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  fail "TLS_DOMAIN cannot be an IPv4 address; use a DNS name"
+fi
+if [[ ! "$TLS_DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$ ]]; then
+  fail "TLS_DOMAIN must be a fully-qualified hostname such as fleet.example.com"
+fi
+if [[ ! "$TLS_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+  fail "TLS_EMAIL must be a valid email address (not a domain name)"
+fi
+
+tls_domain_lc="${TLS_DOMAIN,,}"
+if [ "$TLS_MODE" = acme ]; then
+  case "$tls_domain_lc" in
+    *.local|*.lan|*.internal|*.localhost|*.home.arpa|*.home|*.corp|*.private)
+      fail "TLS_DOMAIN $TLS_DOMAIN cannot use public ACME; set TLS_MODE=internal for LAN/Proxmox names"
+      ;;
+  esac
+fi
+if [ "$TLS_MODE" = file ]; then
+  [ -n "${TLS_CERT_FILE_HOST:-}" ] || fail "TLS_CERT_FILE_HOST is required for TLS_MODE=file"
+  [ -n "${TLS_KEY_FILE_HOST:-}" ] || fail "TLS_KEY_FILE_HOST is required for TLS_MODE=file"
+  [[ "$TLS_CERT_FILE_HOST" == /* ]] || fail "TLS_CERT_FILE_HOST must be an absolute host path"
+  [[ "$TLS_KEY_FILE_HOST" == /* ]] || fail "TLS_KEY_FILE_HOST must be an absolute host path"
+  [ -f "$TLS_CERT_FILE_HOST" ] || fail "TLS_CERT_FILE_HOST must reference a regular file"
+  [ -f "$TLS_KEY_FILE_HOST" ] || fail "TLS_KEY_FILE_HOST must reference a regular file"
+  [ ! -L "$TLS_CERT_FILE_HOST" ] || fail "TLS_CERT_FILE_HOST must not be a symbolic link"
+  [ ! -L "$TLS_KEY_FILE_HOST" ] || fail "TLS_KEY_FILE_HOST must not be a symbolic link"
+fi
+
 [[ "$PUBLIC_BASE_URL" == "https://$TLS_DOMAIN" || "$PUBLIC_BASE_URL" == "https://$TLS_DOMAIN/" ]] ||
   fail "PUBLIC_BASE_URL must be https://TLS_DOMAIN"
 [[ ",$DJANGO_ALLOWED_HOSTS," == *",$TLS_DOMAIN,"* ]] ||
   fail "DJANGO_ALLOWED_HOSTS must include TLS_DOMAIN"
 [[ ",$DJANGO_CSRF_TRUSTED_ORIGINS," == *",https://$TLS_DOMAIN,"* ]] ||
   fail "DJANGO_CSRF_TRUSTED_ORIGINS must include https://TLS_DOMAIN"
-[[ "$TLS_EMAIL" == *@* ]] || fail "TLS_EMAIL must be an email address"
 [[ "$BACKUP_DIR" == /* ]] || fail "BACKUP_DIR must be an absolute host path in production"
 [ -z "${DJANGO_SUPERUSER_PASSWORD:-}" ] ||
   fail "persistent DJANGO_SUPERUSER_PASSWORD is forbidden"

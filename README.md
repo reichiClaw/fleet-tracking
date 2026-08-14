@@ -116,10 +116,18 @@ make prod-config
 make prod-deploy
 ```
 
-Caddy obtains and renews certificates automatically, redirects HTTP to HTTPS,
-and applies edge security headers. Production deployment refuses missing or
-placeholder secrets, insecure cookies, non-HTTPS origins, and an unencrypted
-backup configuration. See the production checklist in `docs/deployment.md`.
+Caddy terminates TLS and redirects HTTP to HTTPS. Set `TLS_DOMAIN` to the
+hostname only (no `https://`) and choose `TLS_MODE`:
+
+- `acme` (default): Let's Encrypt for a public DNS name with ports 80/443 open
+- `internal`: Caddy local CA for LAN/Proxmox names; run `make prod-ca` and trust
+  the exported root certificate to clear browser certificate warnings
+- `file`: your own PEM certificate and key
+
+`make prod-tls-status` shows the live issuer and recent ACME logs. Production
+deployment refuses missing or placeholder secrets, insecure cookies, non-HTTPS
+origins, URL-shaped TLS hostnames, and an unencrypted backup configuration. See
+the production checklist in `docs/deployment.md`.
 
 ### Media storage
 
@@ -150,6 +158,8 @@ make prod-deploy         # build, migrate, and start mandatory-TLS production
 make prod-logs           # follow production logs
 make backup-prod         # encrypted database/media/Caddy-state backup
 make monitor-prod        # HTTPS, certificate, backup-age, and disk checks
+make prod-tls-status     # live certificate issuer and Caddy ACME logs
+make prod-ca             # export the Caddy local CA (TLS_MODE=internal)
 make cleanup-media-prod  # remove expired unattached uploads
 ```
 

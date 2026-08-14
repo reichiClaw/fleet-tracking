@@ -1,8 +1,17 @@
 {
 	email {$TLS_EMAIL}
+	skip_install_trust
+	admin off
+}
+
+http://127.0.0.1:2020 {
+	bind 127.0.0.1
+	respond /healthz 200
 }
 
 {$TLS_DOMAIN} {
+	import snippets/tls-{$TLS_MODE}.caddy
+
 	encode zstd gzip
 
 	request_body {
