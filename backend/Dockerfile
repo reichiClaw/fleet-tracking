@@ -11,8 +11,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip \
-    && python -m pip install -r requirements.txt
+RUN python -m pip install --upgrade pip "setuptools>=78.1.1" \
+    && python -m pip install -r requirements.txt \
+    && python -m pip install --upgrade "msgpack>=1.2.1"
 
 COPY . .
 RUN python manage.py compilemessages

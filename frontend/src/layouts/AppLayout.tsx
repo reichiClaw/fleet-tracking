@@ -162,8 +162,13 @@ export function AppLayout() {
 
   const isSettingsActive = visibleSettings.some((item) => location.pathname.startsWith(item.to));
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
+  const previousPathname = useRef(location.pathname);
 
   useEffect(() => {
+    if (previousPathname.current === location.pathname) {
+      return;
+    }
+    previousPathname.current = location.pathname;
     setIsQuickActionsOpen(false);
     setIsMobileNavOpen(false);
   }, [location.pathname]);
