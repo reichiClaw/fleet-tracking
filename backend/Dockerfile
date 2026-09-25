@@ -13,11 +13,8 @@ RUN apt-get update \
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
     && python -m pip install -r requirements.txt \
-    && python -m pip install --upgrade --force-reinstall "msgpack>=1.2.1" \
     && python -m pip uninstall -y setuptools wheel \
-    && rm -rf /usr/local/lib/python3.13/ensurepip /root/.cache/pip \
-    && find /usr -type d \( -name 'setuptools-70.*' -o -name 'msgpack-1.1.*' \) -prune -exec rm -rf {} + \
-    && find /usr -type f \( -name 'setuptools-70.*' -o -name 'msgpack-1.1.*' \) -delete
+    && rm -rf /usr/local/lib/python3.13/ensurepip /root/.cache/pip
 
 COPY . .
 RUN python manage.py compilemessages

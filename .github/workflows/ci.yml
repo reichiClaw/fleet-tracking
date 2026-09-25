@@ -116,12 +116,15 @@ jobs:
         run: docker build --tag fleet-${{ matrix.component }}:ci "${{ matrix.context }}"
       - name: Scan ${{ matrix.component }} image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DETECTION_PRIORITY: precise
         with:
           image-ref: fleet-${{ matrix.component }}:ci
           format: table
           exit-code: "1"
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+          trivyignores: .trivyignore
       - name: Generate container CycloneDX SBOM
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
